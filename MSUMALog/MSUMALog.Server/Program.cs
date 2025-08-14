@@ -3,6 +3,7 @@ using MSUMALog.Server.Data;
 using MSUMALog.Server.Repositories;
 using MSUMALog.Server.Services;
 using MSUMALog.Server.Mappings;
+using MSUMALog.Server.Mapping;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
+builder.Services.AddAutoMapper(typeof(IncidentReportProfile).Assembly);
 
 // DI
 builder.Services.AddScoped<IIncidentReportRepository, IncidentReportRepository>();

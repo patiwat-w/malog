@@ -214,6 +214,7 @@ export interface components {
             /** Format: int32 */
             id?: number;
             case_no?: string | null;
+            title?: string | null;
             asset?: string | null;
             center?: string | null;
             incident_date?: string | null;

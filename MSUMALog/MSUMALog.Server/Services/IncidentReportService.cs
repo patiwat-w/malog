@@ -6,23 +6,46 @@ using MSUMALog.Server.Repositories;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading;
+using Microsoft.EntityFrameworkCore;
+using MSUMALog.Server.Data;
 
 namespace MSUMALog.Server.Services;
 
-public class IncidentReportService(IIncidentReportRepository repo, IMapper mapper) : IIncidentReportService
+public class IncidentReportService(IIncidentReportRepository repo, IMapper mapper, ApplicationDbContext db) : IIncidentReportService
 {
     private readonly IIncidentReportRepository _repo = repo;
     private readonly IMapper _mapper = mapper;
+    private readonly ApplicationDbContext _db = db;
+
+    private async Task<string> GenerateCaseNoAsync(CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var ym = now.ToString("yyyy-MM");
+        var prefix = ym + "-";
+
+        var last = await _db.IncidentReports
+            .Where(r => r.CaseNo != null && r.CaseNo.StartsWith(prefix))
+            .OrderByDescending(r => r.CaseNo)
+            .Select(r => r.CaseNo!)
+            .FirstOrDefaultAsync(ct);
+
+        int next = 1;
+        if (last is not null)
+        {
+            var parts = last.Split('-');
+            if (parts.Length == 3 && int.TryParse(parts[2], out var seq))
+                next = seq + 1;
+        }
+        return $"{ym}-{next:0000}";
+    }
 
     public async Task<IncidentReportDto> CreateAsync(IncidentReportDto dto, CancellationToken ct = default)
     {
         var entity = _mapper.Map<IncidentReport>(dto);
-        // If CaseNo empty, generate
+
         if (string.IsNullOrWhiteSpace(entity.CaseNo))
-        {
-            var now = DateTime.UtcNow;
-            entity.CaseNo = $"{now:yyyy-MM}-{Random.Shared.Next(1000, 9999)}";
-        }
+            entity.CaseNo = await GenerateCaseNoAsync(ct);
+
         await _repo.AddAsync(entity, ct);
         return _mapper.Map<IncidentReportDto>(entity);
     }

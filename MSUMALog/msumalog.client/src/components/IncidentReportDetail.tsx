@@ -10,8 +10,9 @@ import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import CodeIcon from '@mui/icons-material/Code';
 import ListIcon from '@mui/icons-material/FormatListBulleted';
-import PreviewIcon from '@mui/icons-material/Preview';
 import { getIncidentByCase, updateIncidentFull, type IncidentReportDto } from '../api/client';
+import { getDomainLabel, getSeverityLabel } from '../constants/incidentOptions';
+import TurndownService from 'turndown';
 
 interface Incident extends Omit<IncidentReportDto,
   'additional_info' | 'responsible_name' | 'responsible_lineid' | 'responsible_email' | 'responsible_phone'> {
@@ -42,10 +43,13 @@ const IncidentReportDetail: React.FC = () => {
   const [incident, setIncident] = useState<Incident | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
+  const editorRef = React.useRef<HTMLDivElement | null>(null);
+  const editorHtmlRef = React.useRef<string>(''); // optional: keep latest HTML if needed
+  const savedSelectionRef = React.useRef<Range | null>(null); // NEW: keep last caret/selection
   const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [preview, setPreview] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const turndownRef = React.useRef<TurndownService | null>(null);
 
   useEffect(() => {
     if (!case_no) return;
@@ -83,6 +87,31 @@ const IncidentReportDetail: React.FC = () => {
     })();
   }, [case_no]);
 
+  useEffect(() => {
+    turndownRef.current = new TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced'
+    });
+  }, []);
+
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (editorRef.current && editorRef.current.contains(range.startContainer)) {
+        savedSelectionRef.current = range;
+      }
+    }
+  };
+
+  const restoreSelection = () => {
+    const sel = window.getSelection();
+    if (sel && savedSelectionRef.current) {
+      sel.removeAllRanges();
+      sel.addRange(savedSelectionRef.current);
+    }
+  };
+
   const handleSubmitAction = async () => {
     if (!incident) return;
     const hasComment = newComment.trim().length > 0;
@@ -118,56 +147,53 @@ const IncidentReportDetail: React.FC = () => {
         const newItem: Comment = {
           id: Math.random().toString(36).slice(2),
           author: 'CurrentUser',
-          body: newComment.trim(),
+          body: newComment.trim(), // store markdown
           created_at: new Date().toISOString()
         };
         setComments(prev => [newItem, ...prev]);
         setNewComment('');
+        if (editorRef.current) {
+          editorRef.current.innerHTML = '';
+          editorHtmlRef.current = '';
+        }
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const applyWrap = (wrapper: { prefix: string; suffix?: string }) => {
-    const textarea = document.getElementById('comment-editor') as HTMLTextAreaElement | null;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const before = newComment.substring(0, start);
-    const selected = newComment.substring(start, end);
-    const after = newComment.substring(end);
-    const suffix = wrapper.suffix ?? wrapper.prefix;
-    const next = before + wrapper.prefix + selected + suffix + after;
-    setNewComment(next);
-    setTimeout(() => {
-      textarea.focus();
-      textarea.selectionStart = start + wrapper.prefix.length;
-      textarea.selectionEnd = start + wrapper.prefix.length + selected.length;
-    }, 0);
+  const format = (cmd: string, value?: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus();
+    document.execCommand(cmd, false, value);
+    syncFromEditor();
   };
 
-  const insertAtCursor = (text: string) => {
-    const textarea = document.getElementById('comment-editor') as HTMLTextAreaElement | null;
-    if (!textarea) {
-      setNewComment(prev => prev + text);
-      return;
+  const syncFromEditor = () => {
+    const html = editorRef.current?.innerHTML || '';
+    editorHtmlRef.current = html; // store but do NOT setState causing re-render
+    const td = turndownRef.current;
+    if (td) {
+      const md = td.turndown(html
+        .replace(/<div><br><\/div>/g, '<br>')
+        .replace(/<div>/g, '\n')
+        .replace(/<\/div>/g, ''));
+      setNewComment(md.trim());
     }
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const before = newComment.substring(0, start);
-    const after = newComment.substring(end);
-    const next = before + text + after;
-    setNewComment(next);
-    setTimeout(() => {
-      textarea.focus();
-      textarea.selectionStart = textarea.selectionEnd = start + text.length;
-    }, 0);
   };
 
-  const handlePickImage = () => {
-    fileInputRef.current?.click();
+  const insertHtmlAtCursor = (html: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus();
+    restoreSelection();
+    document.execCommand('insertHTML', false, html);
+    saveSelection();
+    syncFromEditor();
   };
+
+  const handlePickImage = () => fileInputRef.current?.click();
 
   const handleImageChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
     const file = e.target.files?.[0];
@@ -175,7 +201,7 @@ const IncidentReportDetail: React.FC = () => {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
-      insertAtCursor(`\n![image](${dataUrl})\n`);
+      insertHtmlAtCursor(`<img src="${dataUrl}" alt="image" style="max-width:100%;border-radius:4px;" />`);
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -212,9 +238,9 @@ const IncidentReportDetail: React.FC = () => {
       <Typography sx={{ mb: 2 }}>{incident.symptoms}</Typography>
 
       <Stack direction="row" spacing={4} flexWrap="wrap" sx={{ mb: 2 }}>
-        <Box><Typography variant="caption">Severity</Typography><Typography>{incident.severity}</Typography></Box>
+        <Box><Typography variant="caption">Severity</Typography><Typography>{getSeverityLabel(incident.severity)}</Typography></Box>
         <Box><Typography variant="caption">Impact</Typography><Typography>{incident.impact}</Typography></Box>
-        <Box><Typography variant="caption">Domain</Typography><Typography>{incident.domain}</Typography></Box>
+        <Box><Typography variant="caption">Domain</Typography><Typography>{getDomainLabel(incident.domain)}</Typography></Box>
         <Box><Typography variant="caption">Sub-domain</Typography><Typography>{incident.sub_domain}</Typography></Box>
       </Stack>
 
@@ -261,20 +287,21 @@ const IncidentReportDetail: React.FC = () => {
       <Typography variant="h6" sx={{ mb: 2 }}>Comment / Status</Typography>
 
       <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap' }}>
-        <Button size="small" variant="outlined" onClick={() => applyWrap({ prefix: '**' })} startIcon={<FormatBoldIcon />}>Bold</Button>
-        <Button size="small" variant="outlined" onClick={() => applyWrap({ prefix: '_', suffix: '_' })} startIcon={<FormatItalicIcon />}>Italic</Button>
-        <Button size="small" variant="outlined" onClick={() => insertAtCursor('\n- List item\n- List item\n')} startIcon={<ListIcon />}>List</Button>
-        <Button size="small" variant="outlined" onClick={() => applyWrap({ prefix: '`' })} startIcon={<CodeIcon />}>Code</Button>
-        <Button size="small" variant="outlined" onClick={handlePickImage} startIcon={<ImageIcon />}>Image</Button>
+        <Button size="small" variant="outlined" onClick={() => format('bold')} startIcon={<FormatBoldIcon />}>Bold</Button>
+        <Button size="small" variant="outlined" onClick={() => format('italic')} startIcon={<FormatItalicIcon />}>Italic</Button>
         <Button
           size="small"
-          variant={preview ? 'contained' : 'outlined'}
-          color="secondary"
-          onClick={() => setPreview(p => !p)}
-          startIcon={<PreviewIcon />}
+          variant="outlined"
+          onClick={() => format('insertUnorderedList')}   // CHANGED: use native list command
+          startIcon={<ListIcon />}
         >
-          {preview ? 'Editing' : 'Preview'}
+          List
         </Button>
+        {/* Optional: add ordered list
+        <Button size="small" variant="outlined" onClick={() => format('insertOrderedList')}>OL</Button>
+        */}
+       
+        <Button size="small" variant="outlined" onClick={handlePickImage} startIcon={<ImageIcon />}>Image</Button>
         <input
           ref={fileInputRef}
           hidden
@@ -285,36 +312,33 @@ const IncidentReportDetail: React.FC = () => {
       </Stack>
 
       <Box sx={{ mb: 2 }}>
-        {!preview ? (
-          <TextField
-            id="comment-editor"
-            label="Write a comment (Markdown supported)"
-            multiline
-            minRows={5}
-            fullWidth
-            value={newComment}
-            onChange={e => setNewComment(e.target.value)}
-            placeholder="You can use **bold**, _italic_, lists, code, and paste images."
-          />
-        ) : (
-          <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>Preview</Typography>
-            <Box sx={{ mt: 1, fontSize: '.9rem' }}>
-              {newComment.trim() ? (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    img: (props) => <img {...props} style={{ maxWidth: '100%', borderRadius: 4 }} />
-                  }}
-                >
-                  {newComment}
-                </ReactMarkdown>
-              ) : (
-                <Typography variant="body2" color="text.secondary">Nothing to preview.</Typography>
-              )}
-            </Box>
-          </Paper>
-        )}
+        <Box
+          id="comment-editor"
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={() => { syncFromEditor(); saveSelection(); }}
+          onKeyUp={saveSelection}
+          onMouseUp={saveSelection}
+          sx={{
+            minHeight: 140,
+            padding: '12px 14px',
+            border: '1px solid rgba(0,0,0,0.23)',
+            borderRadius: 4,
+            fontFamily: 'inherit',
+            fontSize: '.95rem',
+            outline: 'none',
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'anywhere',
+            background: '#fff',
+            '&:empty:before': {
+              content: 'attr(data-placeholder)',
+              color: 'text.disabled'
+            },
+            '& img': { maxWidth: '100%', borderRadius: 1 }
+          }}
+          data-placeholder="พิมพ์คอมเมนต์ (WYSIWYG จะถูกแปลงเป็น Markdown อัตโนมัติ)"
+        />
       </Box>
 
       <Stack

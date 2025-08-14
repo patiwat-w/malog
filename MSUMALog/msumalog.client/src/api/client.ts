@@ -6,9 +6,15 @@ const http = axios.create({ baseURL: '/api' });
 export type IncidentReportDto = components['schemas']['IncidentReportDto'];
 
 export async function getIncidentReports() {
-  // สมมติ API คืน array ของ IncidentReportDto
-  const res = await http.get<IncidentReportDto[]>('/IncidentReports');
-  return res.data;
+  console.log('[api] GET /IncidentReports start');
+  try {
+    const res = await http.get<IncidentReportDto[]>('/IncidentReports');
+    console.log('[api] GET /IncidentReports status', res.status, 'data', res.data);
+    return res.data;
+  } catch (e) {
+    console.error('[api] GET /IncidentReports error', e);
+    throw e;
+  }
 }
 
 export async function createIncident(body: IncidentReportDto) {

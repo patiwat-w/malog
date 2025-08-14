@@ -35,6 +35,7 @@ public class IncidentReportsController(IIncidentReportService service) : Control
 
     [HttpPost]
     [ProducesResponseType(typeof(IncidentReportDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IncidentReportDto>> Create([FromBody] IncidentReportDto dto, CancellationToken ct = default)
     {
         var created = await _service.CreateAsync(dto, ct);

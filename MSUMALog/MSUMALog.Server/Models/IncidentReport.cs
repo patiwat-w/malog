@@ -6,13 +6,13 @@ public class IncidentReport
 {
     public int Id { get; set; }
 
-    [MaxLength(32)]
+ 
     public string CaseNo { get; set; } = string.Empty;
 
-    [MaxLength(128)]
+   
     public string Asset { get; set; } = string.Empty;
 
-    [MaxLength(128)]
+  
     public string Center { get; set; } = string.Empty;
 
     public DateTime IncidentDate { get; set; }
@@ -21,7 +21,7 @@ public class IncidentReport
     public string Severity { get; set; } = string.Empty;
     public string Impact { get; set; } = string.Empty;
 
-    [MaxLength(8)]
+  
     public string Domain { get; set; } = string.Empty;
 
     public string SubDomain { get; set; } = string.Empty;

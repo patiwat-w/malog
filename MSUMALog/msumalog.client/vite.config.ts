@@ -50,6 +50,16 @@ export default defineConfig({
             '^/weatherforecast': {
                 target,
                 secure: false
+            },
+            // เพิ่ม proxy สำหรับ API ทั้งหมด
+            '^/api': {
+                target,
+                secure: false,
+                changeOrigin: true,
+                // ถ้าต้องการดูว่า proxy ทำงาน ใช้ logLevel: 'debug'
+                // logLevel: 'debug',
+                // ถ้า backend มี path base / ไม่ต้อง rewrite; ถ้ามี /api ซ้ำ ให้ uncomment ด้านล่าง
+                // rewrite: (p) => p.replace(/^\/api/, '/api')
             }
         },
         port: parseInt(env.DEV_SERVER_PORT || '63950'),
