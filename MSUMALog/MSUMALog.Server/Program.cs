@@ -43,11 +43,15 @@ app.MapControllers();
 app.MapFallbackToFile("/index.html");
 
 // Apply migrations + seed
-using (var scope = app.Services.CreateScope())
+if (app.Environment.IsDevelopment())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();          // สร้าง/อัปเดต schema ตาม Migrations
-    SeedData.Initialize(db);        // seed (ปรับโค้ด seed ด้านล่าง)
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        db.Database.Migrate();          // สร้าง/อัปเดต schema ตาม Migrations
+        SeedData.Initialize(db);        // seed (ปรับโค้ด seed ด้านล่าง)
+    }
 }
+
 
 app.Run();

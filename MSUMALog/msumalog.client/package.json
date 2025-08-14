@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
-    "gen:api": "openapi-typescript http://localhost:5293/swagger/v1/swagger.json -o src/api/types.ts"
+    "gen:api": "openapi-typescript http://localhost:5293/swagger/v1/swagger.json -o src/api/types.ts",
+    "postbuild": "xcopy /E /Y /I dist\\* ..\\MSUMALog.Server\\wwwroot\\"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
