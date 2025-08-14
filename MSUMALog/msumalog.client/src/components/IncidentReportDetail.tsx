@@ -568,9 +568,7 @@ const IncidentReportDetail: React.FC = () => {
                 step={5}
                 value={imgWidthPercent}
                 onChange={(e) => applyImageWidth(parseInt(e.target.value))}
-                className="image-width-range"
-                title="Adjust image width"
-                placeholder="Set image width"
+                style={{ width: '100%' }}
               />
             </Box>
             <Box sx={{ display: 'flex', gap: .5, flexWrap: 'wrap' }}>
