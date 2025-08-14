@@ -3,6 +3,14 @@ import { useParams } from 'react-router-dom';
 import {
   Box, Paper, Typography, Chip, Stack, Divider, TextField, Button, MenuItem
 } from '@mui/material';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import ImageIcon from '@mui/icons-material/Image';
+import FormatBoldIcon from '@mui/icons-material/FormatBold';
+import FormatItalicIcon from '@mui/icons-material/FormatItalic';
+import CodeIcon from '@mui/icons-material/Code';
+import ListIcon from '@mui/icons-material/FormatListBulleted';
+import PreviewIcon from '@mui/icons-material/Preview';
 
 interface Incident {
   case_no: string;
@@ -73,6 +81,8 @@ const IncidentReportDetail: React.FC = () => {
   const [newComment, setNewComment] = useState('');
   const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!case_no) return;
@@ -112,6 +122,59 @@ const IncidentReportDetail: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const applyWrap = (wrapper: { prefix: string; suffix?: string }) => {
+    const textarea = document.getElementById('comment-editor') as HTMLTextAreaElement | null;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = newComment.substring(0, start);
+    const selected = newComment.substring(start, end);
+    const after = newComment.substring(end);
+    const suffix = wrapper.suffix ?? wrapper.prefix;
+    const next = before + wrapper.prefix + selected + suffix + after;
+    setNewComment(next);
+    // restore selection roughly
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = start + wrapper.prefix.length;
+      textarea.selectionEnd = start + wrapper.prefix.length + selected.length;
+    }, 0);
+  };
+
+  const insertAtCursor = (text: string) => {
+    const textarea = document.getElementById('comment-editor') as HTMLTextAreaElement | null;
+    if (!textarea) {
+      setNewComment(prev => prev + text);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = newComment.substring(0, start);
+    const after = newComment.substring(end);
+    const next = before + text + after;
+    setNewComment(next);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + text.length;
+    }, 0);
+  };
+
+  const handlePickImage = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      insertAtCursor(`\n![image](${dataUrl})\n`);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const hasComment = newComment.trim().length > 0;
@@ -171,7 +234,16 @@ const IncidentReportDetail: React.FC = () => {
                 {c.created_at}
               </Typography>
             </Typography>
-            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{c.body}</Typography>
+            <Box sx={{ mt: 0.5, fontSize: '.9rem' }}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  img: (props) => <img {...props} style={{ maxWidth: '100%', borderRadius: 4 }} />
+                }}
+              >
+                {c.body}
+              </ReactMarkdown>
+            </Box>
           </Paper>
         ))}
         {comments.length === 0 && (
@@ -183,18 +255,64 @@ const IncidentReportDetail: React.FC = () => {
 
       <Divider sx={{ mb: 3 }} />
 
-      {/* Bottom interaction zone (GitHub-like merged actions) */}
       <Typography variant="h6" sx={{ mb: 2 }}>Comment / Status</Typography>
-      <Box sx={{ mb: 2 }}>
-        <TextField
-          label="Write a comment"
-          multiline
-          minRows={3}
-          fullWidth
-          value={newComment}
-          onChange={e => setNewComment(e.target.value)}
-          placeholder="Add a comment, or leave blank if only updating status."
+
+      {/* Toolbar */}
+      <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap' }}>
+        <Button size="small" variant="outlined" onClick={() => applyWrap({ prefix: '**' })} startIcon={<FormatBoldIcon />}>Bold</Button>
+        <Button size="small" variant="outlined" onClick={() => applyWrap({ prefix: '_', suffix: '_' })} startIcon={<FormatItalicIcon />}>Italic</Button>
+        <Button size="small" variant="outlined" onClick={() => insertAtCursor('\n- List item\n- List item\n')} startIcon={<ListIcon />}>List</Button>
+        <Button size="small" variant="outlined" onClick={() => applyWrap({ prefix: '`' })} startIcon={<CodeIcon />}>Code</Button>
+        <Button size="small" variant="outlined" onClick={handlePickImage} startIcon={<ImageIcon />}>Image</Button>
+        <Button
+          size="small"
+          variant={preview ? 'contained' : 'outlined'}
+          color="secondary"
+          onClick={() => setPreview(p => !p)}
+          startIcon={<PreviewIcon />}
+        >
+          {preview ? 'Editing' : 'Preview'}
+        </Button>
+        <input
+          ref={fileInputRef}
+          hidden
+          type="file"
+          accept="image/*"
+          onChange={handleImageChange}
         />
+      </Stack>
+
+      <Box sx={{ mb: 2 }}>
+        {!preview ? (
+          <TextField
+            id="comment-editor"
+            label="Write a comment (Markdown supported)"
+            multiline
+            minRows={5}
+            fullWidth
+            value={newComment}
+            onChange={e => setNewComment(e.target.value)}
+            placeholder="You can use **bold**, _italic_, lists, code, and paste images."
+          />
+        ) : (
+          <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>Preview</Typography>
+            <Box sx={{ mt: 1, fontSize: '.9rem' }}>
+              {newComment.trim() ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    img: (props) => <img {...props} style={{ maxWidth: '100%', borderRadius: 4 }} />
+                  }}
+                >
+                  {newComment}
+                </ReactMarkdown>
+              ) : (
+                <Typography variant="body2" color="text.secondary">Nothing to preview.</Typography>
+              )}
+            </Box>
+          </Paper>
+        )}
       </Box>
 
       <Stack
@@ -234,17 +352,6 @@ const IncidentReportDetail: React.FC = () => {
           >
             {submitting ? 'Saving...' : actionLabel}
           </Button>
-          {/* <Button
-            variant="outlined"
-            disabled={submitting || (!hasComment && !statusChanged)}
-            onClick={() => {
-              setNewComment('');
-              if (incident) setStatus(incident.status);
-            }}
-            sx={{ minWidth: { xs: '100%', sm: 120 } }}
-          >
-            Reset
-          </Button> */}
         </Box>
       </Stack>
     </Paper>
