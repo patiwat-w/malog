@@ -11,25 +11,11 @@ import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import CodeIcon from '@mui/icons-material/Code';
 import ListIcon from '@mui/icons-material/FormatListBulleted';
 import PreviewIcon from '@mui/icons-material/Preview';
+import { getIncidentByCase, updateIncidentFull, type IncidentReportDto } from '../api/client';
 
-interface Incident {
-  case_no: string;
-  status: string;
-  asset: string;
-  center: string;
-  incident_date: string;
-  symptoms: string;
-  severity: string;
-  impact: string;
-  domain: string;
-  sub_domain: string;
-  vendor: string;
-  manufacturer: string;
-  part_number: string;
-  interim_action: string;
-  intermediate_action: string;
-  long_term_action: string;
-  created_by: string;
+interface Incident extends Omit<IncidentReportDto,
+  'additional_info' | 'responsible_name' | 'responsible_lineid' | 'responsible_email' | 'responsible_phone'> {
+  id: number;
 }
 
 interface Comment {
@@ -39,31 +25,6 @@ interface Comment {
   created_at: string;
   caseNo?: string;
 }
-
-const mockFetchIncident = async (caseNo: string): Promise<Incident> => {
-  // TODO: replace with real fetch(`/api/incidents/${caseNo}`)
-  return new Promise(resolve =>
-    setTimeout(() => resolve({
-      case_no: caseNo,
-      status: 'In Progress',
-      asset: 'รถ MSU-6',
-      center: 'รพร.ปัว',
-      incident_date: '2025-08-10',
-      symptoms: 'คลัชจม ไม่สามารถเปลี่ยนเกียร์ได้ รถขับไม่ได้',
-      severity: 'สูงที่สุด (5)',
-      impact: 'หยุดการให้บริการ',
-      domain: '001',
-      sub_domain: 'ตัวรถและเครื่องยนต์',
-      vendor: 'RMA',
-      manufacturer: 'Mecedenz-Benz',
-      part_number: 'OF-917 version Euro3',
-      interim_action: 'เติมน้ำมันคลัช / ไล่ลม',
-      intermediate_action: 'ตรวจระบบคลัช / ขอใบเสนอราคา',
-      long_term_action: 'วางแผน PM + Training',
-      created_by: 'Pornchai Chanyagorn'
-    }), 300)
-  );
-};
 
 const mockFetchComments = async (caseNo: string): Promise<Comment[]> => {
     // TODO: replace with real fetch(`/api/incidents/${caseNo}/comments`)
@@ -89,11 +50,36 @@ const IncidentReportDetail: React.FC = () => {
   useEffect(() => {
     if (!case_no) return;
     (async () => {
-      const data = await mockFetchIncident(case_no);
-      setIncident(data);
-      setStatus(data.status);
-      const cmt = await mockFetchComments(case_no);
-      setComments(cmt);
+      try {
+        const data = await getIncidentByCase(case_no);
+        if (!data) return;
+        const mapped: Incident = {
+          case_no: data.case_no || '',
+          status: data.status || '',
+          asset: data.asset || '',
+          center: data.center || '',
+          incident_date: data.incident_date || '',
+          symptoms: data.symptoms || '',
+          severity: data.severity || '',
+          impact: data.impact || '',
+          domain: data.domain || '',
+          sub_domain: data.sub_domain || '',
+          vendor: data.vendor || '',
+          manufacturer: data.manufacturer || '',
+          part_number: data.part_number || '',
+          interim_action: data.interim_action || '',
+          intermediate_action: data.intermediate_action || '',
+          long_term_action: data.long_term_action || '',
+          created_by: data.created_by || '',
+          id: data.id ?? 0
+        };
+        setIncident(mapped);
+        setStatus(mapped.status ?? '');
+        const cmt = await mockFetchComments(case_no);
+        setComments(cmt);
+      } catch (e) {
+        console.error(e);
+      }
     })();
   }, [case_no]);
 
@@ -106,12 +92,29 @@ const IncidentReportDetail: React.FC = () => {
     setSubmitting(true);
     try {
       if (statusChanged) {
-        // TODO: PATCH /api/incidents/{case_no} { status }
-        console.log('PATCH status =>', status);
+        await updateIncidentFull({
+          id: incident.id,
+          case_no: incident.case_no,
+          status,
+          asset: incident.asset,
+          center: incident.center,
+          incident_date: incident.incident_date,
+          symptoms: incident.symptoms,
+          severity: incident.severity,
+          impact: incident.impact,
+          domain: incident.domain,
+          sub_domain: incident.sub_domain,
+          vendor: incident.vendor,
+          manufacturer: incident.manufacturer,
+          part_number: incident.part_number,
+          interim_action: incident.interim_action,
+          intermediate_action: incident.intermediate_action,
+          long_term_action: incident.long_term_action,
+          created_by: incident.created_by
+        });
         setIncident(prev => prev ? { ...prev, status } : prev);
       }
       if (hasComment) {
-        // TODO: POST /api/incidents/{case_no}/comments
         const newItem: Comment = {
           id: Math.random().toString(36).slice(2),
           author: 'CurrentUser',
@@ -137,7 +140,6 @@ const IncidentReportDetail: React.FC = () => {
     const suffix = wrapper.suffix ?? wrapper.prefix;
     const next = before + wrapper.prefix + selected + suffix + after;
     setNewComment(next);
-    // restore selection roughly
     setTimeout(() => {
       textarea.focus();
       textarea.selectionStart = start + wrapper.prefix.length;
@@ -225,7 +227,6 @@ const IncidentReportDetail: React.FC = () => {
 
       <Divider sx={{ my: 2 }} />
 
-      {/* Comments list BEFORE form & status (GitHub style) */}
       <Typography variant="h6" sx={{ mb: 1 }}>Conversation</Typography>
       <Stack spacing={2} sx={{ mb: 4 }}>
         {comments.map(c => (
@@ -259,7 +260,6 @@ const IncidentReportDetail: React.FC = () => {
 
       <Typography variant="h6" sx={{ mb: 2 }}>Comment / Status</Typography>
 
-      {/* Toolbar */}
       <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap' }}>
         <Button size="small" variant="outlined" onClick={() => applyWrap({ prefix: '**' })} startIcon={<FormatBoldIcon />}>Bold</Button>
         <Button size="small" variant="outlined" onClick={() => applyWrap({ prefix: '_', suffix: '_' })} startIcon={<FormatItalicIcon />}>Italic</Button>

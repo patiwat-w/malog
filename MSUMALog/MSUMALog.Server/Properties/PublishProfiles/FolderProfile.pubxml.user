@@ -3,7 +3,7 @@
 <Project>
   <PropertyGroup>
     <_PublishTargetUrl>D:\MSU\GitHub\MSU.MALog\MSUMALog\MSUMALog.Server\bin\Release\net8.0\publish\</_PublishTargetUrl>
-    <History>True|2025-08-14T17:33:49.6993778Z||;False|2025-08-15T00:29:54.7917084+07:00||;</History>
+    <History>True|2025-08-14T18:52:12.1582871Z||;False|2025-08-15T01:48:14.5387151+07:00||;False|2025-08-15T01:45:44.4190770+07:00||;True|2025-08-15T00:33:49.6993778+07:00||;False|2025-08-15T00:29:54.7917084+07:00||;</History>
     <LastFailureDetails />
   </PropertyGroup>
 </Project>

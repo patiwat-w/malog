@@ -8,13 +8,9 @@ namespace MSUMALog.Server.Data
     {
         public static void Initialize(ApplicationDbContext context)
         {
-            context.Database.EnsureCreated();
+            // ลบ context.Database.EnsureCreated();
 
-            // Check if any data exists
-            if (context.IncidentReports.Any())
-            {
-                return;   // DB has been seeded
-            }
+            if (context.IncidentReports.Any()) return;
 
             var incidentReports = new[]
             {

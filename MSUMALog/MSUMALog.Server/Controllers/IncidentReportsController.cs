@@ -11,39 +11,52 @@ public class IncidentReportsController(IIncidentReportService service) : Control
     private readonly IIncidentReportService _service = service;
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<IncidentReportDto>>> GetAll(CancellationToken ct)
+    [ProducesResponseType(typeof(IEnumerable<IncidentReportDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<IncidentReportDto>>> GetAll(CancellationToken ct = default)
         => Ok(await _service.GetAllAsync(ct));
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<IncidentReportDto>> GetById(int id, CancellationToken ct)
+    [ProducesResponseType(typeof(IncidentReportDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IncidentReportDto>> GetById(int id, CancellationToken ct = default)
     {
         var dto = await _service.GetByIdAsync(id, ct);
         return dto is null ? NotFound() : Ok(dto);
     }
 
     [HttpGet("by-case/{caseNo}")]
-    public async Task<ActionResult<IncidentReportDto>> GetByCaseNo(string caseNo, CancellationToken ct)
+    [ProducesResponseType(typeof(IncidentReportDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IncidentReportDto>> GetByCaseNo(string caseNo, CancellationToken ct = default)
     {
         var dto = await _service.GetByCaseNoAsync(caseNo, ct);
         return dto is null ? NotFound() : Ok(dto);
     }
 
     [HttpPost]
-    public async Task<ActionResult<IncidentReportDto>> Create(IncidentReportDto dto, CancellationToken ct)
+    [ProducesResponseType(typeof(IncidentReportDto), StatusCodes.Status201Created)]
+    public async Task<ActionResult<IncidentReportDto>> Create([FromBody] IncidentReportDto dto, CancellationToken ct = default)
     {
         var created = await _service.CreateAsync(dto, ct);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, IncidentReportDto dto, CancellationToken ct)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(int id, [FromBody] IncidentReportDto dto, CancellationToken ct = default)
     {
+        if (dto.Id != 0 && dto.Id != id)
+            return BadRequest("Mismatched id.");
         var ok = await _service.UpdateAsync(id, dto, ct);
         return ok ? NoContent() : NotFound();
     }
 
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id, CancellationToken ct)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(int id, CancellationToken ct = default)
     {
         var ok = await _service.DeleteAsync(id, ct);
         return ok ? NoContent() : NotFound();
