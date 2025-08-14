@@ -1,0 +1,254 @@
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import {
+  Box, Paper, Typography, Chip, Stack, Divider, TextField, Button, MenuItem
+} from '@mui/material';
+
+interface Incident {
+  case_no: string;
+  status: string;
+  asset: string;
+  center: string;
+  incident_date: string;
+  symptoms: string;
+  severity: string;
+  impact: string;
+  domain: string;
+  sub_domain: string;
+  vendor: string;
+  manufacturer: string;
+  part_number: string;
+  interim_action: string;
+  intermediate_action: string;
+  long_term_action: string;
+  created_by: string;
+}
+
+interface Comment {
+  id: string;
+  author: string;
+  body: string;
+  created_at: string;
+}
+
+const mockFetchIncident = async (caseNo: string): Promise<Incident> => {
+  // TODO: replace with real fetch(`/api/incidents/${caseNo}`)
+  return new Promise(resolve =>
+    setTimeout(() => resolve({
+      case_no: caseNo,
+      status: 'In Progress',
+      asset: 'รถ MSU-6',
+      center: 'รพร.ปัว',
+      incident_date: '2025-08-10',
+      symptoms: 'คลัชจม ไม่สามารถเปลี่ยนเกียร์ได้ รถขับไม่ได้',
+      severity: 'สูงที่สุด (5)',
+      impact: 'หยุดการให้บริการ',
+      domain: '001',
+      sub_domain: 'ตัวรถและเครื่องยนต์',
+      vendor: 'RMA',
+      manufacturer: 'Mecedenz-Benz',
+      part_number: 'OF-917 version Euro3',
+      interim_action: 'เติมน้ำมันคลัช / ไล่ลม',
+      intermediate_action: 'ตรวจระบบคลัช / ขอใบเสนอราคา',
+      long_term_action: 'วางแผน PM + Training',
+      created_by: 'Pornchai Chanyagorn'
+    }), 300)
+  );
+};
+
+const mockFetchComments = async (caseNo: string): Promise<Comment[]> => {
+  // TODO: replace with real fetch(`/api/incidents/${caseNo}/comments`)
+  return [
+    { id: 'c1', author: 'Admin', body: 'รับทราบ เคสกำลังตรวจสอบ', created_at: '2025-08-11 09:10' },
+    { id: 'c2', author: 'Reporter', body: 'อัปเดตล่าสุดเปลี่ยนอะไหล่แล้ว', created_at: '2025-08-12 14:22' }
+  ];
+};
+
+const statusOptions = ['Open', 'In Progress', 'Pending', 'Resolved', 'Closed'];
+
+const IncidentReportDetail: React.FC = () => {
+  const { case_no } = useParams<{ case_no: string }>();
+  const [incident, setIncident] = useState<Incident | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [status, setStatus] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!case_no) return;
+    (async () => {
+      const data = await mockFetchIncident(case_no);
+      setIncident(data);
+      setStatus(data.status);
+      const cmt = await mockFetchComments(case_no);
+      setComments(cmt);
+    })();
+  }, [case_no]);
+
+  const handleSubmitAction = async () => {
+    if (!incident) return;
+    const hasComment = newComment.trim().length > 0;
+    const statusChanged = status !== incident.status;
+    if (!hasComment && !statusChanged) return;
+
+    setSubmitting(true);
+    try {
+      if (statusChanged) {
+        // TODO: PATCH /api/incidents/{case_no} { status }
+        console.log('PATCH status =>', status);
+        setIncident(prev => prev ? { ...prev, status } : prev);
+      }
+      if (hasComment) {
+        // TODO: POST /api/incidents/{case_no}/comments
+        const newItem: Comment = {
+          id: Math.random().toString(36).slice(2),
+          author: 'CurrentUser',
+          body: newComment.trim(),
+          created_at: new Date().toISOString()
+        };
+        setComments(prev => [newItem, ...prev]);
+        setNewComment('');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const hasComment = newComment.trim().length > 0;
+  const statusChanged = status !== incident?.status;
+  const actionLabel = statusChanged && hasComment
+    ? 'Update Status & Comment'
+    : statusChanged
+      ? 'Update Status'
+      : hasComment
+        ? 'Comment'
+        : 'Nothing to submit';
+
+  if (!incident) {
+    return <Typography sx={{ mt: 4 }}>Loading incident...</Typography>;
+  }
+
+  return (
+    <Paper sx={{ p: 3, mt: 3 }}>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Typography variant="h5">Incident #{incident.case_no}</Typography>
+        <Chip label={incident.status} color="primary" />
+      </Stack>
+
+      <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+        Created by {incident.created_by} | Incident Date: {incident.incident_date}
+      </Typography>
+
+      <Divider sx={{ my: 2 }} />
+
+      <Typography variant="subtitle2">Symptoms</Typography>
+      <Typography sx={{ mb: 2 }}>{incident.symptoms}</Typography>
+
+      <Stack direction="row" spacing={4} flexWrap="wrap" sx={{ mb: 2 }}>
+        <Box><Typography variant="caption">Severity</Typography><Typography>{incident.severity}</Typography></Box>
+        <Box><Typography variant="caption">Impact</Typography><Typography>{incident.impact}</Typography></Box>
+        <Box><Typography variant="caption">Domain</Typography><Typography>{incident.domain}</Typography></Box>
+        <Box><Typography variant="caption">Sub-domain</Typography><Typography>{incident.sub_domain}</Typography></Box>
+      </Stack>
+
+      <Typography variant="subtitle2">Actions</Typography>
+      <Box sx={{ pl: 1, mb: 2 }}>
+        <Typography variant="caption">Interim</Typography><Typography>{incident.interim_action}</Typography>
+        <Typography variant="caption">Intermediate</Typography><Typography>{incident.intermediate_action}</Typography>
+        <Typography variant="caption">Long-term</Typography><Typography>{incident.long_term_action}</Typography>
+      </Box>
+
+      <Divider sx={{ my: 2 }} />
+
+      {/* Comments list BEFORE form & status (GitHub style) */}
+      <Typography variant="h6" sx={{ mb: 1 }}>Conversation</Typography>
+      <Stack spacing={2} sx={{ mb: 4 }}>
+        {comments.map(c => (
+          <Paper key={c.id} variant="outlined" sx={{ p: 1.5 }}>
+            <Typography variant="subtitle2">
+              {c.author}{' '}
+              <Typography component="span" variant="caption" sx={{ color: 'text.secondary' }}>
+                {c.created_at}
+              </Typography>
+            </Typography>
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{c.body}</Typography>
+          </Paper>
+        ))}
+        {comments.length === 0 && (
+          <Typography variant="body2" color="text.secondary">
+            No comments yet.
+          </Typography>
+        )}
+      </Stack>
+
+      <Divider sx={{ mb: 3 }} />
+
+      {/* Bottom interaction zone (GitHub-like merged actions) */}
+      <Typography variant="h6" sx={{ mb: 2 }}>Comment / Status</Typography>
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          label="Write a comment"
+          multiline
+          minRows={3}
+          fullWidth
+          value={newComment}
+          onChange={e => setNewComment(e.target.value)}
+          placeholder="Add a comment, or leave blank if only updating status."
+        />
+      </Box>
+
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2}
+        alignItems={{ xs: 'stretch', sm: 'flex-start' }}
+        sx={{ mb: 2 }}
+      >
+        <TextField
+          select
+          size="small"
+          label="Status"
+          value={status}
+          onChange={e => setStatus(e.target.value)}
+          sx={{ minWidth: { xs: '100%', sm: 200 } }}
+        >
+          {statusOptions.map(s => (
+            <MenuItem key={s} value={s}>{s}</MenuItem>
+          ))}
+        </TextField>
+
+        <Box
+          sx={{
+            display: 'flex',
+            flexGrow: 1,
+            justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+            gap: 1,
+            flexWrap: 'wrap'
+          }}
+        >
+          <Button
+            variant="contained"
+            color={statusChanged ? 'success' : 'primary'}
+            disabled={!(statusChanged || hasComment) || submitting}
+            onClick={handleSubmitAction}
+            sx={{ minWidth: { xs: '100%', sm: 180 } }}
+          >
+            {submitting ? 'Saving...' : actionLabel}
+          </Button>
+          {/* <Button
+            variant="outlined"
+            disabled={submitting || (!hasComment && !statusChanged)}
+            onClick={() => {
+              setNewComment('');
+              if (incident) setStatus(incident.status);
+            }}
+            sx={{ minWidth: { xs: '100%', sm: 120 } }}
+          >
+            Reset
+          </Button> */}
+        </Box>
+      </Stack>
+    </Paper>
+  );
+};
+
+export default IncidentReportDetail;

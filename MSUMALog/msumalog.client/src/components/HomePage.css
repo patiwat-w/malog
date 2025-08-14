@@ -1,0 +1,27 @@
+.issue-grid-container {
+    margin-top: 1rem;
+}
+
+.issue-grid {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.issue-grid th, .issue-grid td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+.issue-grid th {
+    background-color: #f2f2f2;
+    color: #333;
+}
+
+.issue-grid tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.issue-grid tbody tr:hover {
+    background-color: #f1f1f1;
+}
