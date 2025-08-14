@@ -9,7 +9,6 @@ import rehypeRaw from 'rehype-raw';
 import ImageIcon from '@mui/icons-material/Image';
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
-import CodeIcon from '@mui/icons-material/Code';
 import ListIcon from '@mui/icons-material/FormatListBulleted';
 import { getIncidentByCase, updateIncidentFull, type IncidentReportDto } from '../api/client';
 import { getDomainLabel, getSeverityLabel } from '../constants/incidentOptions';
@@ -174,6 +173,7 @@ const IncidentReportDetail: React.FC = () => {
     // Keep <img> with style for size
     turndownRef.current.addRule('imageKeepStyle', {
       filter: 'img',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       replacement: (_content, node: any) => {
         const src = node.getAttribute('src') || '';
         const alt = (node.getAttribute('alt') || '').replace(/"/g, "'");
