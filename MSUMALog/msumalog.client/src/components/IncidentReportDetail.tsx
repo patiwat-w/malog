@@ -37,6 +37,7 @@ interface Comment {
   author: string;
   body: string;
   created_at: string;
+  caseNo?: string;
 }
 
 const mockFetchIncident = async (caseNo: string): Promise<Incident> => {
@@ -65,10 +66,11 @@ const mockFetchIncident = async (caseNo: string): Promise<Incident> => {
 };
 
 const mockFetchComments = async (caseNo: string): Promise<Comment[]> => {
-  // TODO: replace with real fetch(`/api/incidents/${caseNo}/comments`)
+    // TODO: replace with real fetch(`/api/incidents/${caseNo}/comments`)
+    console.log('Fetching comments for case:', caseNo);
   return [
-    { id: 'c1', author: 'Admin', body: 'รับทราบ เคสกำลังตรวจสอบ', created_at: '2025-08-11 09:10' },
-    { id: 'c2', author: 'Reporter', body: 'อัปเดตล่าสุดเปลี่ยนอะไหล่แล้ว', created_at: '2025-08-12 14:22' }
+      { id: 'c1', author: 'Admin', body: 'รับทราบ เคสกำลังตรวจสอบ', created_at: '2025-08-11 09:10', caseNo: caseNo },
+      { id: 'c2', author: 'Reporter', body: 'อัปเดตล่าสุดเปลี่ยนอะไหล่แล้ว', created_at: '2025-08-12 14:22', caseNo: caseNo }
   ];
 };
 
