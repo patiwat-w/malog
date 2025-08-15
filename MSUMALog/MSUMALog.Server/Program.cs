@@ -6,10 +6,12 @@ using MSUMALog.Server.Mappings;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.DataProtection;
 using System.Security.Claims;
 using MSUMALog.Server.Mapping;
+using MSUMALog.Server.Models; 
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +25,8 @@ builder.Services.AddSwaggerGen();
 
 // DbContext (SQL Server)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer"))
+           .LogTo(Console.WriteLine, LogLevel.Information));
 
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(IncidentReportProfile).Assembly);
@@ -88,6 +91,66 @@ builder.Services.AddAuthentication(options =>
 
     options.AccessType = "offline";
     //options.Prompt = "consent";
+
+    options.ClaimActions.MapJsonKey("picture", "picture");
+    options.ClaimActions.MapJsonKey(ClaimTypes.GivenName, "given_name");
+    options.ClaimActions.MapJsonKey(ClaimTypes.Surname, "family_name");
+    options.ClaimActions.MapJsonKey(ClaimTypes.Email, "email");
+
+    options.Events = new OAuthEvents
+    {
+        OnCreatingTicket = async context =>
+        {
+            Console.WriteLine("OnCreatingTicket called");
+            var email = context.Identity.FindFirst(ClaimTypes.Email)?.Value;
+            var firstName = context.Identity.FindFirst(ClaimTypes.GivenName)?.Value;
+            var lastName = context.Identity.FindFirst(ClaimTypes.Surname)?.Value;
+            var profilePicture = context.Identity.FindFirst("picture")?.Value;
+            Console.WriteLine($"profilePicture: {profilePicture}");
+
+            // สร้างหรืออัปเดต user ใน database
+            var db = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
+            var user = db.Users.FirstOrDefault(u => u.Email == email);
+            if (user == null)
+            {
+                Console.WriteLine("Creating new user");
+                user = new User
+                {
+                    Email = email,
+                    Role = "User",
+                    LoginCount = 1,
+                    LastLoginDate = DateTime.UtcNow,
+                    FirstName = firstName,
+                    LastName = lastName,
+                    ProfilePicture = profilePicture,
+                    Logs = "Creating new user" // เพิ่มบรรทัดนี้
+                };
+                db.Users.Add(user);
+                try
+                {
+                    await db.SaveChangesAsync();
+                }
+                catch
+                {
+                    Console.WriteLine("Error saving user to database");
+                    // ถ้าสร้าง user ไม่ได้ ให้ redirect ไป /login-fail
+                    context.Response.Redirect("/login-fail");
+                    return;
+                }
+            }
+            else
+            {
+                Console.WriteLine("Updating existing user");
+                user.LoginCount++;
+                user.LastLoginDate = DateTime.UtcNow;
+                user.FirstName = firstName ?? user.FirstName;
+                user.LastName = lastName ?? user.LastName;
+                user.ProfilePicture = profilePicture ?? user.ProfilePicture;
+                user.Logs = "Updating existing user"; // เพิ่มบรรทัดนี้
+                await db.SaveChangesAsync();
+            }
+        }
+    };
 });
 
 // CORS
@@ -150,7 +213,20 @@ app.Use(async (context, next) =>
 // Request logging middleware
 app.Use(async (context, next) =>
 {
+    // Log basic request information
     Console.WriteLine($"Request: {context.Request.Method} {context.Request.Path} {context.Request.QueryString}");
+
+    // Log Controller and Action (if available)
+    var endpoint = context.GetEndpoint();
+    if (endpoint != null)
+    {
+        var controller = endpoint.Metadata.GetMetadata<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>();
+        if (controller != null)
+        {
+            Console.WriteLine($"Controller: {controller.ControllerName}, Action: {controller.ActionName}");
+        }
+    }
+
     await next();
 });
 
@@ -201,12 +277,10 @@ if (!app.Environment.IsDevelopment())
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-// 🚀 ตำแหน่งที่ถูกต้องของ UseAuthentication() และ UseAuthorization()
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapFallbackToFile("/index.html");
 
 // Apply migrations + seed in development
 
@@ -257,5 +331,7 @@ app.Use(async (context, next) =>
         throw;
     }
 });
+
+app.MapFallbackToFile("/index.html");
 
 app.Run();

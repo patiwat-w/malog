@@ -6,6 +6,7 @@ using System.Security.Claims;
 using MSUMALog.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
+using MSUMALog.Server.Models; // เพิ่มถ้ายังไม่มี
 
 namespace MSUMALog.Server.Controllers;
 
@@ -60,7 +61,8 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("me")]
-    public IActionResult Me()
+    [ProducesResponseType(typeof(User), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Me()
     {
         if (!User.Identity?.IsAuthenticated ?? true)
             return Unauthorized();
@@ -69,11 +71,11 @@ public class AuthController : ControllerBase
                     ?? User.Identity!.Name
                     ?? "unknown";
 
-        return Ok(new
-        {
-            email
-            // เติมข้อมูลอื่นตามต้องการ เช่น roles, displayName
-        });
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user == null)
+            return NotFound();
+
+        return Ok(user); // return Model User ตรงๆ
     }
 
     [HttpPost("logout")]
@@ -84,47 +86,4 @@ public class AuthController : ControllerBase
 
         return NoContent();
     }
-
-    [HttpGet("google")]
-    [AllowAnonymous]
-    public IActionResult Google([FromQuery] string? returnUrl = "/home")
-    {
-        Console.WriteLine($"Google Login: Received returnUrl = {returnUrl}");
-
-        string final;
-        if (string.IsNullOrWhiteSpace(returnUrl))
-        {
-            final = "/home";
-            Console.WriteLine("Google Login: returnUrl is empty, defaulting to /home");
-        }
-        else if (Uri.TryCreate(returnUrl, UriKind.Absolute, out var abs))
-        {
-            var allowedHosts = new[] { "localhost", "msu-malog.egmu-research.org" };
-            if (allowedHosts.Contains(abs.Host, StringComparer.OrdinalIgnoreCase))
-            {
-                final = abs.ToString();
-                Console.WriteLine($"Google Login: Absolute returnUrl validated = {final}");
-            }
-            else
-            {
-                final = "/home";
-                Console.WriteLine($"Google Login: Absolute returnUrl host not allowed, defaulting to /home");
-            }
-        }
-        else
-        {
-            final = returnUrl.StartsWith("/") ? returnUrl : "/" + returnUrl;
-            Console.WriteLine($"Google Login: Relative returnUrl processed = {final}");
-        }
-
-        var props = new AuthenticationProperties
-        {
-            RedirectUri = "/auth/signin-google", // URL ของ Backend
-            Parameters = { { "prompt", "select_account" } }
-        };
-
-        Console.WriteLine($"Google Login: Redirecting to Google with final RedirectUri = /signin-google");
-        return Challenge(props, "Google");
-    }
-    
 }

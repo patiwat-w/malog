@@ -10,6 +10,8 @@ import AppBreadcrumbs from './components/AppBreadcrumbs';
 import IncidentReportDetail from './components/IncidentReportDetail';
 import LogoutPage from './components/LogoutPage';
 import RequireAuth from './components/RequireAuth';
+import LoginFailPage from './components/LoginFailPage';
+import NotFoundPage from './components/NotFoundPage';
 
 function App() {
     const location = useLocation();
@@ -105,6 +107,8 @@ function App() {
                         <Route path="/logout" element={<LogoutPage />} />
                         <Route path="/home" element={<Navigate to="/issues" />} />
                         <Route path="/" element={<Navigate to="/issues" />} />
+                        <Route path="/login-fail" element={<LoginFailPage />} />
+                        <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                 </Box>
             </Container>
