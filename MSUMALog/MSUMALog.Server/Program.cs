@@ -209,14 +209,38 @@ app.MapControllers();
 app.MapFallbackToFile("/index.html");
 
 // Apply migrations + seed in development
-if (app.Environment.IsDevelopment())
+
 {
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        db.Database.Migrate();
-        SeedData.Initialize(db);
-    }
+	// Migration & seed with retry and fresh scope per attempt
+	const int maxAttempts = 5;
+	for (int attempt = 1; attempt <= maxAttempts; attempt++)
+	{
+		using var scope = app.Services.CreateScope();
+		var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+		try
+		{
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			logger.LogInformation("Applying migrations (attempt {Attempt}/{MaxAttempts})...", attempt, maxAttempts);
+			db.Database.Migrate();
+			SeedData.Initialize(db);
+			logger.LogInformation("Database migration and seeding completed.");
+			break;
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, "Database migration/seed failed on attempt {Attempt}/{MaxAttempts}", attempt, maxAttempts);
+			if (attempt == maxAttempts)
+			{
+				logger.LogCritical("Exceeded maximum migration attempts. Application will stop.");
+				// Rethrow to stop startup (fail-fast). Remove throw if you prefer to continue without DB.
+				throw;
+			}
+			// Exponential backoff before next attempt
+			var delaySeconds = Math.Min(30, Math.Pow(2, attempt));
+			logger.LogInformation("Waiting {DelaySeconds}s before retrying...", delaySeconds);
+			await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+		}
+	}
 }
 
 // Error handling middleware
@@ -228,7 +252,8 @@ app.Use(async (context, next) =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Exception: {ex}");
+        Console.WriteLine($"Exception: {ex.Message}");
+        Console.WriteLine($"StackTrace: {ex.StackTrace}");
         throw;
     }
 });
