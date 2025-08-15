@@ -7,7 +7,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { format as formatDate } from 'date-fns';
 import './IncidentReportForm.css'; // เพิ่ม (ถ้ายังไม่ได้ import)
-import { createIncident as apiCreateIncident, getIncidentByCase, updateIncidentFull } from '../api/client';
+import { createIncident as apiCreateIncident, getIncidentByCase, updateIncidentFull, getCurrentUser } from '../api/client'; // เพิ่ม import
 import type { IncidentReportDto } from '../api/client';
 import { domainOptions, severityOptions } from '../constants/incidentOptions'; // <-- refactored import
 
@@ -74,6 +74,21 @@ const IncidentReportForm: React.FC = () => {
         responsible_email: '',
         responsible_phone: ''
     });
+
+    useEffect(() => {
+        // ดึงข้อมูล user มาเติม default
+        getCurrentUser()
+            .then(user => {
+                if (user?.email) {
+                    setFormData(f => ({
+                        ...f,
+                        created_by: user.email // หรือใช้ชื่อ field ที่ต้องการ เช่น user.firstName
+                    }));
+                }
+            })
+            .catch(() => { /* ไม่ต้องเติมอะไรถ้า error */ });
+    }, []);
+    
     // Date object for the date picker (default today)
     const [incidentDate, setIncidentDate] = useState<Date | null>(today);
 
@@ -134,6 +149,32 @@ const IncidentReportForm: React.FC = () => {
         return () => { ignore = true; };
     }, [caseNoFromUrl, isoToday]);
 
+    useEffect(() => {
+        if (!isEdit) { // เฉพาะ create เท่านั้น
+            getCurrentUser()
+                .then(user => {
+                    if (user?.email) {
+                        setFormData(f => ({
+                            ...f,
+                            created_by: user.email,
+                            responsible_email: user.email // เติม responsible_email ด้วย email ของ user
+                        }));
+                    }
+                    //responsible_name
+                    if (user?.firstName || user?.lastName) {
+                        setFormData(f => ({
+                            ...f,
+                            responsible_name: `${user.firstName || ''} ${user.lastName || ''}`.trim()
+                        }));
+                    }
+                    
+                    
+                })
+                .catch(() => { /* ไม่ต้องเติมอะไรถ้า error */ });
+        }
+    }, [isEdit]);
+
+
     // keep incidentDate in sync with formData.incident_date when it's a parseable date (ISO or yyyy-mm-dd)
     useEffect(() => {
         if (!formData.incident_date) {
@@ -153,21 +194,39 @@ const IncidentReportForm: React.FC = () => {
         }));
     };
 
-    const isTitleInvalid = !formData.title.trim();
+    // Change: type keys as keyof IFormData so TS knows valid property names
+    const requiredFields: Array<{ key: keyof IFormData; label: string }> = [
+        { key: 'title', label: 'Title' },
+        { key: 'asset', label: 'Asset' },
+        { key: 'center', label: 'Center' },
+        { key: 'incident_date', label: 'Incident Date' },
+        { key: 'symptoms', label: 'Symptoms' },
+        { key: 'severity', label: 'Severity' }
+    ];
+    
+    // Change: safely read values from formData using typed keys and detect missingness
+    const missingFields = requiredFields.filter(f => {
+        const val = formData[f.key];
+        if (typeof val === 'string') return !val.trim();
+        return val == null;
+    });
+
+    // Add a general invalid flag for use in the UI (replaces undefined isTitleInvalid)
+    const isFormInvalid = missingFields.length > 0;
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (loading || saving) return;
         setApiError(null);
-
-        if (!formData.title.trim()) {
-            setApiError('กรุณากรอก Title');
+    
+        if (missingFields.length > 0) {
+            setApiError('กรุณากรอกข้อมูลให้ครบถ้วน: ' + missingFields.map(f => f.label).join(', '));
             return;
         }
-
+    
         const confirmed = window.confirm(isEdit ? 'ยืนยันการบันทึกการแก้ไข?' : 'ยืนยันการสร้างรายการ?');
         if (!confirmed) return;
-
+    
         // เตรียม DTO
         const baseDto: IncidentReportDto = {
             id: formData.id, // อาจ undefined สำหรับ create
@@ -197,7 +256,7 @@ const IncidentReportForm: React.FC = () => {
             responsible_email: formData.responsible_email,
             responsible_phone: formData.responsible_phone
         };
-
+    
         try {
             setSaving(true);
             let finalCaseNo = formData.case_no;
@@ -247,7 +306,7 @@ const IncidentReportForm: React.FC = () => {
                         {/* Basic info */}
                         <Box component="fieldset" sx={{ borderColor: 'divider', p: 2, borderRadius: 1 }}>
                             <Typography component="legend" variant="subtitle1" sx={{ mb: 1 }}>
-                                Basic Information
+                            ข้อมูลเคส (Case Information)
                             </Typography>
                             {isEdit && (
                                 <Box>
@@ -284,22 +343,42 @@ const IncidentReportForm: React.FC = () => {
                                 />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="asset" name="asset" label="Asset" value={formData.asset} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    margin="dense"
+                                    id="asset"
+                                    name="asset"
+                                    label="Asset (รถ)"
+                                    value={formData.asset}
+                                    onChange={handleChange}
+                                    required
+                                    error={!formData.asset.trim()}
+                                    helperText={!formData.asset.trim() ? 'ต้องกรอก Asset' : ' '}
+                                    sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}
+                                />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="center" name="center" label="Center" value={formData.center} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    margin="dense"
+                                    id="center"
+                                    name="center"
+                                    label="Center (ศูนย์)"
+                                    value={formData.center}
+                                    onChange={handleChange}
+                                    required
+                                    error={!formData.center.trim()}
+                                    helperText={!formData.center.trim() ? 'ต้องกรอก Center' : ' '}
+                                    sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}
+                                />
                             </Box>
-                        </Box>
 
-                        {/* Incident details */}
-                        <Box component="fieldset" sx={{ borderColor: 'divider', p: 2, borderRadius: 1 }}>
-                            <Typography component="legend" variant="subtitle1" sx={{ mb: 1 }}>
-                            Impact/Severity
-                            </Typography>
                             <Box>
                                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                                     <DatePicker
-                                        label="Incident Date"
+                                        label="Incident Date (วันที่เกิดเหตุ)"
                                         value={incidentDate}
                                         format="dd MMM yyyy"
                                         onChange={(newValue) => {
@@ -316,17 +395,48 @@ const IncidentReportForm: React.FC = () => {
                                                 margin: 'dense',
                                                 id: 'incident_date',
                                                 name: 'incident_date',
+                                                required: true,
+                                                error: !formData.incident_date.trim(),
+                                                helperText: !formData.incident_date.trim() ? 'ต้องกรอก Incident Date' : ' ',
                                                 sx: { '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }
                                             }
                                         }}
                                     />
                                 </LocalizationProvider>
                             </Box>
+                        </Box>
+
+                        {/* Incident details */}
+                        <Box component="fieldset" sx={{ borderColor: 'divider', p: 2, borderRadius: 1 }}>
+                            <Typography component="legend" variant="subtitle1" sx={{ mb: 1 }}>
+                            รายละเอียดเหตุการณ์ (Incident Details)
+                            </Typography>
+                            
                             <Box>
                                 <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>
-                                    Symptoms
+                                    Symptoms (อาการ)
                                 </Typography>
-                                <TextareaAutosize id="symptoms" name="symptoms" value={formData.symptoms} onChange={handleChange} minRows={3} placeholder="Symptoms" style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
+                                <TextareaAutosize
+                                    id="symptoms"
+                                    name="symptoms"
+                                    value={formData.symptoms}
+                                    onChange={handleChange}
+                                    minRows={3}
+                                    required
+                                    style={{
+                                        width: '100%',
+                                        fontSize: '1rem',
+                                        padding: '8px 12px',
+                                        boxSizing: 'border-box',
+                                        borderRadius: 4,
+                                        borderColor: '#c4c4c4',
+                                        border: !formData.symptoms.trim() ? '1px solid red' : undefined
+                                    }}
+                                    placeholder="Symptoms"
+                                />
+                                {!formData.symptoms.trim() && (
+                                    <Typography color="error" variant="caption">ต้องกรอก Symptoms</Typography>
+                                )}
                             </Box>
                             <Box>
                                 <TextField
@@ -336,10 +446,12 @@ const IncidentReportForm: React.FC = () => {
                                     margin="dense"
                                     id="severity"
                                     name="severity"
-                                    label="Severity (1-5)"
+                                    label="Severity (ระดับความรุนแรง)"
                                     value={formData.severity}
                                     onChange={handleChange}
-                                    helperText="เลือกระดับความรุนแรง 1 (ต่ำ) - 5 (สูงมาก)"
+                                    required
+                                    error={!formData.severity.trim()}
+                                    helperText={!formData.severity.trim() ? 'ต้องกรอก Severity' : 'เลือกระดับความรุนแรง 1 (ต่ำ) - 5 (สูงมาก)'}
                                     sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}
                                 >
                                     {severityOptions.map(opt => (
@@ -350,7 +462,7 @@ const IncidentReportForm: React.FC = () => {
                                 </TextField>
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="impact" name="impact" label="Incident Impact" value={formData.impact} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField fullWidth size="small" margin="dense" id="impact" name="impact" label="Incident Impact (ผลกระทบ)"  value={formData.impact} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
                             </Box>
                         </Box>
 
@@ -417,11 +529,41 @@ const IncidentReportForm: React.FC = () => {
                                 <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Long-term Action</Typography>
                                 <TextareaAutosize id="long_term_action" name="long_term_action" value={formData.long_term_action} onChange={handleChange} minRows={4} placeholder="Long-term Action" style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
                             </Box>
+                            {isEdit && (
+                                <Box>
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        margin="dense"
+                                        id="status"
+                                        name="status"
+                                        label="Incident Status"
+                                        value={formData.status}
+                                        onChange={handleChange}
+                                        slotProps={{ input: { readOnly: true } }}
+                                        sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}
+                                    />
+                                </Box>
+                            )}
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="status" name="status" label="Incident Status" value={formData.status} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
-                            </Box>
-                            <Box>
-                                <TextField fullWidth size="small" margin="dense" id="created_by" name="created_by" label="Created by" value={formData.created_by} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    margin="dense"
+                                    id="created_by"
+                                    name="created_by"
+                                    label="Created by"
+                                    value={formData.created_by}
+                                    onChange={handleChange}
+                                    InputProps={{
+                                        readOnly: true,
+                                        sx: { backgroundColor: '#f5f5f5' } // สีเทาอ่อน
+                                    }}
+                                    sx={{
+                                        '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 },
+                                        '& .MuiInputBase-root': { backgroundColor: '#f5f5f5' } // สีเทาอ่อน
+                                    }}
+                                />
                             </Box>
                         </Box>
 
@@ -437,7 +579,7 @@ const IncidentReportForm: React.FC = () => {
                         type="submit"
                         fullWidth
                         variant="contained"
-                        disabled={saving || isTitleInvalid}
+                        disabled={saving || isFormInvalid}
                         sx={{ mt: 3, mb: 2, py: 2, fontSize: '1.05rem' }}
                     >
                         {saving ? 'Saving...' : (isEdit ? 'Save Changes' : 'Submit')}
