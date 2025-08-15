@@ -1,60 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Box, Paper, Typography, Chip, Stack, Divider, TextField, Button, MenuItem
+  Box, Paper, Typography, Chip, Stack, Divider, TextField, Button, MenuItem,
+  IconButton, Tooltip
 } from '@mui/material';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
-import ImageIcon from '@mui/icons-material/Image';
-import FormatBoldIcon from '@mui/icons-material/FormatBold';
-import FormatItalicIcon from '@mui/icons-material/FormatItalic';
-import ListIcon from '@mui/icons-material/FormatListBulleted';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { getIncidentByCase, updateIncidentFull, type IncidentReportDto } from '../api/client';
 import { getDomainLabel, getSeverityLabel } from '../constants/incidentOptions';
-import TurndownService from 'turndown';
+import IncidentConversation from './IncidentConversation';
 
 interface Incident extends Omit<IncidentReportDto,
   'additional_info' | 'responsible_name' | 'responsible_lineid' | 'responsible_email' | 'responsible_phone'> {
   id: number;
 }
 
-interface Comment {
-  id: string;
-  author: string;
-  body: string;
-  created_at: string;
-  caseNo?: string;
-}
-
-const mockFetchComments = async (caseNo: string): Promise<Comment[]> => {
-    // TODO: replace with real fetch(`/api/incidents/${caseNo}/comments`)
-    console.log('Fetching comments for case:', caseNo);
-  return [
-      { id: 'c1', author: 'Admin', body: 'รับทราบ เคสกำลังตรวจสอบ', created_at: '2025-08-11 09:10', caseNo: caseNo },
-      { id: 'c2', author: 'Reporter', body: 'อัปเดตล่าสุดเปลี่ยนอะไหล่แล้ว', created_at: '2025-08-12 14:22', caseNo: caseNo }
-  ];
-};
-
 const statusOptions = ['Open', 'In Progress', 'Pending', 'Resolved', 'Closed'];
 
 const IncidentReportDetail: React.FC = () => {
   const { case_no } = useParams<{ case_no: string }>();
+  const navigate = useNavigate();
   const [incident, setIncident] = useState<Incident | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState('');
-  const editorRef = React.useRef<HTMLDivElement | null>(null);
-  const editorHtmlRef = React.useRef<string>(''); // optional: keep latest HTML if needed
-  const savedSelectionRef = React.useRef<Range | null>(null); // NEW: keep last caret/selection
   const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const turndownRef = React.useRef<TurndownService | null>(null);
-
-  // NEW: image resize states
-  const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
-  const [imgToolbarPos, setImgToolbarPos] = useState<{ x: number; y: number } | null>(null);
-  const [imgWidthPercent, setImgWidthPercent] = useState<number>(100);
 
   const severityColorMap: Record<string, "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning"> = {
     Low: 'primary',
@@ -135,6 +102,7 @@ const IncidentReportDetail: React.FC = () => {
         if (!data) return;
         const mapped: Incident = {
           case_no: data.case_no || '',
+          title: data.title || '',
           status: data.status || '',
           asset: data.asset || '',
           center: data.center || '',
@@ -155,202 +123,43 @@ const IncidentReportDetail: React.FC = () => {
         };
         setIncident(mapped);
         setStatus(mapped.status ?? '');
-        const cmt = await mockFetchComments(case_no);
-        setComments(cmt);
       } catch (e) {
         console.error(e);
       }
     })();
   }, [case_no]);
 
-  useEffect(() => {
-    turndownRef.current = new TurndownService({
-      headingStyle: 'atx',
-      codeBlockStyle: 'fenced',
-      keepReplacement: (content) => content
-    });
-
-    // Keep <img> with style for size
-    turndownRef.current.addRule('imageKeepStyle', {
-      filter: 'img',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      replacement: (_content, node: any) => {
-        const src = node.getAttribute('src') || '';
-        const alt = (node.getAttribute('alt') || '').replace(/"/g, "'");
-        const style = node.getAttribute('style') || '';
-        // If style has width keep as HTML, else normal markdown
-        if (/width\s*:/.test(style)) {
-          return `<img src="${src}" alt="${alt}" style="${style}" />`;
-        }
-        return `![${alt}](${src})`;
-      }
-    });
-  }, []);
-
-  const saveSelection = () => {
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      const range = sel.getRangeAt(0);
-      if (editorRef.current && editorRef.current.contains(range.startContainer)) {
-        savedSelectionRef.current = range;
-      }
-    }
-  };
-
-  const restoreSelection = () => {
-    const sel = window.getSelection();
-    if (sel && savedSelectionRef.current) {
-      sel.removeAllRanges();
-      sel.addRange(savedSelectionRef.current);
-    }
-  };
-
   const handleSubmitAction = async () => {
     if (!incident) return;
-    const hasComment = newComment.trim().length > 0;
     const statusChanged = status !== incident.status;
-    if (!hasComment && !statusChanged) return;
-
+    if (!statusChanged) return;
     setSubmitting(true);
     try {
-      if (statusChanged) {
-        await updateIncidentFull({
-          id: incident.id,
-          case_no: incident.case_no,
-          status,
-          asset: incident.asset,
-          center: incident.center,
-          incident_date: incident.incident_date,
-          symptoms: incident.symptoms,
-          severity: incident.severity,
-          impact: incident.impact,
-          domain: incident.domain,
-          sub_domain: incident.sub_domain,
-          vendor: incident.vendor,
-          manufacturer: incident.manufacturer,
-          part_number: incident.part_number,
-          interim_action: incident.interim_action,
-          intermediate_action: incident.intermediate_action,
-          long_term_action: incident.long_term_action,
-          created_by: incident.created_by
-        });
-        setIncident(prev => prev ? { ...prev, status } : prev);
-      }
-      if (hasComment) {
-        const newItem: Comment = {
-          id: Math.random().toString(36).slice(2),
-          author: 'CurrentUser',
-          body: newComment.trim(), // store markdown
-          created_at: new Date().toISOString()
-        };
-        setComments(prev => [newItem, ...prev]);
-        setNewComment('');
-        if (editorRef.current) {
-          editorRef.current.innerHTML = '';
-          editorHtmlRef.current = '';
-        }
-      }
+      await updateIncidentFull({
+        id: incident.id,
+        case_no: incident.case_no,
+        status,
+        asset: incident.asset,
+        center: incident.center,
+        incident_date: incident.incident_date,
+        symptoms: incident.symptoms,
+        severity: incident.severity,
+        impact: incident.impact,
+        domain: incident.domain,
+        sub_domain: incident.sub_domain,
+        vendor: incident.vendor,
+        manufacturer: incident.manufacturer,
+        part_number: incident.part_number,
+        interim_action: incident.interim_action,
+        intermediate_action: incident.intermediate_action,
+        long_term_action: incident.long_term_action,
+        created_by: incident.created_by
+      });
+      setIncident(prev => prev ? { ...prev, status } : prev);
     } finally {
       setSubmitting(false);
     }
   };
-
-  const format = (cmd: string, value?: string) => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    editor.focus();
-    document.execCommand(cmd, false, value);
-    syncFromEditor();
-  };
-
-  const syncFromEditor = () => {
-    const html = editorRef.current?.innerHTML || '';
-    editorHtmlRef.current = html; // store but do NOT setState causing re-render
-    const td = turndownRef.current;
-    if (td) {
-      const md = td.turndown(html
-        .replace(/<div><br><\/div>/g, '<br>')
-        .replace(/<div>/g, '\n')
-        .replace(/<\/div>/g, ''));
-      setNewComment(md.trim());
-    }
-  };
-
-  const insertHtmlAtCursor = (html: string) => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    editor.focus();
-    restoreSelection();
-    document.execCommand('insertHTML', false, html);
-    saveSelection();
-    syncFromEditor();
-  };
-
-  const handlePickImage = () => fileInputRef.current?.click();
-
-  const handleImageChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      insertHtmlAtCursor(`<img src="${dataUrl}" alt="image" style="max-width:100%;border-radius:4px;" />`);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
-
-  const handleEditorClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
-    const target = e.target as HTMLElement;
-    if (target && target.tagName === 'IMG') {
-      const img = target as HTMLImageElement;
-      setSelectedImage(img);
-      // derive width %
-      const editor = editorRef.current!;
-      const editorRect = editor.getBoundingClientRect();
-      const imgRect = img.getBoundingClientRect();
-      const percent = (() => {
-        const wStyle = img.style.width;
-        if (wStyle && wStyle.endsWith('%')) return parseInt(wStyle);
-        return Math.round((imgRect.width / editorRect.width) * 100);
-      })();
-      setImgWidthPercent(Math.min(100, Math.max(5, percent)));
-      setImgToolbarPos({
-        x: imgRect.left - editorRect.left,
-        y: imgRect.bottom - editorRect.top + 4
-      });
-    } else {
-      setSelectedImage(null);
-      setImgToolbarPos(null);
-    }
-  };
-
-  const applyImageWidth = (pct: number) => {
-    if (!selectedImage) return;
-    const clamped = Math.min(100, Math.max(5, pct));
-    selectedImage.style.width = clamped + '%';
-    selectedImage.style.maxWidth = '100%';
-    selectedImage.style.borderRadius = selectedImage.style.borderRadius || '4px';
-    setImgWidthPercent(clamped);
-    syncFromEditor();
-  };
-
-  const clearImageWidth = () => {
-    if (!selectedImage) return;
-    selectedImage.style.removeProperty('width');
-    syncFromEditor();
-    setImgWidthPercent(100);
-  };
-
-  const hasComment = newComment.trim().length > 0;
-  const statusChanged = status !== incident?.status;
-  const actionLabel = statusChanged && hasComment
-    ? 'Update Status & Comment'
-    : statusChanged
-      ? 'Update Status'
-      : hasComment
-        ? 'Comment'
-        : 'Nothing to submit';
 
   if (!incident) {
     return <Typography sx={{ mt: 4 }}>Loading incident...</Typography>;
@@ -359,15 +168,56 @@ const IncidentReportDetail: React.FC = () => {
   return (
     <Paper sx={{ p: 3, mt: 3 }}>
       {/* Header */}
-      <Stack direction="row" spacing={2} alignItems="center">
-        <Typography variant="h5" sx={{ fontWeight: 600 }}>
-          Incident #{incident.case_no}
-        </Typography>
-        <Chip label={incident.status} color={getStatusChipColor(incident.status || '')} size="small" sx={{ fontWeight: 700 }} />
-      </Stack>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 2
+        }}
+      >
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: 'wrap', minWidth: 0 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mr: 1, whiteSpace: 'nowrap' }}>
+            Issue #{incident.case_no}
+          </Typography>
+          {incident.title && (
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 500,
+                maxWidth: { xs: '100%', sm: 480 },
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                color: 'text.secondary'
+              }}
+              title={incident.title}
+            >
+              {incident.title}
+            </Typography>
+          )}
+          <Chip
+            label={incident.status}
+            color={getStatusChipColor(incident.status || '')}
+            size="small"
+            sx={{ fontWeight: 700, ml: 'auto' }}
+          />
+        </Stack>
+
+        <Tooltip title="Edit Issue">
+          <IconButton
+            aria-label="edit issue"
+            color="primary"
+            onClick={() => navigate(`/issues/${incident.case_no}/edit`)}
+            size="small"
+          >
+            <EditOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+      </Box>
 
       <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-        Created by <strong>{incident.created_by}</strong> &nbsp;|&nbsp; Incident Date: {incident.incident_date}
+        Created by <strong>{incident.created_by}</strong> &nbsp;|&nbsp; Report Date: {incident.incident_date}
       </Typography>
 
       <Divider sx={{ my: 3 }} />
@@ -449,158 +299,10 @@ const IncidentReportDetail: React.FC = () => {
         </Stack>
       </Box>
 
-      <Divider sx={{ mb: 3 }} />
+      <Divider sx={{ my: 3 }} />
 
-      {/* Conversation stays the same below */}
-      <Typography variant="h6" sx={{ mb: 1 }}>Discussions</Typography>
-      <Stack spacing={2} sx={{ mb: 4 }}>
-        {comments.map(c => (
-          <Paper key={c.id} variant="outlined" sx={{ p: 1.5 }}>
-            <Typography variant="subtitle2">
-              {c.author}{' '}
-              <Typography component="span" variant="caption" sx={{ color: 'text.secondary' }}>
-                {c.created_at}
-              </Typography>
-            </Typography>
-            <Box sx={{ mt: 0.5, fontSize: '.9rem' }}>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeRaw]}                // NEW: allow raw <img> with style
-                components={{
-                  img: (props) => <img {...props} style={{ maxWidth: '100%', borderRadius: 4, ...(props.style || {}) }} />
-                }}
-              >
-                {c.body}
-              </ReactMarkdown>
-            </Box>
-          </Paper>
-        ))}
-        {comments.length === 0 && (
-          <Typography variant="body2" color="text.secondary">
-            No comments yet.
-          </Typography>
-        )}
-      </Stack>
-
-      <Divider sx={{ mb: 3 }} />
-
-      <Typography variant="h6" sx={{ mb: 2 }}>Comment / Status</Typography>
-
-      <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: 'wrap' }}>
-        <Button size="small" variant="outlined" onClick={() => format('bold')} startIcon={<FormatBoldIcon />}>Bold</Button>
-        <Button size="small" variant="outlined" onClick={() => format('italic')} startIcon={<FormatItalicIcon />}>Italic</Button>
-        <Button
-          size="small"
-          variant="outlined"
-          onClick={() => format('insertUnorderedList')}   // CHANGED: use native list command
-          startIcon={<ListIcon />}
-        >
-          List
-        </Button>
-        {/* Optional: add ordered list
-        <Button size="small" variant="outlined" onClick={() => format('insertOrderedList')}>OL</Button>
-        */}
-       
-        <Button size="small" variant="outlined" onClick={handlePickImage} startIcon={<ImageIcon />}>Image</Button>
-        <input
-          ref={fileInputRef}
-          hidden
-          type="file"
-          accept="image/*"
-          onChange={handleImageChange}
-        />
-      </Stack>
-
-      <Box sx={{ mb: 2, position: 'relative' }}>     {/* position relative for toolbar */}
-        <Box
-          id="comment-editor"
-          ref={editorRef}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={() => { syncFromEditor(); saveSelection(); }}
-          onKeyUp={saveSelection}
-          onMouseUp={saveSelection}
-          onClick={handleEditorClick}                 // NEW
-          sx={{
-            minHeight: 140,
-            padding: '12px 14px',
-            border: '1px solid rgba(0,0,0,0.23)',
-            borderRadius: 4,
-            fontFamily: 'inherit',
-            fontSize: '.95rem',
-            outline: 'none',
-            whiteSpace: 'pre-wrap',
-            overflowWrap: 'anywhere',
-            background: '#fff',
-            cursor: 'text',
-            '& img': {
-              maxWidth: '100%',
-              borderRadius: 1,
-              outline: (theme) => selectedImage ? `2px solid ${theme.palette.primary.main}` : 'none'
-            }
-          }}
-          data-placeholder="พิมพ์คอมเมนต์ (WYSIWYG จะถูกแปลงเป็น Markdown อัตโนมัติ)"
-        />
-
-        {selectedImage && imgToolbarPos && (
-          <Paper
-            elevation={4}
-            sx={{
-              position: 'absolute',
-              left: imgToolbarPos.x,
-              top: imgToolbarPos.y,
-              p: 1,
-              zIndex: 10,
-              minWidth: 220,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1
-            }}
-          >
-            <Typography variant="caption" sx={{ fontWeight: 600 }}>
-              Image width: {imgWidthPercent}%
-            </Typography>
-            <Box sx={{ px: 1 }}>
-              <input
-                type="range"
-                min={10}
-                max={100}
-                step={5}
-                value={imgWidthPercent}
-                onChange={(e) => applyImageWidth(parseInt(e.target.value))}
-                style={{ width: '100%' }}
-              />
-            </Box>
-            <Box sx={{ display: 'flex', gap: .5, flexWrap: 'wrap' }}>
-              {[25, 50, 75, 100].map(v => (
-                <Button
-                  key={v}
-                  size="small"
-                  variant={imgWidthPercent === v ? 'contained' : 'outlined'}
-                  onClick={() => applyImageWidth(v)}
-                >
-                  {v}%
-                </Button>
-              ))}
-              <Button size="small" onClick={clearImageWidth}>Reset</Button>
-              <Button
-                size="small"
-                color="error"
-                onClick={() => { setSelectedImage(null); setImgToolbarPos(null); }}
-              >
-                Close
-              </Button>
-            </Box>
-          </Paper>
-        )}
-      </Box>
-
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
-        alignItems={{ xs: 'stretch', sm: 'flex-start' }}
-        sx={{ mb: 2 }}
-      >
+      <Typography variant="h6" sx={{ mb: 2 }}>Status Update</Typography>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 4 }}>
         <TextField
           select
           size="small"
@@ -613,27 +315,26 @@ const IncidentReportDetail: React.FC = () => {
             <MenuItem key={s} value={s}>{s}</MenuItem>
           ))}
         </TextField>
-
-        <Box
-          sx={{
-            display: 'flex',
-            flexGrow: 1,
-            justifyContent: { xs: 'flex-start', sm: 'flex-end' },
-            gap: 1,
-            flexWrap: 'wrap'
-          }}
+        <Button
+          variant="contained"
+          color="primary"
+          disabled={status === incident.status || submitting}
+          onClick={handleSubmitAction}
+          sx={{ minWidth: { xs: '100%', sm: 180 } }}
         >
-          <Button
-            variant="contained"
-            color={statusChanged ? 'success' : 'primary'}
-            disabled={!(statusChanged || hasComment) || submitting}
-            onClick={handleSubmitAction}
-            sx={{ minWidth: { xs: '100%', sm: 180 } }}
-          >
-            {submitting ? 'Saving...' : actionLabel}
-          </Button>
-        </Box>
+          {(() => {
+            let buttonText = 'No Change';
+            if (submitting) {
+              buttonText = 'Saving...';
+            } else if (status !== incident.status) {
+              buttonText = 'Update Status';
+            }
+            return buttonText;
+          })()}
+        </Button>
       </Stack>
+
+      {incident.case_no && <IncidentConversation caseNo={incident.case_no} />}
     </Paper>
   );
 };

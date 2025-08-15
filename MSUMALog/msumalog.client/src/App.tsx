@@ -6,7 +6,7 @@ import { Link, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginPage from './components/LoginPage';
 import HomePage from './components/HomePage';
 import IncidentReportForm from './components/IncidentReportForm';
-//import AppBreadcrumbs from './components/AppBreadcrumbs';
+import AppBreadcrumbs from './components/AppBreadcrumbs';
 import IncidentReportDetail from './components/IncidentReportDetail';
 
 function App() {
@@ -90,13 +90,16 @@ function App() {
             )}
 
             <Container maxWidth="xl" sx={{ py: showNav ? 2 : 0 }}>
+                {showNav && <AppBreadcrumbs />}
                 <Box>
                     <Routes>
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/home" element={<HomePage />} />
+                        <Route path="/issues" element={<HomePage />} />
+
                         <Route path="/issues/new" element={<IncidentReportForm />} />
-                        <Route path="/issues/edit/:id" element={<IncidentReportDetail />} />
-                        <Route path="/issues/detail/:case_no" element={<IncidentReportDetail />} />
+                        <Route path="/issues/:case_no/edit" element={<IncidentReportForm />} />
+                        <Route path="/issues/:case_no" element={<IncidentReportDetail />} />
                         <Route path="/report" element={<IncidentReportForm />} />
                         <Route path="/" element={<Navigate to="/login" />} />
                     </Routes>

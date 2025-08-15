@@ -7,11 +7,12 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { format as formatDate } from 'date-fns';
 import './IncidentReportForm.css'; // เพิ่ม (ถ้ายังไม่ได้ import)
-import { createIncident as apiCreateIncident } from '../api/client';
+import { createIncident as apiCreateIncident, getIncidentByCase, updateIncidentFull } from '../api/client';
 import type { IncidentReportDto } from '../api/client';
 import { domainOptions, severityOptions } from '../constants/incidentOptions'; // <-- refactored import
 
 interface IFormData {
+    id?: number;                 // <-- เพิ่ม id
     case_no: string;
     title: string;               // NEW
     asset: string;
@@ -47,6 +48,7 @@ const IncidentReportForm: React.FC = () => {
     const isoToday = today.toISOString().split('T')[0];
 
     const [formData, setFormData] = useState<IFormData>({
+        id: undefined,
         case_no: '',
         title: '',            // NEW
         asset: '',
@@ -78,43 +80,59 @@ const IncidentReportForm: React.FC = () => {
     // NEW: api states
     const [saving, setSaving] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);   // <-- เพิ่ม
 
     useEffect(() => {
-        // Mock data fetching
-        if (!caseNoFromUrl ) {
-            setFormData({
-                case_no: '',
-                title: 'ปัญหาคลัชจม รถ MSU-6', // NEW mock title
-                asset: 'รถ MSU-6',
-                center: 'รพร.ปัว',
-                incident_date: '2025-08-10', // เปลี่ยนเป็น ISO yyyy-MM-dd เพื่อให้ parse ได้
-                symptoms: 'คลัชจม ไม่สามารถเปลี่ยนเกียร์ได้ รถขับไม่ได้',
-                severity: '5', // ถ้าปรับเป็นตัวเลข 1-5 (แทน "สูงที่สุด (5)")
-                impact: 'หยุดการให้บริการ',
-                domain: '001', // ใช้ code แทนข้อความ
-                sub_domain: 'ตัวรถและเครื่องยนต์',
-                vendor: 'RMA',
-                manufacturer: 'Mecedenz-Benz',
-                part_number: 'OF-917 version Euro3',
-                additional_info: 'N/A',
-                interim_action: 'จากการตรวจสอบคาดว่าปั๊มน้ำมันคลัชตัวล่างน่าจะมีปัญหา น้ำมันแห้งจนลูกสูบปั๊มคลัชติด ทำให้แป้นคลัชจม ไม่สามารถเปลี่ยนเกียร์ได้ โดยวันที่ 14/8/2568 ทาง พชร. จาก รพร.ปัว (พี่ดู่) ได้แก้ไขตามคำแนะนำของ EG โดยเดิมน้ำมันคลัช (DOT-4) และไล่ลมใหม่ เบื้องต้นล้มเหลว แต่ได้ดำเนินการใหม่โดยการอัดน้ำมันผ่านหลอดฉีดยาเข้าไปที่จุดไล่ลมปั๊มคลัชตัวล่าง จนลูกสูบหลุด และเริ่มดำเนินการจนคลัชกลับมาทำงานได้และขับได้ และนำรถกลับ รพร.ปัว',
-                intermediate_action: 'ให้ รพร.ปัว ติดต่ออู่ซ่อมรถใหญ่ เพื่อทำการตรวจสอบระบบคลัช และปั๊มคลัชตัวล่าง ระบุจุดรั่วซึม และกำหนด part ที่มีปัญหา ทาง EG ดำเนินการขอใบเสนอราคาของตัวยปั๊มคลัชตัวล่าง SI พิจารณาเตรียมจัดซื้อ',
-                long_term_action: 'จากคู่มือ น้ำมันคลัช ต้องมีการตรวจสอบระดับน้ำมัน และรอยรั่วซึมทุกๆ 6 เดือน และมีการเปลี่ยนถ่ายน้ำมันทุก 6 เดือน จึงควรบรรจุลงในแผนการซ่อมบำรุง แผนการ Training พชร. ใน MSU-SOS Standardization',
-                status: 'Open',
-                created_by: 'Pornchai Chanyagorn',
-                // mock responsible person data
-                responsible_name: 'Pornchai Chanyagorn',
-                responsible_lineid: 'pornchai_line',
-                responsible_email: 'pornchai@example.com',
-                responsible_phone: '081-234-5678'
-            });
-        } else if (caseNoFromUrl) {
-            // Handle case where case_no exists but no data is found, or fetch from API
-            // For now, just log it and show an empty form with the case number.
-            console.log(`No data for case_no: ${caseNoFromUrl}`);
-            setFormData(prevState => ({ ...prevState, case_no: caseNoFromUrl }));
-        }
-    }, [caseNoFromUrl]);
+        let ignore = false;
+        const load = async () => {
+            if (!caseNoFromUrl) {
+                // NEW (create mode) – ใส่ค่า default เฉพาะ create
+                setFormData(f => ({
+                    ...f,
+                    status: f.status || 'Open'
+                }));
+                return;
+            }
+            setLoading(true);
+            setApiError(null);
+            try {
+                const dto = await getIncidentByCase(caseNoFromUrl);
+                if (ignore) return;
+                setFormData({
+                    id: dto.id,
+                    case_no: dto.case_no || caseNoFromUrl,
+                    title: dto.title || dto.case_no || 'Untitled',      // <-- fallback
+                    asset: dto.asset || '',
+                    center: dto.center || '',
+                    incident_date: dto.incident_date || isoToday,
+                    symptoms: dto.symptoms || '',
+                    severity: String(dto.severity ?? ''),
+                    impact: dto.impact || '',
+                    domain: dto.domain || '',
+                    sub_domain: dto.sub_domain || '',
+                    vendor: dto.vendor || '',
+                    manufacturer: dto.manufacturer || '',
+                    part_number: dto.part_number || '',
+                    additional_info: dto.additional_info || '',
+                    interim_action: dto.interim_action || '',
+                    intermediate_action: dto.intermediate_action || '',
+                    long_term_action: dto.long_term_action || '',
+                    status: dto.status || '',
+                    created_by: dto.created_by || '',
+                    responsible_name: dto.responsible_name || '',
+                    responsible_lineid: dto.responsible_lineid || '',
+                    responsible_email: dto.responsible_email || '',
+                    responsible_phone: dto.responsible_phone || ''
+                });
+            } catch (e: any) {
+                if (!ignore) setApiError(e?.response?.data?.message || e?.message || 'Load failed');
+            } finally {
+                if (!ignore) setLoading(false);
+            }
+        };
+        load();
+        return () => { ignore = true; };
+    }, [caseNoFromUrl, isoToday]);
 
     // keep incidentDate in sync with formData.incident_date when it's a parseable date (ISO or yyyy-mm-dd)
     useEffect(() => {
@@ -135,25 +153,31 @@ const IncidentReportForm: React.FC = () => {
         }));
     };
 
-
+    const isTitleInvalid = !formData.title.trim();
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (loading || saving) return;
         setApiError(null);
 
-        const confirmed = window.confirm('ยืนยันการบันทึกข้อมูล (Confirm save)?');
+        if (!formData.title.trim()) {
+            setApiError('กรุณากรอก Title');
+            return;
+        }
+
+        const confirmed = window.confirm(isEdit ? 'ยืนยันการบันทึกการแก้ไข?' : 'ยืนยันการสร้างรายการ?');
         if (!confirmed) return;
 
-       
-        const payload: IncidentReportDto = {
-            // ถ้า schema มี id ให้เพิ่มเมื่อแก้ไข (ยังไม่มีในฟอร์มก็ไม่ใส่)
-            case_no: "", // use generated or existing
-            title: formData.title,          // NEW
+        // เตรียม DTO
+        const baseDto: IncidentReportDto = {
+            id: formData.id, // อาจ undefined สำหรับ create
+            case_no: formData.case_no, // server อาจ generate ถ้าเว้นว่าง
+            title: formData.title.trim(),        // <-- trim
             asset: formData.asset,
             center: formData.center,
             incident_date: formData.incident_date,
             symptoms: formData.symptoms,
-            severity: formData.severity, // still string; parseInt(formData.severity,10) if backend expects number
+            severity: formData.severity,
             impact: formData.impact,
             domain: formData.domain,
             sub_domain: formData.sub_domain,
@@ -174,12 +198,18 @@ const IncidentReportForm: React.FC = () => {
 
         try {
             setSaving(true);
-            console.log('Submitting Incident Payload (swagger client):', payload);
-            const created: IncidentReportDto = await apiCreateIncident(payload);
-            navigate(`/issues/detail/${created.case_no }`);
-        } catch (err: unknown) {
+            let finalCaseNo = formData.case_no;
+            if (isEdit) {
+                if (!formData.id) throw new Error('Missing id for update');
+                await updateIncidentFull(baseDto);
+            } else {
+                const created = await apiCreateIncident(baseDto);
+                finalCaseNo = created.case_no || finalCaseNo;
+            }
+            navigate(`/issues/${finalCaseNo}`);
+        } catch (err: any) {
             console.error(err);
-            setApiError((err as any)?.response?.data?.message || (err as any)?.message || 'เกิดข้อผิดพลาดในการบันทึก');
+            setApiError(err?.response?.data?.message || err?.message || 'เกิดข้อผิดพลาดในการบันทึก');
         } finally {
             setSaving(false);
         }
@@ -202,6 +232,12 @@ const IncidentReportForm: React.FC = () => {
                 <Typography variant="h4" component="h1" gutterBottom>
                     Issue Report
                 </Typography>
+
+                {loading && (
+                    <Typography sx={{ mb: 2 }} variant="body2" color="text.secondary">
+                        Loading...
+                    </Typography>
+                )}
 
                 <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 2 }}>
                     <Stack spacing={2}>
@@ -230,7 +266,20 @@ const IncidentReportForm: React.FC = () => {
                                 <input type="hidden" name="case_no" value={formData.case_no} />
                             )}
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="title" name="title" label="Title" value={formData.title} onChange={handleChange} required sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField
+                                    fullWidth
+                                    size="small"
+                                    margin="dense"
+                                    id="title"
+                                    name="title"
+                                    label="Title"
+                                    value={formData.title}
+                                    onChange={handleChange}
+                                    required
+                                    error={!formData.title.trim()}
+                                    helperText={!formData.title.trim() ? 'ต้องกรอก Title' : ' '}
+                                    sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}
+                                />
                             </Box>
                             <Box>
                                 <TextField fullWidth size="small" margin="dense" id="asset" name="asset" label="Asset" value={formData.asset} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
@@ -243,7 +292,7 @@ const IncidentReportForm: React.FC = () => {
                         {/* Incident details */}
                         <Box component="fieldset" sx={{ borderColor: 'divider', p: 2, borderRadius: 1 }}>
                             <Typography component="legend" variant="subtitle1" sx={{ mb: 1 }}>
-                                Incident Details
+                            Impact/Severity
                             </Typography>
                             <Box>
                                 <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -386,10 +435,10 @@ const IncidentReportForm: React.FC = () => {
                         type="submit"
                         fullWidth
                         variant="contained"
-                        disabled={saving}
+                        disabled={saving || isTitleInvalid}
                         sx={{ mt: 3, mb: 2, py: 2, fontSize: '1.05rem' }}
                     >
-                        {saving ? 'Saving...' : 'Submit'}
+                        {saving ? 'Saving...' : (isEdit ? 'Save Changes' : 'Submit')}
                     </Button>
                 </Box>
             </Paper>

@@ -167,7 +167,7 @@ function HomePage() {
     }, []);
 
     const handleRowClick = (caseNo: string) => {
-        navigate(`/issues/detail/${caseNo}`);
+        navigate(`/issues/${caseNo}`);
     };
 
     return (
