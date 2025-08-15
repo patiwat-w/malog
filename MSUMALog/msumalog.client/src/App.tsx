@@ -59,7 +59,7 @@ function App() {
                                     </Button>
                                 ))}
                             </Box>
-                            <Button color="inherit" component={Link} to="/login">Logout</Button>
+                            <Button color="inherit" component={Link} to="/logout">Logout</Button>
                         </Toolbar>
                     </AppBar>
 

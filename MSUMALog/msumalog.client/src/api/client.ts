@@ -60,3 +60,13 @@ export async function createComment(data: Omit<IncidentCommentDto, 'id' | 'creat
 export async function deleteComment(id: number) {
   await http.delete(`/IncidentComments/${id}`);
 }
+
+export async function logout() {
+  try {
+    const response = await http.post('/auth/logout', {}, { withCredentials: true });
+    return response.status === 204; // ตรวจสอบว่า logout สำเร็จ (204 No Content)
+  } catch (error) {
+    console.error('[api] POST /auth/logout error', error);
+    throw error;
+  }
+}

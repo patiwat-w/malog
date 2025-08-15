@@ -46,7 +46,7 @@ public class GoogleAuthController : ControllerBase
         Console.WriteLine($"Google Login: Redirecting to Google with a final returnUrl of {finalReturnUrl}");
         return Challenge(props, GoogleDefaults.AuthenticationScheme);
     }
-    
+
 
     // The callback endpoint that Google redirects to
     [HttpGet("signin-google")]
@@ -94,5 +94,14 @@ public class GoogleAuthController : ControllerBase
         }
 
         return Ok(new { Email = email });
+    }
+    
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        if (User.Identity?.IsAuthenticated == true)
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+        return NoContent();
     }
 }
