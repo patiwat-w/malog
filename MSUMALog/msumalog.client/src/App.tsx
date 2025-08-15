@@ -1,7 +1,8 @@
 import './App.css';
 import { AppBar, Toolbar, Typography, Button, Container, Box, IconButton, Drawer, List, ListItemButton, ListItemText, Divider } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import { useState } from 'react';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import { useState, useEffect } from 'react';
 import { Link, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginPage from './components/LoginPage';
 import HomePage from './components/HomePage';
@@ -12,11 +13,20 @@ import LogoutPage from './components/LogoutPage';
 import RequireAuth from './components/RequireAuth';
 import LoginFailPage from './components/LoginFailPage';
 import NotFoundPage from './components/NotFoundPage';
+import { getCurrentUser } from './api/client';
+import UserProfilePage from './components/UserProfilePage';
 
 function App() {
     const location = useLocation();
     const showNav = location.pathname !== '/login';
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [currentUser, setCurrentUser] = useState<{ firstName?: string; lastName?: string } | null>(null);
+
+    useEffect(() => {
+        getCurrentUser()
+            .then(user => setCurrentUser(user))
+            .catch(() => setCurrentUser(null));
+    }, []);
 
     const navItems = [
         { label: 'Home', to: '/home' },
@@ -62,6 +72,18 @@ function App() {
                                     </Button>
                                 ))}
                             </Box>
+                            <Box sx={{ flexGrow: 1 }} />
+                            {currentUser && (
+                                <Button
+                                    color="inherit"
+                                    component={Link}
+                                    to="/profile"
+                                    startIcon={<AccountCircleIcon />}
+                                    sx={{ textTransform: 'none', fontWeight: 500 }}
+                                >
+                                    {currentUser.firstName} {currentUser.lastName}
+                                </Button>
+                            )}
                             <Button color="inherit" component={Link} to="/logout">Logout</Button>
                         </Toolbar>
                     </AppBar>
@@ -108,6 +130,7 @@ function App() {
                         <Route path="/home" element={<Navigate to="/issues" />} />
                         <Route path="/" element={<Navigate to="/issues" />} />
                         <Route path="/login-fail" element={<LoginFailPage />} />
+                        <Route path="/profile" element={<RequireAuth><UserProfilePage /></RequireAuth>} />
                         <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                 </Box>

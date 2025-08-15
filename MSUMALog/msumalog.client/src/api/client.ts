@@ -80,3 +80,13 @@ export async function checkAuth(): Promise<boolean> {
     return false; // Return false if not authenticated
   }
 }
+
+export async function getCurrentUser() {
+  try {
+    const response = await http.get('/auth/me', { withCredentials: true });
+    return response.data; // ข้อมูล user ที่ backend ส่งกลับมา
+  } catch (error) {
+    console.error('[api] GET /auth/me error', error);
+    throw error;
+  }
+}
