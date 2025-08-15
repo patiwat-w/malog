@@ -194,6 +194,26 @@ const IncidentReportForm: React.FC = () => {
         }));
     };
 
+    // Add: helper to produce sx for TextField / MUI inputs (keeps font/spacing)
+    const getSxFor = (key: keyof IFormData, extraSx = {}) => {
+        const base = { '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } };
+        const isFilled = typeof formData[key] === 'string' && formData[key].trim().length > 0;
+        if (isFilled) {
+            return {
+                ...base,
+                // CSS class will handle background; preserve base sizing here
+                ...extraSx
+            };
+        }
+        return { ...base, ...extraSx };
+    };
+
+    // New: return class name for the input element (textarea/input)
+    const getClassFor = (key: keyof IFormData) => {
+        const isFilled = typeof formData[key] === 'string' && formData[key].trim().length > 0;
+        return isFilled ? 'input-field filled' : 'input-field';
+    };
+
     // Change: type keys as keyof IFormData so TS knows valid property names
     const requiredFields: Array<{ key: keyof IFormData; label: string }> = [
         { key: 'title', label: 'Title' },
@@ -319,7 +339,8 @@ const IncidentReportForm: React.FC = () => {
                                         label="Case No"
                                         value={formData.case_no}
                                         disabled
-                                        sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}
+                                        sx={getSxFor('case_no')}
+                                        inputProps={{ className: getClassFor('case_no') }}
                                     />
                                 </Box>
                             )}
@@ -339,7 +360,8 @@ const IncidentReportForm: React.FC = () => {
                                     required
                                     error={!formData.title.trim()}
                                     helperText={!formData.title.trim() ? 'ต้องกรอก Title' : ' '}
-                                    sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}
+                                    sx={getSxFor('title')}
+                                    inputProps={{ className: getClassFor('title') }}
                                 />
                             </Box>
                             <Box>
@@ -355,7 +377,8 @@ const IncidentReportForm: React.FC = () => {
                                     required
                                     error={!formData.asset.trim()}
                                     helperText={!formData.asset.trim() ? 'ต้องกรอก Asset' : ' '}
-                                    sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}
+                                    sx={getSxFor('asset')}
+                                    inputProps={{ className: getClassFor('asset') }}
                                 />
                             </Box>
                             <Box>
@@ -371,7 +394,8 @@ const IncidentReportForm: React.FC = () => {
                                     required
                                     error={!formData.center.trim()}
                                     helperText={!formData.center.trim() ? 'ต้องกรอก Center' : ' '}
-                                    sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}
+                                    sx={getSxFor('center')}
+                                    inputProps={{ className: getClassFor('center') }}
                                 />
                             </Box>
 
@@ -398,7 +422,8 @@ const IncidentReportForm: React.FC = () => {
                                                 required: true,
                                                 error: !formData.incident_date.trim(),
                                                 helperText: !formData.incident_date.trim() ? 'ต้องกรอก Incident Date' : ' ',
-                                                sx: { '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }
+                                                sx: getSxFor('incident_date'),
+                                                inputProps: { className: getClassFor('incident_date') }
                                             }
                                         }}
                                     />
@@ -423,6 +448,7 @@ const IncidentReportForm: React.FC = () => {
                                     onChange={handleChange}
                                     minRows={3}
                                     required
+                                    className={getClassFor('symptoms')}
                                     style={{
                                         width: '100%',
                                         fontSize: '1rem',
@@ -452,7 +478,8 @@ const IncidentReportForm: React.FC = () => {
                                     required
                                     error={!formData.severity.trim()}
                                     helperText={!formData.severity.trim() ? 'ต้องกรอก Severity' : 'เลือกระดับความรุนแรง 1 (ต่ำ) - 5 (สูงมาก)'}
-                                    sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}
+                                    sx={getSxFor('severity')}
+                                    inputProps={{ className: getClassFor('severity') }}
                                 >
                                     {severityOptions.map(opt => (
                                         <MenuItem key={opt.value} value={opt.value}>
@@ -462,7 +489,8 @@ const IncidentReportForm: React.FC = () => {
                                 </TextField>
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="impact" name="impact" label="Incident Impact (ผลกระทบ)"  value={formData.impact} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField fullWidth size="small" margin="dense" id="impact" name="impact" label="Incident Impact (ผลกระทบ)"  value={formData.impact} onChange={handleChange} 
+                                sx={getSxFor('impact')} inputProps={{ className: getClassFor('impact') }} />
                             </Box>
                         </Box>
 
@@ -472,16 +500,20 @@ const IncidentReportForm: React.FC = () => {
                                 Responsible Person
                             </Typography>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="responsible_name" name="responsible_name" label="Responsible Name" value={formData.responsible_name} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField fullWidth size="small" margin="dense" id="responsible_name" name="responsible_name" label="Responsible Name" value={formData.responsible_name} onChange={handleChange}
+                                sx={getSxFor('responsible_name')} inputProps={{ className: getClassFor('responsible_name') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="responsible_lineid" name="responsible_lineid" label="Line ID" value={formData.responsible_lineid} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField fullWidth size="small" margin="dense" id="responsible_lineid" name="responsible_lineid" label="Line ID" value={formData.responsible_lineid} onChange={handleChange}
+                                sx={getSxFor('responsible_lineid')} inputProps={{ className: getClassFor('responsible_lineid') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="responsible_email" name="responsible_email" label="Email" type="email" value={formData.responsible_email} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField fullWidth size="small" margin="dense" id="responsible_email" name="responsible_email" label="Email" type="email" value={formData.responsible_email} onChange={handleChange}
+                                sx={getSxFor('responsible_email')} inputProps={{ className: getClassFor('responsible_email') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="responsible_phone" name="responsible_phone" label="Contact Phone" value={formData.responsible_phone} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField fullWidth size="small" margin="dense" id="responsible_phone" name="responsible_phone" label="Contact Phone" value={formData.responsible_phone} onChange={handleChange}
+                                sx={getSxFor('responsible_phone')} inputProps={{ className: getClassFor('responsible_phone') }} />
                             </Box>
                         </Box>
 
@@ -491,24 +523,30 @@ const IncidentReportForm: React.FC = () => {
                                 Problem / Supplier
                             </Typography>
                             <Box>
-                                <TextField select fullWidth size="small" margin="dense" id="domain" name="domain" label="Problem Domain" value={formData.domain} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}>
+                                <TextField select fullWidth size="small" margin="dense" id="domain" name="domain" label="Problem Domain" value={formData.domain} onChange={handleChange}
+                                sx={getSxFor('domain')} inputProps={{ className: getClassFor('domain') }}>
                                     {domainOptions.map(opt => (<MenuItem key={opt.code} value={opt.code}>{opt.label}</MenuItem>))}
                                 </TextField>
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="sub_domain" name="sub_domain" label="Problem Sub-domain" value={formData.sub_domain} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField fullWidth size="small" margin="dense" id="sub_domain" name="sub_domain" label="Problem Sub-domain" value={formData.sub_domain} onChange={handleChange}
+                                sx={getSxFor('sub_domain')} inputProps={{ className: getClassFor('sub_domain') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="vendor" name="vendor" label="Vendor" value={formData.vendor} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField fullWidth size="small" margin="dense" id="vendor" name="vendor" label="Vendor" value={formData.vendor} onChange={handleChange}
+                                sx={getSxFor('vendor')} inputProps={{ className: getClassFor('vendor') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="manufacturer" name="manufacturer" label="Manufacturer" value={formData.manufacturer} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField fullWidth size="small" margin="dense" id="manufacturer" name="manufacturer" label="Manufacturer" value={formData.manufacturer} onChange={handleChange}
+                                sx={getSxFor('manufacturer')} inputProps={{ className: getClassFor('manufacturer') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="part_number" name="part_number" label="Part/Control Number" value={formData.part_number} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField fullWidth size="small" margin="dense" id="part_number" name="part_number" label="Part/Control Number" value={formData.part_number} onChange={handleChange}
+                                sx={getSxFor('part_number')} inputProps={{ className: getClassFor('part_number') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="additional_info" name="additional_info" label="Additional Information" value={formData.additional_info} onChange={handleChange} sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }} />
+                                <TextField fullWidth size="small" margin="dense" id="additional_info" name="additional_info" label="Additional Information" value={formData.additional_info} onChange={handleChange}
+                                sx={getSxFor('additional_info')} inputProps={{ className: getClassFor('additional_info') }} />
                             </Box>
                         </Box>
 
@@ -519,15 +557,21 @@ const IncidentReportForm: React.FC = () => {
                             </Typography>
                             <Box>
                                 <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Interim Action</Typography>
-                                <TextareaAutosize id="interim_action" name="interim_action" value={formData.interim_action} onChange={handleChange} minRows={4} placeholder="Interim Action" style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
+                                <TextareaAutosize id="interim_action" name="interim_action" value={formData.interim_action} onChange={handleChange} minRows={4} placeholder="Interim Action" 
+                                className={getClassFor('interim_action')}
+                                style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
                             </Box>
                             <Box>
                                 <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Intermediate Action</Typography>
-                                <TextareaAutosize id="intermediate_action" name="intermediate_action" value={formData.intermediate_action} onChange={handleChange} minRows={4} placeholder="Intermediate Action" style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
+                                <TextareaAutosize id="intermediate_action" name="intermediate_action" value={formData.intermediate_action} onChange={handleChange} minRows={4} placeholder="Intermediate Action" 
+                                className={getClassFor('intermediate_action')}
+                                style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
                             </Box>
                             <Box>
                                 <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Long-term Action</Typography>
-                                <TextareaAutosize id="long_term_action" name="long_term_action" value={formData.long_term_action} onChange={handleChange} minRows={4} placeholder="Long-term Action" style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
+                                <TextareaAutosize id="long_term_action" name="long_term_action" value={formData.long_term_action} onChange={handleChange} minRows={4} placeholder="Long-term Action" 
+                                className={getClassFor('long_term_action')}
+                                style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
                             </Box>
                             {isEdit && (
                                 <Box>
@@ -541,7 +585,7 @@ const IncidentReportForm: React.FC = () => {
                                         value={formData.status}
                                         onChange={handleChange}
                                         slotProps={{ input: { readOnly: true } }}
-                                        sx={{ '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } }}
+                                        sx={getSxFor('status')}
                                     />
                                 </Box>
                             )}
@@ -560,9 +604,10 @@ const IncidentReportForm: React.FC = () => {
                                         sx: { backgroundColor: '#f5f5f5' } // สีเทาอ่อน
                                     }}
                                     sx={{
-                                        '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 },
-                                        '& .MuiInputBase-root': { backgroundColor: '#f5f5f5' } // สีเทาอ่อน
+                                        ...getSxFor('created_by'),
+                                        '& .MuiInputBase-root': { backgroundColor: '#f5f5f5' } // keep readOnly gray
                                     }}
+                                    // do NOT apply filled class to created_by so it stays gray
                                 />
                             </Box>
                         </Box>

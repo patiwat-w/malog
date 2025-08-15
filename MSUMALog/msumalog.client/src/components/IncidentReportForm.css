@@ -58,3 +58,48 @@
     box-shadow:none;
   }
 }
+
+/* base input style applied to both text inputs and textareas */
+.input-field {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height */
+  transition: all 0.3s ease-in-out;
+  background: transparent;
+}
+
+/* Styling when the input field is focused (clicked or tabbed into) */
+.input-field:focus {
+  outline: none; /* Removes the default outline */
+  border-color: #3b82f6; /* Blue border color */
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); /* Blue box shadow with transparency */
+}
+
+/* Filled variant uses the requested gradient + a softer overlay */
+.input-field.filled {
+  background: linear-gradient(180deg, rgb(232,240,254), rgba(152, 171, 206, 0.12)) !important;
+  border-color: rgba(70,90,126,0.35);
+}
+
+/* When focused and filled, keep a subtle stronger shadow */
+.input-field.filled:focus {
+  box-shadow: 0 0 0 6px rgba(70,90,126,0.18);
+  border-color: rgba(70,90,126,0.6);
+}
+
+/* Input labels (MUI and plain labels) inside the incident form should be blue */
+.incident-form .form-group label,
+.incident-form .MuiInputLabel-root,
+.incident-form .MuiFormLabel-root,
+.incident-form .MuiTypography-caption {
+  color: #1e40af; /* blue */
+}
+
+/* Slightly stronger blue on focus for MUI labels */
+.incident-form .MuiInputLabel-root.Mui-focused,
+.incident-form .MuiFormLabel-root.Mui-focused {
+  color: #08306b; /* darker blue on focus */
+}
