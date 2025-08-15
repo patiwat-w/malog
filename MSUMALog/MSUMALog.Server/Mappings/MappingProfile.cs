@@ -26,7 +26,10 @@ public class MappingProfile : Profile
 
         CreateMap<IncidentReportDto, IncidentReport>()
             .ForMember(d => d.CaseNo, o => o.MapFrom(s => s.Case_no))
-            .ForMember(d => d.IncidentDate, o => o.MapFrom(s => DateTime.Parse(s.Incident_date, CultureInfo.InvariantCulture)))
+            .ForMember(d => d.IncidentDate, o => o.MapFrom(s =>
+                string.IsNullOrWhiteSpace(s.Incident_date)
+                    ? DateTime.UtcNow // ใช้เวลาปัจจุบันหากค่าว่าง
+                    : ParseDate(s.Incident_date) ?? DateTime.UtcNow)) // ใช้เวลาปัจจุบันหากรูปแบบไม่ถูกต้อง
             .ForMember(d => d.SubDomain, o => o.MapFrom(s => s.Sub_domain))
             .ForMember(d => d.PartNumber, o => o.MapFrom(s => s.Part_number))
             .ForMember(d => d.AdditionalInfo, o => o.MapFrom(s => s.Additional_info))
@@ -40,5 +43,14 @@ public class MappingProfile : Profile
             .ForMember(d => d.ResponsiblePhone, o => o.MapFrom(s => s.Responsible_phone));
 
         CreateMap<ResponsiblePerson, ResponsiblePersonDto>().ReverseMap();
+    }
+
+    private static DateTime? ParseDate(string dateString)
+    {
+        if (DateTime.TryParse(dateString, out var parsedDate))
+        {
+            return parsedDate;
+        }
+        return null; // Handle invalid date format gracefully  
     }
 }
