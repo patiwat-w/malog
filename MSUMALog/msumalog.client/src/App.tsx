@@ -8,6 +8,7 @@ import HomePage from './components/HomePage';
 import IncidentReportForm from './components/IncidentReportForm';
 import AppBreadcrumbs from './components/AppBreadcrumbs';
 import IncidentReportDetail from './components/IncidentReportDetail';
+import LogoutPage from './components/LogoutPage';
 
 function App() {
     const location = useLocation();
@@ -82,7 +83,7 @@ function App() {
                             ))}
                         </List>
                         <Divider />
-                        <ListItemButton component={Link} to="/login" onClick={() => setMobileOpen(false)}>
+                        <ListItemButton component={Link} to="/logout" onClick={() => setMobileOpen(false)}>
                             <ListItemText primary="Logout" />
                         </ListItemButton>
                     </Drawer>
@@ -101,6 +102,7 @@ function App() {
                         <Route path="/issues/:case_no/edit" element={<IncidentReportForm />} />
                         <Route path="/issues/:case_no" element={<IncidentReportDetail />} />
                         <Route path="/report" element={<IncidentReportForm />} />
+                        <Route path="/logout" element={<LogoutPage />} />
                         <Route path="/" element={<Navigate to="/login" />} />
                     </Routes>
                 </Box>

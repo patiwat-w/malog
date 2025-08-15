@@ -5,6 +5,10 @@ using MSUMALog.Server.Services;
 using MSUMALog.Server.Mappings;
 using MSUMALog.Server.Mapping;
 using Microsoft.AspNetCore.CookiePolicy;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Google;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,9 +37,43 @@ builder.Services.AddScoped<IIncidentCommentService, IncidentCommentService>();  
 // Enforce strict cookie policy (สำหรับทุกคุกกี้ที่ออกจากแอป)
 builder.Services.Configure<CookiePolicyOptions>(o =>
 {
-    o.MinimumSameSitePolicy = SameSiteMode.Strict;
+    // ปล่อยให้แต่ละ cookie กำหนด SameSite เอง (ไม่ขัดกับ SameSite=None ของ auth cookie)
+    o.MinimumSameSitePolicy = SameSiteMode.None;
     o.Secure = CookieSecurePolicy.Always;
     o.HttpOnly = HttpOnlyPolicy.Always;
+});
+
+// เพิ่ม Cookie Authentication
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
+})
+.AddCookie(opt =>
+{
+    opt.Cookie.Name = "auth";
+    opt.Cookie.HttpOnly = true;
+    opt.Cookie.SameSite = SameSiteMode.Lax; // เปลี่ยนจาก None เป็น Lax
+    opt.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+})
+.AddGoogle(opt =>
+{
+    opt.ClientId = builder.Configuration["Authentication:Google:ClientId"]!;
+    opt.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
+    opt.CallbackPath = "/auth/signin-google"; // ต้องตรงกับ Authorized redirect URIs
+    opt.SaveTokens = true;
+});
+
+builder.Services.AddCors(opt =>
+{
+    opt.AddPolicy("frontend", p =>
+    {
+        p.WithOrigins("https://localhost:63950, https://msu-malog.egmu-research.org")
+         .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+         .AllowAnyHeader()
+         .AllowAnyMethod()
+         .AllowCredentials();
+    });
 });
 
 var app = builder.Build();
@@ -78,6 +116,26 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
+app.Use(async (ctx, next) =>
+{
+    Console.WriteLine($"Request: {ctx.Request.Method} {ctx.Request.Path} {ctx.Request.QueryString}");
+    Console.WriteLine($"Headers: {string.Join(", ", ctx.Request.Headers.Select(h => $"{h.Key}: {h.Value}"))}");
+    await next();
+});
+
+app.Use(async (context, next) =>
+{
+    // ตรวจสอบว่า Path ไม่ใช่ /auth
+    if (context.Request.Path.StartsWithSegments("/auth"))
+    {
+        await next();
+        return;
+    }
+
+    // Logic สำหรับ Static Files
+    await next();
+});
+
 // ใน Production ตรวจ Origin/Referer (มีอยู่แล้ว เพิ่ม normalize/allow loopback)
 if (!app.Environment.IsDevelopment())
 {
@@ -92,6 +150,9 @@ if (!app.Environment.IsDevelopment())
             // อนุญาต localhost/127.0.0.1 (กรณี deploy ภายใน)
             if (u.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
                 u.Host.StartsWith("127.0.0.", StringComparison.OrdinalIgnoreCase))
+                return true;
+            // อนุญาต Google Referer
+            if (u.Host.Equals("accounts.google.com", StringComparison.OrdinalIgnoreCase))
                 return true;
             return string.Equals(u.Host, host, StringComparison.OrdinalIgnoreCase);
         }
@@ -124,6 +185,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors("frontend"); // ต้องมาก่อน Auth สำหรับ preflight
+
+app.UseAuthentication(); // <-- ก่อน Authorization
 app.UseAuthorization();
 
 app.MapControllers();
