@@ -108,7 +108,7 @@ const IncidentReportDetail: React.FC = () => {
           center: data.center || '',
           incident_date: data.incident_date || '',
           symptoms: data.symptoms || '',
-          severity: data.severity || '',
+          severity: data.severity ?? undefined,   // อย่าใส่ '' ให้คง number หรือ undefined
           impact: data.impact || '',
           domain: data.domain || '',
           sub_domain: data.sub_domain || '',
@@ -119,7 +119,8 @@ const IncidentReportDetail: React.FC = () => {
           intermediate_action: data.intermediate_action || '',
           long_term_action: data.long_term_action || '',
           created_by: data.created_by || '',
-          id: data.id ?? 0
+          id: data.id ?? 0,
+          occurredAt: data.occurredAt || '' // Add occurredAt property
         };
         setIncident(mapped);
         setStatus(mapped.status ?? '');
@@ -153,7 +154,9 @@ const IncidentReportDetail: React.FC = () => {
         interim_action: incident.interim_action,
         intermediate_action: incident.intermediate_action,
         long_term_action: incident.long_term_action,
-        created_by: incident.created_by
+        created_by: incident.created_by,
+        title: '',
+        occurredAt: ''
       });
       setIncident(prev => prev ? { ...prev, status } : prev);
     } finally {
@@ -270,7 +273,7 @@ const IncidentReportDetail: React.FC = () => {
           Details
         </Typography>
         <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mt: 1 }}>
-          <DetailField label="Severity">{getSeverityLabel(incident.severity)}</DetailField>
+          <DetailField label="Severity">{getSeverityLabel(incident.severity ?? 0)}</DetailField>
           <DetailField label="Impact">{incident.impact}</DetailField>
           <DetailField label="Domain">{getDomainLabel(incident.domain)}</DetailField>
           <DetailField label="Sub-domain">{incident.sub_domain}</DetailField>
@@ -334,7 +337,7 @@ const IncidentReportDetail: React.FC = () => {
         </Button>
       </Stack>
 
-      {incident.case_no && <IncidentConversation caseNo={incident.case_no} />}
+      {incident.case_no && <IncidentConversation caseNo={incident.case_no} incidentId={incident.id} />}
     </Paper>
   );
 };

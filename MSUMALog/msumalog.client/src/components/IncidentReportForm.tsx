@@ -175,9 +175,11 @@ const IncidentReportForm: React.FC = () => {
             title: formData.title.trim(),        // <-- trim
             asset: formData.asset,
             center: formData.center,
-            incident_date: formData.incident_date,
+            occurredAt: formData.incident_date, // Map incident_date to occurredAt
             symptoms: formData.symptoms,
-            severity: formData.severity,
+            severity: formData.severity
+                ? parseInt(formData.severity, 10)
+                : undefined, // หรือใส่ 0 ถ้า backend ต้องการค่าเสมอ: : 0
             impact: formData.impact,
             domain: formData.domain,
             sub_domain: formData.sub_domain,

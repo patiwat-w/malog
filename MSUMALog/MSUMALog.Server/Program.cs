@@ -14,16 +14,21 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // DbContext (SQL Server)
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer")));
+builder.Services.AddDbContext<ApplicationDbContext>(opt =>
+{
+    opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
 
-// AutoMapper
-builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
-builder.Services.AddAutoMapper(typeof(IncidentReportProfile).Assembly);
+// AutoMapper (scan assembly containing profiles)
+builder.Services.AddAutoMapper(typeof(IncidentReportProfile).Assembly); // หากยังไม่มี
+// ถ้าสร้าง IncidentCommentProfile อยู่ใน assembly เดียวกันก็เพียงพอ
+// หรือใช้: builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 // DI
 builder.Services.AddScoped<IIncidentReportRepository, IncidentReportRepository>();
+builder.Services.AddScoped<IIncidentCommentRepository, IncidentCommentRepository>();   // <--
 builder.Services.AddScoped<IIncidentReportService, IncidentReportService>();
+builder.Services.AddScoped<IIncidentCommentService, IncidentCommentService>();         // <--
 
 // Enforce strict cookie policy (สำหรับทุกคุกกี้ที่ออกจากแอป)
 builder.Services.Configure<CookiePolicyOptions>(o =>
@@ -43,18 +48,23 @@ app.UseStaticFiles();
 // EXTRA: Global hardening (ก่อน Origin/Referer middleware)
 app.Use(async (ctx, next) =>
 {
-    // Block large bodies (ปรับได้)
     if (ctx.Request.ContentLength > 5 * 1024 * 1024)
     {
         ctx.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
         return;
     }
 
-    // Accept only JSON for unsafe methods
-    if (HttpMethods.IsPost(ctx.Request.Method) ||
-        HttpMethods.IsPut(ctx.Request.Method) ||
-        HttpMethods.IsPatch(ctx.Request.Method) ||
-        HttpMethods.IsDelete(ctx.Request.Method))
+    var method = ctx.Request.Method;
+
+    // บังคับ JSON เฉพาะเมื่อต้องมี body:
+    // POST / PUT / PATCH หรือ DELETE ที่ส่ง body มา (ContentLength > 0)
+    bool mustHaveJson =
+        HttpMethods.IsPost(method) ||
+        HttpMethods.IsPut(method) ||
+        HttpMethods.IsPatch(method) ||
+        (HttpMethods.IsDelete(method) && (ctx.Request.ContentLength ?? 0) > 0);
+
+    if (mustHaveJson)
     {
         var ct = ctx.Request.ContentType ?? "";
         if (!ct.StartsWith("application/json", StringComparison.OrdinalIgnoreCase))

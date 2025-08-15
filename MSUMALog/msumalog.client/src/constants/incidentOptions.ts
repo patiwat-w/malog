@@ -30,5 +30,5 @@ export const severityOptions: SeverityOption[] = [
 export const getDomainLabel = (code: string | null | undefined) =>
   domainOptions.find(d => d.code === (code ?? ''))?.label || (code ?? '');
 
-export const getSeverityLabel = (val: string | null | undefined) =>
+export const getSeverityLabel = (val: number | null | undefined) =>
   severityOptions.find(s => s.value === (val ?? ''))?.label || (val ?? '');

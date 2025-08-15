@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Paper, Typography, Stack, Button } from '@mui/material';
+import { Box, Paper, Typography, Stack, Button, IconButton, Tooltip, CircularProgress, Alert } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -7,44 +7,38 @@ import ImageIcon from '@mui/icons-material/Image';
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import ListIcon from '@mui/icons-material/FormatListBulleted';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import TurndownService from 'turndown';
-
-interface Comment {
-  id: string;
-  author: string;
-  body: string;       // markdown or raw <img> html snippet
-  created_at: string;
-  caseNo?: string;
-}
-
-// TODO: replace with real API
-const fetchComments = async (caseNo: string): Promise<Comment[]> => {
-  return [
-    { id: 'c1', author: 'Admin', body: 'รับทราบ เคสกำลังตรวจสอบ', created_at: '2025-08-11 09:10', caseNo },
-    { id: 'c2', author: 'Reporter', body: 'อัปเดตล่าสุดเปลี่ยนอะไหล่แล้ว', created_at: '2025-08-12 14:22', caseNo }
-  ];
-};
-
-// TODO: replace with real POST API
-const postComment = async (_caseNo: string, comment: Omit<Comment, 'id' | 'created_at'>) => {
-  await new Promise(r => setTimeout(r, 150));
-  return {
-    id: Math.random().toString(36).slice(2),
-    created_at: new Date().toISOString(),
-    ...comment
-  } as Comment;
-};
+import {
+  getCommentsByCase,
+  createComment,
+  deleteComment,
+  getIncidentByCase,
+  type IncidentCommentDto
+} from '../api/client';
 
 interface Props {
   caseNo: string;
+  incidentId?: number;          // optional (ถ้าไม่ส่งมาจะโหลดเองจาก caseNo)
   currentUser?: string;
   heightMin?: number;
+  enableDelete?: boolean;
 }
 
-const IncidentConversation: React.FC<Props> = ({ caseNo, currentUser = 'CurrentUser', heightMin = 140 }) => {
-  const [comments, setComments] = useState<Comment[]>([]);
+const IncidentConversation: React.FC<Props> = ({
+  caseNo,
+  incidentId: incidentIdProp,
+  currentUser = 'CurrentUser',
+  heightMin = 140,
+  enableDelete = true
+}) => {
+  const [incidentId, setIncidentId] = useState<number | null>(incidentIdProp ?? null);
+  const [comments, setComments] = useState<IncidentCommentDto[]>([]);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Editor refs/state
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -58,12 +52,49 @@ const IncidentConversation: React.FC<Props> = ({ caseNo, currentUser = 'CurrentU
   const [imgToolbarPos, setImgToolbarPos] = useState<{ x: number; y: number } | null>(null);
   const [imgWidthPercent, setImgWidthPercent] = useState<number>(100);
 
+  // Load incident id if not provided
+  useEffect(() => {
+    let ignore = false;
+    const resolveIncident = async () => {
+      if (incidentIdProp) {
+        setIncidentId(incidentIdProp);
+        return;
+      }
+      if (!caseNo) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const dto = await getIncidentByCase(caseNo);
+        if (ignore) return;
+        setIncidentId(dto.id!);
+      } catch (e: any) {
+        if (!ignore) setError(e?.response?.data?.message || e?.message || 'Load incident failed');
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
+    resolveIncident();
+    return () => { ignore = true; };
+  }, [caseNo, incidentIdProp]);
+
+  // Load comments by case
   useEffect(() => {
     if (!caseNo) return;
-    (async () => {
-      const list = await fetchComments(caseNo);
-      setComments(list);
-    })();
+    let ignore = false;
+    const loadComments = async () => {
+      setLoadingComments(true);
+      setError(null);
+      try {
+        const list = await getCommentsByCase(caseNo);
+        if (!ignore) setComments(list);
+      } catch (e: any) {
+        if (!ignore) setError(e?.response?.data?.message || e?.message || 'Load comments failed');
+      } finally {
+        if (!ignore) setLoadingComments(false);
+      }
+    };
+    loadComments();
+    return () => { ignore = true; };
   }, [caseNo]);
 
   useEffect(() => {
@@ -72,7 +103,6 @@ const IncidentConversation: React.FC<Props> = ({ caseNo, currentUser = 'CurrentU
       codeBlockStyle: 'fenced',
       keepReplacement: (content) => content
     });
-    // Preserve styled <img>
     turndownRef.current.addRule('imageKeepStyle', {
       filter: 'img',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -194,13 +224,14 @@ const IncidentConversation: React.FC<Props> = ({ caseNo, currentUser = 'CurrentU
   const hasComment = newComment.trim().length > 0;
 
   const submitComment = async () => {
-    if (!hasComment) return;
+    if (!hasComment || submitting || !incidentId) return;
     setSubmitting(true);
+    setError(null);
     try {
-      const created = await postComment(caseNo, {
+      const created = await createComment({
+        incidentReportId: incidentId,
         author: currentUser,
-        body: newComment.trim(),
-        caseNo
+        body: newComment.trim()
       });
       setComments(prev => [created, ...prev]);
       setNewComment('');
@@ -208,8 +239,22 @@ const IncidentConversation: React.FC<Props> = ({ caseNo, currentUser = 'CurrentU
         editorRef.current.innerHTML = '';
         editorHtmlRef.current = '';
       }
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || 'Create comment failed');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!enableDelete) return;
+    const yes = window.confirm('Delete this comment?');
+    if (!yes) return;
+    try {
+      await deleteComment(id);
+      setComments(prev => prev.filter(c => c.id !== id));
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || 'Delete failed');
     }
   };
 
@@ -217,29 +262,58 @@ const IncidentConversation: React.FC<Props> = ({ caseNo, currentUser = 'CurrentU
     <Box sx={{ mt: 4 }}>
       <Typography variant="h6" sx={{ mb: 1 }}>Discussions</Typography>
 
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {(loading || loadingComments) && comments.length === 0 && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <CircularProgress size={18} />
+          <Typography variant="body2" color="text.secondary">Loading...</Typography>
+        </Box>
+      )}
+
       <Stack spacing={2} sx={{ mb: 4 }}>
-        {comments.map(c => (
-          <Paper key={c.id} variant="outlined" sx={{ p: 1.5 }}>
-            <Typography variant="subtitle2">
-              {c.author}{' '}
-              <Typography component="span" variant="caption" sx={{ color: 'text.secondary' }}>
-                {c.created_at}
-              </Typography>
-            </Typography>
-            <Box sx={{ mt: 0.5, fontSize: '.9rem' }}>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeRaw]}
-                components={{
-                  img: (props) => <img {...props} style={{ maxWidth: '100%', borderRadius: 4, ...(props.style || {}) }} />
-                }}
-              >
-                {c.body}
-              </ReactMarkdown>
-            </Box>
-          </Paper>
-        ))}
-        {comments.length === 0 && (
+        {comments.map(c => {
+          const createdLocal = new Date(c.createdUtc).toLocaleString();
+          return (
+            <Paper key={c.id} variant="outlined" sx={{ p: 1.5 }}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="subtitle2">
+                  {c.author}{' '}
+                  <Typography component="span" variant="caption" sx={{ color: 'text.secondary' }}>
+                    {createdLocal}
+                  </Typography>
+                </Typography>
+                {enableDelete && (
+                  <Tooltip title="Delete comment">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDelete(c.id)}
+                      sx={{ ml: 'auto' }}
+                    >
+                      <DeleteOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Stack>
+              <Box sx={{ mt: 0.5, fontSize: '.9rem' }}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                  components={{
+                    img: (props) => <img {...props} style={{ maxWidth: '100%', borderRadius: 4, ...(props.style || {}) }} />
+                  }}
+                >
+                  {c.body}
+                </ReactMarkdown>
+              </Box>
+            </Paper>
+          );
+        })}
+        {!loadingComments && comments.length === 0 && (
           <Typography variant="body2" color="text.secondary">
             No comments yet.
           </Typography>
@@ -256,9 +330,9 @@ const IncidentConversation: React.FC<Props> = ({ caseNo, currentUser = 'CurrentU
         <input
           ref={fileInputRef}
           hidden
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
+          type="file"
+          accept="image/*"
+          onChange={handleImageChange}
         />
       </Stack>
 
@@ -321,7 +395,7 @@ const IncidentConversation: React.FC<Props> = ({ caseNo, currentUser = 'CurrentU
                 step={5}
                 value={imgWidthPercent}
                 onChange={(e) => applyImageWidth(parseInt(e.target.value))}
-                className="range-input"
+                className="image-width-range"
                 placeholder="Adjust image width"
               />
             </Box>
@@ -351,7 +425,7 @@ const IncidentConversation: React.FC<Props> = ({ caseNo, currentUser = 'CurrentU
 
       <Button
         variant="contained"
-        disabled={!hasComment || submitting}
+        disabled={!hasComment || submitting || !incidentId}
         onClick={submitComment}
       >
         {submitting ? 'Posting...' : 'Post Comment'}
