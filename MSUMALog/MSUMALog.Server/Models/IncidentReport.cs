@@ -18,7 +18,7 @@ public class IncidentReport
     [MaxLength(500)]
     public string? Center { get; set; } = string.Empty;
 
-    public DateTime IncidentDate { get; set; } = DateTime.UtcNow;
+    public DateTime? IncidentDate { get; set; } = DateTime.UtcNow;
 
     [MaxLength(1000)]
     public string? Symptoms { get; set; } = string.Empty;

@@ -1,3 +1,4 @@
+using System.Globalization;
 using AutoMapper;
 using MSUMALog.Server.DTOs;
 using MSUMALog.Server.Models;
@@ -10,7 +11,7 @@ public class MappingProfile : Profile
     {
         CreateMap<IncidentReport, IncidentReportDto>()
             .ForMember(d => d.Case_no, o => o.MapFrom(s => s.CaseNo))
-            .ForMember(d => d.Incident_date, o => o.MapFrom(s => s.IncidentDate.ToString("yyyy-MM-dd")))
+            .ForMember(d => d.Incident_date, o => o.MapFrom(s => s.IncidentDate.HasValue ? s.IncidentDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : null))
             .ForMember(d => d.Sub_domain, o => o.MapFrom(s => s.SubDomain))
             .ForMember(d => d.Part_number, o => o.MapFrom(s => s.PartNumber))
             .ForMember(d => d.Additional_info, o => o.MapFrom(s => s.AdditionalInfo))
@@ -25,7 +26,7 @@ public class MappingProfile : Profile
 
         CreateMap<IncidentReportDto, IncidentReport>()
             .ForMember(d => d.CaseNo, o => o.MapFrom(s => s.Case_no))
-            .ForMember(d => d.IncidentDate, o => o.MapFrom(s => DateTime.Parse(s.Incident_date)))
+            .ForMember(d => d.IncidentDate, o => o.MapFrom(s => DateTime.Parse(s.Incident_date, CultureInfo.InvariantCulture)))
             .ForMember(d => d.SubDomain, o => o.MapFrom(s => s.Sub_domain))
             .ForMember(d => d.PartNumber, o => o.MapFrom(s => s.Part_number))
             .ForMember(d => d.AdditionalInfo, o => o.MapFrom(s => s.Additional_info))

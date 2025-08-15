@@ -155,8 +155,8 @@ const IncidentReportDetail: React.FC = () => {
         intermediate_action: incident.intermediate_action,
         long_term_action: incident.long_term_action,
         created_by: incident.created_by,
-        title: '',
-        incidentDate: ''
+        title: incident.title,
+        incidentDate: incident.incident_date ?? '' // Ensure incidentDate is included
       });
       setIncident(prev => prev ? { ...prev, status } : prev);
     } finally {
