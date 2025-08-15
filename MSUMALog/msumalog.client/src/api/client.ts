@@ -37,3 +37,26 @@ export async function deleteIncident(id: number) {
   await http.delete(`/IncidentReports/${id}`);
   return true;
 }
+
+export interface IncidentCommentDto {
+  id: number;
+  incidentReportId: number;
+  caseNo?: string;
+  author: string;
+  body: string;
+  createdUtc: string;
+}
+
+export async function getCommentsByCase(caseNo: string) {
+  const res = await http.get<IncidentCommentDto[]>(`/IncidentComments/by-case/${encodeURIComponent(caseNo)}`);
+  return res.data;
+}
+
+export async function createComment(data: Omit<IncidentCommentDto, 'id' | 'createdUtc' | 'caseNo'>) {
+  const res = await http.post<IncidentCommentDto>('/IncidentComments', data);
+  return res.data;
+}
+
+export async function deleteComment(id: number) {
+  await http.delete(`/IncidentComments/${id}`);
+}
