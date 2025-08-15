@@ -9,6 +9,7 @@ import IncidentReportForm from './components/IncidentReportForm';
 import AppBreadcrumbs from './components/AppBreadcrumbs';
 import IncidentReportDetail from './components/IncidentReportDetail';
 import LogoutPage from './components/LogoutPage';
+import RequireAuth from './components/RequireAuth';
 
 function App() {
     const location = useLocation();
@@ -95,15 +96,15 @@ function App() {
                 <Box>
                     <Routes>
                         <Route path="/login" element={<LoginPage />} />
-                        <Route path="/home" element={<HomePage />} />
-                        <Route path="/issues" element={<HomePage />} />
-
-                        <Route path="/issues/new" element={<IncidentReportForm />} />
-                        <Route path="/issues/:case_no/edit" element={<IncidentReportForm />} />
-                        <Route path="/issues/:case_no" element={<IncidentReportDetail />} />
-                        <Route path="/report" element={<IncidentReportForm />} />
+                        <Route path="/issues" element={<RequireAuth><HomePage /></RequireAuth>} />
+                        <Route path="/issues" element={<RequireAuth><HomePage /></RequireAuth>} />
+                        <Route path="/issues/new" element={<RequireAuth><IncidentReportForm /></RequireAuth>} />
+                        <Route path="/issues/:case_no/edit" element={<RequireAuth><IncidentReportForm /></RequireAuth>} />
+                        <Route path="/issues/:case_no" element={<RequireAuth><IncidentReportDetail /></RequireAuth>} />
+                        <Route path="/report" element={<RequireAuth><IncidentReportForm /></RequireAuth>} />
                         <Route path="/logout" element={<LogoutPage />} />
-                        <Route path="/" element={<Navigate to="/login" />} />
+                        <Route path="/home" element={<Navigate to="/issues" />} />
+                        <Route path="/" element={<Navigate to="/issues" />} />
                     </Routes>
                 </Box>
             </Container>

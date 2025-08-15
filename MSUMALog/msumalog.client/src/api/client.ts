@@ -70,3 +70,13 @@ export async function logout() {
     throw error;
   }
 }
+
+export async function checkAuth(): Promise<boolean> {
+  try {
+    const response = await http.get('/auth/me', { withCredentials: true });
+    return response.status === 200; // Return true if authenticated
+  } catch (error) {
+    console.error('[api] GET /auth/me error', error);
+    return false; // Return false if not authenticated
+  }
+}
