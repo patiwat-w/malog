@@ -175,7 +175,7 @@ const IncidentReportForm: React.FC = () => {
             title: formData.title.trim(),        // <-- trim
             asset: formData.asset,
             center: formData.center,
-            occurredAt: formData.incident_date, // Map incident_date to occurredAt
+            incidentDate: formData.incident_date, // Map incident_date to occurredAt
             symptoms: formData.symptoms,
             severity: formData.severity
                 ? parseInt(formData.severity, 10)

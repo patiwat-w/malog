@@ -11,55 +11,51 @@ namespace MSUMALog.Server.Controllers;
 [Route("auth")]
 public class GoogleAuthController : ControllerBase
 {
-    [HttpGet("login")]
+    // The main endpoint to initiate Google login
+    [HttpGet("google")]
     [AllowAnonymous]
-    public IActionResult Login([FromQuery] string? returnUrl = "/home")
+    public IActionResult GoogleLogin([FromQuery] string? returnUrl = "/home")
     {
         Console.WriteLine($"Google Login: Received returnUrl = {returnUrl}");
 
-        string final;
+        string finalReturnUrl;
         if (string.IsNullOrWhiteSpace(returnUrl))
         {
-            final = "/home";
+            finalReturnUrl = "/home";
             Console.WriteLine("Google Login: returnUrl is empty, defaulting to /home");
         }
-        else if (Uri.TryCreate(returnUrl, UriKind.Absolute, out var abs))
+        else if (Uri.TryCreate(returnUrl, UriKind.Absolute, out var abs) &&
+                 (abs.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                  abs.Host.Equals("msu-malog.egmu-research.org", StringComparison.OrdinalIgnoreCase)))
         {
-            var allowedHosts = new[] { "localhost", "msu-malog.egmu-research.org" };
-            if (allowedHosts.Contains(abs.Host, StringComparer.OrdinalIgnoreCase))
-            {
-                final = abs.ToString();
-                Console.WriteLine($"Google Login: Absolute returnUrl validated = {final}");
-            }
-            else
-            {
-                final = "/home";
-                Console.WriteLine($"Google Login: Absolute returnUrl host not allowed, defaulting to /home");
-            }
+            finalReturnUrl = abs.ToString();
+            Console.WriteLine($"Google Login: Absolute returnUrl validated = {finalReturnUrl}");
         }
         else
         {
-            final = returnUrl.StartsWith("/") ? returnUrl : "/" + returnUrl;
-            Console.WriteLine($"Google Login: Relative returnUrl processed = {final}");
+            finalReturnUrl = returnUrl.StartsWith('/') ? returnUrl : $"/{returnUrl}";
+            Console.WriteLine($"Google Login: Relative returnUrl processed = {finalReturnUrl}");
         }
 
         var props = new AuthenticationProperties
         {
-            RedirectUri = "/auth/signin-google", // URL ของ Backend
-            Parameters = { { "prompt", "select_account" } }
+            // The RedirectUri here must match the CallbackPath configured in Program.cs
+            RedirectUri = finalReturnUrl,
         };
 
-        Console.WriteLine($"Google Login: Redirecting to Google with final RedirectUri = /api/google-auth/callback");
+        Console.WriteLine($"Google Login: Redirecting to Google with a final returnUrl of {finalReturnUrl}");
         return Challenge(props, GoogleDefaults.AuthenticationScheme);
     }
+    
 
+    // The callback endpoint that Google redirects to
     [HttpGet("signin-google")]
     [AllowAnonymous]
-    public async Task<IActionResult> Callback([FromQuery] string? returnUrl = "/home")
+    public async Task<IActionResult> Callback()
     {
-        Console.WriteLine($"Google Callback: start, returnUrl={returnUrl}");
+        Console.WriteLine("Google Callback: start");
 
-        var result = await HttpContext.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
+        var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         Console.WriteLine($"Google Callback: AuthenticateAsync Succeeded={result.Succeeded}");
 
         if (!result.Succeeded)
@@ -68,6 +64,7 @@ public class GoogleAuthController : ControllerBase
             return BadRequest("Google authentication failed");
         }
 
+        // Now we can access the claims from the authenticated user
         var principal = result.Principal;
         if (principal == null)
         {
@@ -78,61 +75,24 @@ public class GoogleAuthController : ControllerBase
         var claims = principal.Claims.ToList();
         Console.WriteLine($"Google Callback: claims count={claims.Count}");
 
-        var email = claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
-        Console.WriteLine($"Google Callback: email={(email ?? "null")}");
+        // The RedirectUri passed from the GoogleLogin method is now available in the properties
+        var redirectUri = result.Properties?.RedirectUri ?? "/home";
 
-        // สร้าง identity ใหม่ด้วย claims จาก Google
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        await HttpContext.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(identity),
-            new AuthenticationProperties { IsPersistent = true }
-        );
-
-        var redirectTo = returnUrl ?? "/home";
-        Console.WriteLine($"Google Callback: redirecting to {redirectTo}");
-        return Redirect(redirectTo);
+        Console.WriteLine($"Google Callback: redirecting to {redirectUri}");
+        return Redirect(redirectUri);
     }
 
-    [HttpGet("google")]
-    [AllowAnonymous]
-    public IActionResult Google([FromQuery] string? returnUrl = "/home")
+    // A simple endpoint to get user information
+    [HttpGet("me")]
+    [Authorize]
+    public IActionResult GetCurrentUser()
     {
-        Console.WriteLine($"Google Login: Received returnUrl = {returnUrl}");
-
-        string final;
-        if (string.IsNullOrWhiteSpace(returnUrl))
+        var email = HttpContext.User.FindFirst(ClaimTypes.Email)?.Value;
+        if (email == null)
         {
-            final = "/home";
-            Console.WriteLine("Google Login: returnUrl is empty, defaulting to /home");
-        }
-        else if (Uri.TryCreate(returnUrl, UriKind.Absolute, out var abs))
-        {
-            var allowedHosts = new[] { "localhost", "msu-malog.egmu-research.org" };
-            if (allowedHosts.Contains(abs.Host, StringComparer.OrdinalIgnoreCase))
-            {
-                final = abs.ToString();
-                Console.WriteLine($"Google Login: Absolute returnUrl validated = {final}");
-            }
-            else
-            {
-                final = "/home";
-                Console.WriteLine($"Google Login: Absolute returnUrl host not allowed, defaulting to /home");
-            }
-        }
-        else
-        {
-            final = returnUrl.StartsWith("/") ? returnUrl : "/" + returnUrl;
-            Console.WriteLine($"Google Login: Relative returnUrl processed = {final}");
+            return Unauthorized();
         }
 
-        var props = new AuthenticationProperties
-        {
-            RedirectUri = "/auth/signin-google", // URL ของ Backend
-            Parameters = { { "prompt", "select_account" } }
-        };
-
-        Console.WriteLine($"Google Login: Redirecting to Google with final RedirectUri = /signin-google");
-        return Challenge(props, "Google");
+        return Ok(new { Email = email });
     }
 }

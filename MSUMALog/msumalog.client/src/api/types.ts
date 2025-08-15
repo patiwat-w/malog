@@ -472,7 +472,7 @@ export interface components {
             title: string;
             description?: string | null;
             /** Format: date-time */
-            occurredAt: string;
+            incidentDate: string;
             /** Format: int32 */
             severity?: number;
             case_no?: string | null;

@@ -3,14 +3,18 @@ using MSUMALog.Server.Data;
 using MSUMALog.Server.Repositories;
 using MSUMALog.Server.Services;
 using MSUMALog.Server.Mappings;
-using MSUMALog.Server.Mapping;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.DataProtection;
+using System.Security.Claims;
+using MSUMALog.Server.Mapping;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// เพิ่ม logging สำหรับ debug
+builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication", LogLevel.Debug);
 
 // Add services
 builder.Services.AddControllers();
@@ -18,97 +22,124 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // DbContext (SQL Server)
-builder.Services.AddDbContext<ApplicationDbContext>(opt =>
-{
-    opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
-});
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServer")));
 
-// AutoMapper (scan assembly containing profiles)
-builder.Services.AddAutoMapper(typeof(IncidentReportProfile).Assembly); // หากยังไม่มี
-// ถ้าสร้าง IncidentCommentProfile อยู่ใน assembly เดียวกันก็เพียงพอ
-// หรือใช้: builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+// AutoMapper
+builder.Services.AddAutoMapper(typeof(IncidentReportProfile).Assembly);
 
 // DI
 builder.Services.AddScoped<IIncidentReportRepository, IncidentReportRepository>();
-builder.Services.AddScoped<IIncidentCommentRepository, IncidentCommentRepository>();   // <--
+builder.Services.AddScoped<IIncidentCommentRepository, IncidentCommentRepository>();
 builder.Services.AddScoped<IIncidentReportService, IncidentReportService>();
-builder.Services.AddScoped<IIncidentCommentService, IncidentCommentService>();         // <--
+builder.Services.AddScoped<IIncidentCommentService, IncidentCommentService>();
 
-// Enforce strict cookie policy (สำหรับทุกคุกกี้ที่ออกจากแอป)
-builder.Services.Configure<CookiePolicyOptions>(o =>
+// Data Protection สำหรับ Production (ย้ายขึ้นมา)
+if (!builder.Environment.IsDevelopment())
 {
-    // ปล่อยให้แต่ละ cookie กำหนด SameSite เอง (ไม่ขัดกับ SameSite=None ของ auth cookie)
-    o.MinimumSameSitePolicy = SameSiteMode.None;
-    o.Secure = CookieSecurePolicy.Always;
-    o.HttpOnly = HttpOnlyPolicy.Always;
+    var keysPath = builder.Configuration["DataProtection:KeysPath"];
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+        .SetApplicationName("MSUMALog");
+}
+
+// Cookie Policy
+builder.Services.Configure<CookiePolicyOptions>(options =>
+{
+    options.MinimumSameSitePolicy = SameSiteMode.Unspecified;
+    options.Secure = CookieSecurePolicy.Always;
+    options.HttpOnly = HttpOnlyPolicy.Always;
 });
 
-// เพิ่ม Cookie Authentication
+// Authentication
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
 })
-.AddCookie(opt =>
+.AddCookie(options =>
 {
-    opt.Cookie.Name = "auth";
-    opt.Cookie.HttpOnly = true;
-    opt.Cookie.SameSite = SameSiteMode.Lax; // เปลี่ยนจาก None เป็น Lax
-    opt.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.Name = "auth";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Events = new CookieAuthenticationEvents
+    {
+        OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+    };
 })
-.AddGoogle(opt =>
+.AddGoogle(options =>
 {
-    opt.ClientId = builder.Configuration["Authentication:Google:ClientId"]!;
-    opt.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
-    opt.CallbackPath = "/auth/signin-google"; // ต้องตรงกับ Authorized redirect URIs
-    opt.SaveTokens = true;
+    options.ClientId = builder.Configuration["Authentication:Google:ClientId"]!;
+    options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
+    options.CallbackPath = "/auth/signin-google";
+    options.SaveTokens = true;
+
+    options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+    options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.CorrelationCookie.HttpOnly = true;
+
+    options.Scope.Add("email");
+    options.Scope.Add("profile");
+
+    options.AccessType = "offline";
+    //options.Prompt = "consent";
 });
 
-builder.Services.AddCors(opt =>
+// CORS
+builder.Services.AddCors(options =>
 {
-    opt.AddPolicy("frontend", p =>
+    options.AddPolicy("frontend", policy =>
     {
-        p.WithOrigins("https://localhost:63950, https://msu-malog.egmu-research.org")
-         .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-         .AllowAnyHeader()
-         .AllowAnyMethod()
-         .AllowCredentials();
+        policy.WithOrigins(
+            "https://localhost:63950",
+            "https://msu-malog.egmu-research.org"
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials()
+        .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
     });
 });
 
 var app = builder.Build();
 
-app.UseCookiePolicy(); // ต้องมาก่อนเขียนคุกกี้
+// Middleware Pipeline
+app.UseCookiePolicy();
+app.UseHttpsRedirection();
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
-
-// EXTRA: Global hardening (ก่อน Origin/Referer middleware)
-app.Use(async (ctx, next) =>
+if (app.Environment.IsDevelopment())
 {
-    if (ctx.Request.ContentLength > 5 * 1024 * 1024)
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+// Global hardening middleware
+app.Use(async (context, next) =>
+{
+    if (context.Request.ContentLength > 5 * 1024 * 1024)
     {
-        ctx.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
         return;
     }
 
-    var method = ctx.Request.Method;
-
-    // บังคับ JSON เฉพาะเมื่อต้องมี body:
-    // POST / PUT / PATCH หรือ DELETE ที่ส่ง body มา (ContentLength > 0)
-    bool mustHaveJson =
-        HttpMethods.IsPost(method) ||
-        HttpMethods.IsPut(method) ||
-        HttpMethods.IsPatch(method) ||
-        (HttpMethods.IsDelete(method) && (ctx.Request.ContentLength ?? 0) > 0);
+    var method = context.Request.Method;
+    bool mustHaveJson = HttpMethods.IsPost(method) ||
+                        HttpMethods.IsPut(method) ||
+                        HttpMethods.IsPatch(method) ||
+                        (HttpMethods.IsDelete(method) && (context.Request.ContentLength ?? 0) > 0);
 
     if (mustHaveJson)
     {
-        var ct = ctx.Request.ContentType ?? "";
-        if (!ct.StartsWith("application/json", StringComparison.OrdinalIgnoreCase))
+        var contentType = context.Request.ContentType ?? "";
+        if (!contentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase))
         {
-            ctx.Response.StatusCode = StatusCodes.Status415UnsupportedMediaType;
-            await ctx.Response.WriteAsync("Unsupported Media Type");
+            context.Response.StatusCode = StatusCodes.Status415UnsupportedMediaType;
+            await context.Response.WriteAsync("Unsupported Media Type");
             return;
         }
     }
@@ -116,57 +147,47 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
-app.Use(async (ctx, next) =>
-{
-    Console.WriteLine($"Request: {ctx.Request.Method} {ctx.Request.Path} {ctx.Request.QueryString}");
-    Console.WriteLine($"Headers: {string.Join(", ", ctx.Request.Headers.Select(h => $"{h.Key}: {h.Value}"))}");
-    await next();
-});
-
+// Request logging middleware
 app.Use(async (context, next) =>
 {
-    // ตรวจสอบว่า Path ไม่ใช่ /auth
-    if (context.Request.Path.StartsWithSegments("/auth"))
-    {
-        await next();
-        return;
-    }
-
-    // Logic สำหรับ Static Files
+    Console.WriteLine($"Request: {context.Request.Method} {context.Request.Path} {context.Request.QueryString}");
     await next();
 });
 
-// ใน Production ตรวจ Origin/Referer (มีอยู่แล้ว เพิ่ม normalize/allow loopback)
+// 📌 ตำแหน่งที่ถูกต้องสำหรับ Middleware ที่เกี่ยวกับการตรวจสอบความปลอดภัย
+// middleware เหล่านี้ควรอยู่ก่อน UseAuthentication() และ UseAuthorization()
+app.UseCors("frontend");
+
+// 🎯 แก้ไข Origin/Referer check for production
+// ย้ายมาไว้ก่อน UseAuthentication และแก้ไขเงื่อนไขให้ยอมรับ Referer จาก Google
 if (!app.Environment.IsDevelopment())
 {
     app.Use(async (context, next) =>
     {
-        var req = context.Request;
-        var host = req.Host.Host;
+        var request = context.Request;
+        var host = request.Host.Host;
 
-        bool HostMatch(string url)
+        bool IsAllowedHost(string url)
         {
-            if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return false;
-            // อนุญาต localhost/127.0.0.1 (กรณี deploy ภายใน)
-            if (u.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-                u.Host.StartsWith("127.0.0.", StringComparison.OrdinalIgnoreCase))
-                return true;
-            // อนุญาต Google Referer
-            if (u.Host.Equals("accounts.google.com", StringComparison.OrdinalIgnoreCase))
-                return true;
-            return string.Equals(u.Host, host, StringComparison.OrdinalIgnoreCase);
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+
+            // ยอมรับ host ของตัวเอง, localhost, และ Google
+            return string.Equals(uri.Host, host, StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+                   uri.Host.StartsWith("127.0.0.", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(uri.Host, "accounts.google.com", StringComparison.OrdinalIgnoreCase);
         }
 
-        var origin = req.Headers["Origin"].ToString();
-        if (!string.IsNullOrEmpty(origin) && !HostMatch(origin))
+        var origin = request.Headers["Origin"].ToString();
+        if (!string.IsNullOrEmpty(origin) && !IsAllowedHost(origin))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsync("Forbidden (Origin)");
             return;
         }
 
-        var referer = req.Headers["Referer"].ToString();
-        if (!string.IsNullOrEmpty(referer) && !HostMatch(referer))
+        var referer = request.Headers["Referer"].ToString();
+        if (!string.IsNullOrEmpty(referer) && !IsAllowedHost(referer))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsync("Forbidden (Referer)");
@@ -177,23 +198,17 @@ if (!app.Environment.IsDevelopment())
     });
 }
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
-app.UseHttpsRedirection();
-
-app.UseCors("frontend"); // ต้องมาก่อน Auth สำหรับ preflight
-
-app.UseAuthentication(); // <-- ก่อน Authorization
+// 🚀 ตำแหน่งที่ถูกต้องของ UseAuthentication() และ UseAuthorization()
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 app.MapFallbackToFile("/index.html");
 
-// Apply migrations + seed
+// Apply migrations + seed in development
 if (app.Environment.IsDevelopment())
 {
     using (var scope = app.Services.CreateScope())
@@ -203,5 +218,19 @@ if (app.Environment.IsDevelopment())
         SeedData.Initialize(db);
     }
 }
+
+// Error handling middleware
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Exception: {ex}");
+        throw;
+    }
+});
 
 app.Run();
