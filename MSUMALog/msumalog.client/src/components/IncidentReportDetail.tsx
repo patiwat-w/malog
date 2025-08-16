@@ -330,6 +330,38 @@ const IncidentReportDetail: React.FC = () => {
           <DetailField label="Domain">{getDomainLabel(incident.domain)}</DetailField>
           <DetailField label="Sub-domain">{incident.subDomain}</DetailField>
         </Stack>
+        <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mt: 1 }}>
+          <DetailField label="Asset">{incident.asset}</DetailField>
+          <DetailField label="Center">{incident.center}</DetailField>
+          <DetailField label="Vendor">{incident.vendor}</DetailField>
+          <DetailField label="Manufacturer">{incident.manufacturer}</DetailField>
+          <DetailField label="Part Number">{incident.partNumber}</DetailField>
+        </Stack>
+       
+        {/* Responsible Stack moved out from here */}
+      </Box>
+
+      {/* Responsible Box - moved out from Meta Fields */}
+      <Box
+        sx={{
+          mb: 3,
+          p: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 2,
+          bgcolor: 'background.paper',
+          boxShadow: 1
+        }}
+      >
+        <Typography variant="overline" sx={{ fontWeight: 600 }}>
+          Responsible
+        </Typography>
+        <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mt: 1 }}>
+          <DetailField label="Responsible Name">{incident.responsibleName}</DetailField>
+          <DetailField label="Responsible Line ID">{incident.responsibleLineId}</DetailField>
+          <DetailField label="Responsible Email">{incident.responsibleEmail}</DetailField>
+          <DetailField label="Responsible Phone">{incident.responsiblePhone}</DetailField>
+        </Stack>
       </Box>
 
       {/* Actions */}
