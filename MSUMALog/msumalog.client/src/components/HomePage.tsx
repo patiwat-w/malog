@@ -12,10 +12,23 @@ import {
     Divider,
     Chip,
     CircularProgress,
-    Alert
+    Alert,
+    TextField,
+    MenuItem
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { getIncidentReports } from '../api/client';
 import type { IncidentReportDto } from '../api/client';
+import {
+    getSeverityLabel,
+    getSeverityColor,
+    incidentStatusOptions,
+    getIncidentStatusLabel,
+    getIncidentStatusColor,
+    getIncidentStatusPaletteColor,
+    severityOptions
+} from '../constants/incidentOptions';
+import Tooltip from '@mui/material/Tooltip';
 
 // Add raw incident shape
 type RawIncident = {
@@ -59,7 +72,11 @@ function HomePage() {
     const [issues, setIssues] = useState<IncidentReportDto[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    const [filterSeverity, setFilterSeverity] = useState('');
     const navigate = useNavigate();
+    const theme = useTheme();
 
     useEffect(() => {
         let mounted = true;
@@ -170,41 +187,156 @@ function HomePage() {
         navigate(`/issues/${caseNo}`);
     };
 
+    // Filtered issues
+    const filteredIssues = issues.filter(issue => {
+        const titleMatch = !search || (issue.title ?? '').toLowerCase().includes(search.toLowerCase());
+        const statusMatch = !filterStatus || issue.status === filterStatus;
+        const severityMatch = !filterSeverity || issue.severity === Number(filterSeverity);
+        return titleMatch && statusMatch && severityMatch;
+    });
+
     return (
         <Container maxWidth="lg">
             <Box sx={{ my: 4 }}>
-                <Typography variant="h4" component="h1" gutterBottom>
-                    Issue List
-                </Typography>
-                <Button
-                    component={Link}
-                    to="/issues/new"
-                    variant="contained"
-                    color="primary"
-                    sx={{ mb: 2 }}
+                
+                <Box
+                    sx={{
+                        display: 'flex',
+                        gap: 2,
+                        mb: 2,
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        justifyContent: 'space-between'
+                    }}
                 >
-                    New
-                </Button>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+                        <TextField
+                            label="Search Title"
+                            size="small"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            sx={{ width: { xs: '100%', sm: 300 }, minWidth: 0 }}
+                        />
+                        <TextField
+                            select
+                            label="Status"
+                            size="small"
+                            value={filterStatus}
+                            onChange={e => setFilterStatus(e.target.value)}
+                            sx={{ width: { xs: '48%', sm: 160 } }}
+                        >
+                            <MenuItem value="">All Status</MenuItem>
+                            {incidentStatusOptions.map(opt => (
+                                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                            ))}
+                        </TextField>
+                        <TextField
+                            select
+                            label="Severity"
+                            size="small"
+                            value={filterSeverity}
+                            onChange={e => setFilterSeverity(e.target.value)}
+                            sx={{ width: { xs: '48%', sm: 140 } }}
+                        >
+                            <MenuItem value="">All Severity</MenuItem>
+                            {severityOptions.map(opt => (
+                                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                            ))}
+                        </TextField>
+                        <Button
+                            variant="outlined"
+                            color="secondary"
+                            sx={{ height: 40, width: { xs: '100%', sm: 'auto' } }}
+                            onClick={() => {
+                                setSearch('');
+                                setFilterStatus('');
+                                setFilterSeverity('');
+                            }}
+                        >
+                            Clear Filter
+                        </Button>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: 'auto', alignSelf: 'flex-end', mt: { xs: 1, sm: 0 } }}>
+                        <Button
+                            component={Link}
+                            to="/issues/new"
+                            variant="contained"
+                            color="primary"
+                            sx={{ width: 'auto' }}
+                        >
+                            New issue
+                        </Button>
+                    </Box>
+                </Box>
                 {loading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}><CircularProgress /></Box>}
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
                 <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
                     
-                    {issues.map((issue, index) => {
+                    {filteredIssues.map((issue, index) => {
                         const caseNo = issue.case_no ?? (issue.id ? `#${issue.id}` : `#${index}`);
                         const status = issue.status ?? 'Unknown';
+                        const statusOption = incidentStatusOptions.find(opt => opt.value === status) ??
+                            incidentStatusOptions.find(opt => opt.value === 'Open'); // fallback
+                        const paletteColor = getIncidentStatusPaletteColor(statusOption?.value);
+                        let iconColor = theme.palette.text.primary;
+                        if (paletteColor) {
+                            const [mainKey, shadeKey] = paletteColor.split('.');
+                            const mainPalette = theme.palette[mainKey as keyof typeof theme.palette];
+                            iconColor = (mainPalette && typeof mainPalette === 'object' && shadeKey in mainPalette
+                                ? mainPalette[shadeKey as keyof typeof mainPalette]
+                                : theme.palette.text.primary);
+                        }
+
                         return (
                             <React.Fragment key={caseNo}>
-                                <ListItem
-                                    disablePadding
-                                    secondaryAction={
-                                        <Chip label={status} color={status === 'Closed' ? 'default' : 'warning'} />
-                                    }
-                                >
+                                <ListItem disablePadding>
                                     <ListItemButton onClick={() => handleRowClick(caseNo)}>
-                                        <ListItemText
-                                            primary={`${caseNo}: ${issue.asset ?? ''} (${issue.center ?? ''})`}
-                                            secondary={issue.symptoms ?? ''}
-                                        />
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                                            <Box sx={{ minWidth: 100, display: 'flex', justifyContent: 'flex-start' }}>
+                                                <Tooltip title={statusOption?.label ?? status}>
+                                                    <Box sx={{
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        minWidth: 80,
+                                                    }}>
+                                                        <Box sx={{ mb: 0.5, color: iconColor }}>
+                                                            {statusOption?.icon}
+                                                        </Box>
+                                                        <Typography variant="caption" sx={{ textAlign: 'center', fontWeight: 500 }}>
+                                                            {statusOption?.label}
+                                                        </Typography>
+                                                    </Box>
+                                                </Tooltip>
+                                            </Box>
+                                            <ListItemText
+                                              primary={
+                                                <>
+                                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, display: 'inline' }}>
+                                                    {caseNo}
+                                                  </Typography>
+                                                  {`: ${issue.title ?? ''}`}
+                                                </>
+                                              }
+                                              secondary={
+                                                <>
+                                                  <Typography variant="body2" color="text.secondary" component="span">
+                                                    Opened By{issue.created_by ? `: ${issue.created_by}` : ''} {issue.incident_date ? `| ${issue.incident_date}` : ''}
+                                                  </Typography>
+                                                </>
+                                              }
+                                            />
+                                        </Box>
+                                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', pr: 2 }}>
+                                            <Chip
+                                                label={getSeverityLabel(issue.severity) || '-'}
+                                                color={getSeverityColor(issue.severity)}
+                                                size="small"
+                                                sx={{ fontWeight: 700 }}
+                                            />
+                                        </Box>
                                     </ListItemButton>
                                 </ListItem>
                                 {index < issues.length - 1 && <Divider component="li" />}

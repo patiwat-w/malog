@@ -6,8 +6,9 @@ import {
 } from '@mui/material';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { getIncidentByCase, updateIncidentFull, type IncidentReportDto } from '../api/client';
-import { getDomainLabel, getSeverityLabel } from '../constants/incidentOptions';
+import { getDomainLabel, getSeverityLabel, getSeverityColor } from '../constants/incidentOptions';
 import IncidentConversation from './IncidentConversation';
+import { incidentStatusOptions } from '../constants/incidentOptions'; // เพิ่มบรรทัดนี้
 
 interface Incident extends Omit<IncidentReportDto,
   'additional_info' | 'responsible_name' | 'responsible_lineid' | 'responsible_email' | 'responsible_phone'> {
@@ -23,12 +24,7 @@ const IncidentReportDetail: React.FC = () => {
   const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const severityColorMap: Record<string, "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning"> = {
-    Low: 'primary',
-    Medium: 'warning',
-    High: 'error',
-    Critical: 'error'
-  };
+ 
 
   const getStatusChipColor = (s: string) => {
     if (!s) return 'default' as const;
@@ -61,11 +57,11 @@ const IncidentReportDetail: React.FC = () => {
           {label}
         </Typography>
 
-        {isSeverity && childText ? (
+        {isSeverity && incident?.severity ? (
           <Box sx={{ mt: 0.5 }}>
             <Chip
-              label={childText || '-'}
-              color={severityColorMap[childText ?? ''] ?? 'default'}
+              label={getSeverityLabel(incident.severity) || '-'}
+              color={getSeverityColor(incident.severity)}
               size="small"
               sx={{ fontWeight: 700 }}
             />
@@ -199,12 +195,18 @@ const IncidentReportDetail: React.FC = () => {
               {incident.title}
             </Typography>
           )}
-          <Chip
-            label={incident.status}
-            color={getStatusChipColor(incident.status || '')}
-            size="small"
-            sx={{ fontWeight: 700, ml: 'auto' }}
-          />
+          {(() => {
+            const statusOption = incidentStatusOptions.find(opt => opt.value === incident.status);
+            return (
+              <Chip
+                icon={React.isValidElement(statusOption?.icon) ? statusOption?.icon : undefined}
+                label={statusOption?.label || incident.status}
+                color={statusOption?.color ?? 'default'}
+                size="small"
+                sx={{ fontWeight: 700, ml: 'auto' }}
+              />
+            );
+          })()}
         </Stack>
 
         <Tooltip title="Edit Issue">
@@ -314,8 +316,13 @@ const IncidentReportDetail: React.FC = () => {
           onChange={e => setStatus(e.target.value)}
           sx={{ minWidth: { xs: '100%', sm: 200 } }}
         >
-          {statusOptions.map(s => (
-            <MenuItem key={s} value={s}>{s}</MenuItem>
+          {incidentStatusOptions.map(opt => (
+            <MenuItem key={opt.value} value={opt.value}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {opt.icon}
+                {opt.label}
+              </Box>
+            </MenuItem>
           ))}
         </TextField>
         <Button
@@ -324,6 +331,12 @@ const IncidentReportDetail: React.FC = () => {
           disabled={status === incident.status || submitting}
           onClick={handleSubmitAction}
           sx={{ minWidth: { xs: '100%', sm: 180 } }}
+          startIcon={
+            (() => {
+              const btnOpt = incidentStatusOptions.find(opt => opt.value === status);
+              return btnOpt?.icon ?? null;
+            })()
+          }
         >
           {(() => {
             let buttonText = 'No Change';

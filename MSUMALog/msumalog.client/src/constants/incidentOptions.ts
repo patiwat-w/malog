@@ -1,3 +1,14 @@
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
+import CancelIcon from '@mui/icons-material/Cancel';
+import DoneIcon from '@mui/icons-material/Done';
+import HighlightOffIcon from '@mui/icons-material/HighlightOff';
+import HourglassTopIcon from '@mui/icons-material/HourglassTop';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
+import LockIcon from '@mui/icons-material/Lock';
+import BlockIcon from '@mui/icons-material/Block';
+import React from 'react';
+
 export interface DomainOption {
   code: string;
   label: string;
@@ -6,6 +17,15 @@ export interface DomainOption {
 export interface SeverityOption {
   value: string; // keep as string to match form state
   label: string;
+  color?: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
+}
+
+export interface IncidentStatusOption {
+  value: string;
+  label: string;
+  color?: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
+  paletteColor?: string; // เพิ่ม property นี้
+  icon?: React.ReactNode;
 }
 
 export const domainOptions: DomainOption[] = [
@@ -22,15 +42,35 @@ export const domainOptions: DomainOption[] = [
 ];
 
 export const severityOptions: SeverityOption[] = [
-  { value: '1', label: '1 - ต่ำมาก (Very Low)' },
-  { value: '2', label: '2 - ต่ำ (Low)' },
-  { value: '3', label: '3 - ปานกลาง (Medium)' },
-  { value: '4', label: '4 - สูง (High)' },
-  { value: '5', label: '5 - สูงมาก (Critical)' }
+  { value: '1', label: '1 - ต่ำมาก (Very Low)', color: 'primary' },    // น้ำเงิน
+  { value: '2', label: '2 - ต่ำ (Low)', color: 'success' },                // ฟ้า
+  { value: '3', label: '3 - ปานกลาง (Medium)', color: 'info' },     // เขียว
+  { value: '4', label: '4 - สูง (High)', color: 'warning' },            // ส้ม
+  { value: '5', label: '5 - สูงมาก (Critical)', color: 'error' }        // แดง
+];
+
+export const incidentStatusOptions: IncidentStatusOption[] = [
+  { value: 'Open', label: 'Open', color: 'primary', paletteColor: 'primary.main', icon: React.createElement(HourglassTopIcon, { fontSize: "small" }) },
+  { value: 'InProgress', label: 'In Progress', color: 'info', paletteColor: 'info.main', icon: React.createElement(AutorenewIcon, { fontSize: "small" }) },
+  { value: 'Resolved', label: 'Resolved', color: 'success', paletteColor: 'success.main', icon: React.createElement(CheckCircleIcon, { fontSize: "small" }) },
+  { value: 'Closed', label: 'Closed', color: 'default', paletteColor: 'grey.600', icon: React.createElement(LockIcon, { fontSize: "small" }) },
+  { value: 'Rejected', label: 'Rejected', color: 'error', paletteColor: 'error.main', icon: React.createElement(BlockIcon, { fontSize: "small" }) }
 ];
 
 export const getDomainLabel = (code: string | null | undefined) =>
   domainOptions.find(d => d.code === (code ?? ''))?.label || (code ?? '');
 
 export const getSeverityLabel = (val: number | null | undefined) =>
-  severityOptions.find(s => s.value === (val ?? ''))?.label || (val ?? '');
+  severityOptions.find(s => s.value == (val ?? ''))?.label || (val ?? '');
+
+export const getSeverityColor = (val: number | null | undefined) =>
+  severityOptions.find(s => s.value == (val ?? ''))?.color || 'default';
+
+export const getIncidentStatusLabel = (val: string | null | undefined) =>
+  incidentStatusOptions.find(s => s.value === (val ?? ''))?.label || (val ?? '');
+
+export const getIncidentStatusColor = (val: string | null | undefined) =>
+  incidentStatusOptions.find(s => s.value === (val ?? ''))?.color || 'default';
+
+export const getIncidentStatusPaletteColor = (val: string | null | undefined) =>
+  incidentStatusOptions.find(s => s.value === (val ?? ''))?.paletteColor || undefined;

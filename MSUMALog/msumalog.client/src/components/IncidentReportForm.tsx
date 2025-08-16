@@ -9,7 +9,7 @@ import { format as formatDate } from 'date-fns';
 import './IncidentReportForm.css'; // เพิ่ม (ถ้ายังไม่ได้ import)
 import { createIncident as apiCreateIncident, getIncidentByCase, updateIncidentFull, getCurrentUser } from '../api/client'; // เพิ่ม import
 import type { IncidentReportDto } from '../api/client';
-import { domainOptions, severityOptions } from '../constants/incidentOptions'; // <-- refactored import
+import { domainOptions, severityOptions, incidentStatusOptions } from '../constants/incidentOptions'; // <-- refactored import
 
 interface IFormData {
     id?: number;                 // <-- เพิ่ม id
@@ -575,18 +575,38 @@ const IncidentReportForm: React.FC = () => {
                             </Box>
                             {isEdit && (
                                 <Box>
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        margin="dense"
-                                        id="status"
-                                        name="status"
-                                        label="Incident Status"
-                                        value={formData.status}
-                                        onChange={handleChange}
-                                        slotProps={{ input: { readOnly: true } }}
-                                        sx={getSxFor('status')}
-                                    />
+                                    {(() => {
+                                        const statusOption = incidentStatusOptions.find(opt => opt.value === formData.status);
+                                        return (
+                                            <TextField
+                                                fullWidth
+                                                size="small"
+                                                margin="dense"
+                                                id="status"
+                                                name="status"
+                                                label="Incident Status"
+                                                value={statusOption?.label || formData.status}
+                                                InputProps={{
+                                                    readOnly: true,
+                                                    startAdornment: statusOption?.icon ? (
+                                                        <Box sx={{ mr: 1 }}>
+                                                            <span>
+                                                                {statusOption.icon}
+                                                            </span>
+                                                        </Box>
+                                                    ) : undefined,
+                                                    sx: { backgroundColor: '#f5f5f5' }
+                                                }}
+                                                sx={{
+                                                    ...getSxFor('status'),
+                                                    '& .MuiInputBase-root': {
+                                                        backgroundColor: '#f5f5f5',
+                                                        color: theme => theme.palette[statusOption?.color ?? 'default']?.main
+                                                    }
+                                                }}
+                                            />
+                                        );
+                                    })()}
                                 </Box>
                             )}
                             <Box>
