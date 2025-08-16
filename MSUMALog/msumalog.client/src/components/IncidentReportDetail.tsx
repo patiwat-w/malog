@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Chip, Stack, Divider, TextField, Button, MenuItem,
-  IconButton, Tooltip, Grid, Avatar
+  IconButton, Tooltip, Avatar
 } from '@mui/material';
+import { Grid } from '@mui/material';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { getIncidentByCase, updateIncidentFull, type IncidentReportDto } from '../api/client';
 import { getDomainLabel, getSeverityLabel, getSeverityColor } from '../constants/incidentOptions';
@@ -14,9 +15,7 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
+
 
 const parseToDate = (value: unknown): Date | null => {
   if (!value && value !== 0) return null;
@@ -64,6 +63,32 @@ const formatDateTime = (value: unknown): string | undefined => {
   return dateTimeFormatter.format(d);
 };
 
+// --- new helper utilities for contact chips ---
+const sanitizePhone = (v?: string) => {
+  if (!v) return '';
+  // keep digits and plus sign for international numbers
+  return v.replace(/[^+\d]/g, '');
+};
+
+const getContactChipProps = (type: 'email' | 'phone' | 'line', value?: string): Record<string, any> => {
+  if (!value) {
+    return { component: 'div', clickable: false };
+  }
+  if (type === 'email') {
+    return { component: 'a', href: `mailto:${value}`, clickable: true };
+  }
+  if (type === 'phone') {
+    const tel = sanitizePhone(value);
+    return { component: 'a', href: `tel:${tel}`, clickable: !!tel };
+  }
+  // line
+  // remove leading @ if present, then build a "add/chat" url; open in new tab
+  const id = value.startsWith('@') ? value.slice(1) : value;
+  const lineUrl = `https://line.me/ti/p/~${encodeURIComponent(id)}`;
+  return { component: 'a', href: lineUrl, target: '_blank', rel: 'noopener noreferrer', clickable: true };
+};
+// --- end helpers ---
+
 interface Incident extends Omit<IncidentReportDto,
   'additional_info' | 'responsible_name' | 'responsible_lineid' | 'responsible_email' | 'responsible_phone'> {
   id: number;
@@ -87,7 +112,8 @@ const IncidentReportDetail: React.FC = () => {
     const isChipField = ['impact', 'domain', 'sub-domain','asset','center','vendor','manufacturer','part-number','incident-date'].includes(label.toLowerCase());
 
     return (
-      <Box sx={{ flex: '1 1 220px', minWidth: 180, mb: { xs: 1.25, sm: 0 } }}>
+      // make each field take full width of its grid cell and stack label+content vertically
+      <Box sx={{ width: '100%', mb: { xs: 1.25, sm: 0 } }}>
         <Typography
           variant="caption"
           sx={{
@@ -177,11 +203,11 @@ const IncidentReportDetail: React.FC = () => {
           updatedUtc: data.updatedUtc || '',
           updatedUserName: data.updatedUserName || '',
           // เพิ่ม mapping ของฟิลด์ที่ยังขาด
-          additionalInfo: (data as any).additional_info ?? (data as any).additionalInfo ?? '',
-          responsibleName: (data as any).responsible_name ?? (data as any).responsibleName ?? '',
-          responsibleLineId: (data as any).responsible_lineid ?? (data as any).responsibleLineId ?? '',
-          responsibleEmail: (data as any).responsible_email ?? (data as any).responsibleEmail ?? '',
-          responsiblePhone: (data as any).responsible_phone ?? (data as any).responsiblePhone ?? '',
+          additionalInfo: data.additionalInfo || '',
+          responsibleName: data.responsibleName ?? '',
+          responsibleLineId: data.responsibleLineId ?? '',
+          responsibleEmail: data.responsibleEmail ?? '',
+          responsiblePhone: data.responsiblePhone ?? '',
          
           // Map other fields as needed
           id: data.id ?? 0
@@ -327,7 +353,7 @@ const IncidentReportDetail: React.FC = () => {
         }}
       >
         <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '.6px' }}>
-          Symptoms
+          Symptoms (อาการที่พบ)
         </Typography>
         <Typography sx={{ mt: .75, fontSize: '.96rem', color: 'text.primary' }}>
           {incident.symptoms || '-'}
@@ -347,24 +373,61 @@ const IncidentReportDetail: React.FC = () => {
         }}
       >
  
-        <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mt: 1 }}>
-          <DetailField label="Severity">{getSeverityLabel(incident.severity ?? 0)}</DetailField>
-          <DetailField label="Impact">{incident.impact}</DetailField>
-          <DetailField label="Domain">{getDomainLabel(incident.domain)}</DetailField>
-          <DetailField label="Sub-domain">{incident.subDomain}</DetailField>
-          <DetailField label="Incident-date">
-            {formatDateTime(incident.incidentDate) || incident.incidentDate || '-'}
-          </DetailField>
-        </Stack>
-        <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mt: 1 }}>
-          <DetailField label="Asset">{incident.asset}</DetailField>
-          <DetailField label="Center">{incident.center}</DetailField>
-          <DetailField label="Vendor">{incident.vendor}</DetailField>
-          <DetailField label="Manufacturer">{incident.manufacturer}</DetailField>
-          <DetailField label="Part-number">{incident.partNumber}</DetailField>
-        </Stack>
-       
-        {/* Responsible Stack moved out from here */}
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+          <Grid  >
+            <DetailField label="Severity">{getSeverityLabel(incident.severity ?? 0)}</DetailField>
+          </Grid>
+          <Grid  >
+            <DetailField label="Impact">{incident.impact}</DetailField>
+          </Grid>
+          <Grid  >
+            <DetailField label="Domain">{getDomainLabel(incident.domain)}</DetailField>
+          </Grid>
+          <Grid  >
+            <DetailField label="Sub-domain">{incident.subDomain}</DetailField>
+          </Grid>
+          <Grid >
+            <DetailField label="Incident-date">
+              {formatDateTime(incident.incidentDate) || incident.incidentDate || '-'}
+            </DetailField>
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* New Box: Asset / Hardware Details (moved out from Meta Fields) */}
+      <Box
+        sx={{
+          mb: 3,
+          p: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 2,
+          bgcolor: 'background.paper',
+          boxShadow: 1
+        }}
+      >
+        <Typography variant="overline" sx={{ fontWeight: 600, mb: 1 }}>
+          Asset & Vendor (ข้อมูลสินทรัพย์และผู้จัดจำหน่าย)
+        </Typography>
+
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+           <Grid  >
+              <DetailField label="Asset">{incident.asset}</DetailField>
+                    
+          </Grid>
+          <Grid  >
+            <DetailField label="Center">{incident.center}</DetailField>
+          </Grid>
+          <Grid  >
+            <DetailField label="Vendor">{incident.vendor}</DetailField>
+          </Grid>
+          <Grid  >
+            <DetailField label="Manufacturer">{incident.manufacturer}</DetailField>
+          </Grid>
+          <Grid  >
+            <DetailField label="Part-number">{incident.partNumber}</DetailField>
+          </Grid>
+        </Grid>
       </Box>
 
       {/* Responsible Box - moved out from Meta Fields */}
@@ -380,7 +443,7 @@ const IncidentReportDetail: React.FC = () => {
         }}
       >
         <Typography variant="overline" sx={{ fontWeight: 600, mb: 1 }}>
-          Responsible
+          Responsible/Coordinator (ผู้ประสานงาน)
         </Typography>
 
         {/* compact contact chips with icons and optional click */}
@@ -391,29 +454,35 @@ const IncidentReportDetail: React.FC = () => {
             size="small"
             sx={{ fontWeight: 600 }}
           />
+
+          {/* Line chip: opens Line chat/profile in a new tab when available */}
           <Chip
             icon={<ChatBubbleOutlineIcon />}
             label={incident.responsibleLineId || '-'}
             size="small"
             sx={{ fontWeight: 600 }}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            {...(getContactChipProps('line', incident.responsibleLineId) as any)}
           />
+
+          {/* Email chip: mailto: */}
           <Chip
             icon={<EmailOutlinedIcon />}
             label={incident.responsibleEmail || '-'}
             size="small"
-            component={incident.responsibleEmail ? 'a' : 'div'}
-            href={incident.responsibleEmail ? `mailto:${incident.responsibleEmail}` : undefined}
-            clickable={!!incident.responsibleEmail}
             sx={{ fontWeight: 600 }}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            {...(getContactChipProps('email', incident.responsibleEmail) as any)}
           />
+
+          {/* Phone chip: tel: (sanitized) */}
           <Chip
             icon={<PhoneOutlinedIcon />}
             label={incident.responsiblePhone || '-'}
             size="small"
-            component={incident.responsiblePhone ? 'a' : 'div'}
-            href={incident.responsiblePhone ? `tel:${incident.responsiblePhone}` : undefined}
-            clickable={!!incident.responsiblePhone}
             sx={{ fontWeight: 600 }}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            {...(getContactChipProps('phone', incident.responsiblePhone) as any)}
           />
         </Box>
       </Box>
@@ -433,11 +502,18 @@ const IncidentReportDetail: React.FC = () => {
         <Typography variant="overline" sx={{ fontWeight: 600 }}>
           Actions
         </Typography>
-        <Stack spacing={1.2} sx={{ mt: 1 }}>
-          <DetailField label="Interim">{incident.interimAction}</DetailField>
-          <DetailField label="Intermediate">{incident.intermediateAction}</DetailField>
-          <DetailField label="Long-term">{incident.longTermAction}</DetailField>
-        </Stack>
+
+        <Grid container spacing={2} sx={{ mt: 1 }}>
+        <Grid  >
+            <DetailField label="Interim">{incident.interimAction}</DetailField>
+          </Grid>
+          <Grid  >
+            <DetailField label="Intermediate">{incident.intermediateAction}</DetailField>
+          </Grid>
+          <Grid  >
+            <DetailField label="Long-term">{incident.longTermAction}</DetailField>
+          </Grid>
+        </Grid>
       </Box>
 
       <Divider sx={{ my: 3 }} />
