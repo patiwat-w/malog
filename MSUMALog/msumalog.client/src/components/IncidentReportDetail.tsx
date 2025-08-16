@@ -2,13 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Chip, Stack, Divider, TextField, Button, MenuItem,
-  IconButton, Tooltip
+  IconButton, Tooltip, Grid, Avatar
 } from '@mui/material';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import { getIncidentByCase, updateIncidentFull, type IncidentReportDto } from '../api/client';
 import { getDomainLabel, getSeverityLabel, getSeverityColor } from '../constants/incidentOptions';
 import IncidentConversation from './IncidentConversation';
 import { incidentStatusOptions } from '../constants/incidentOptions'; // เพิ่มบรรทัดนี้
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -63,6 +67,12 @@ const formatDateTime = (value: unknown): string | undefined => {
 interface Incident extends Omit<IncidentReportDto,
   'additional_info' | 'responsible_name' | 'responsible_lineid' | 'responsible_email' | 'responsible_phone'> {
   id: number;
+  // เพิ่มฟิลด์ที่ UI ใช้ แต่ยังไม่ได้แมป/ไทป์
+  additionalInfo?: string;
+  responsibleName?: string;
+  responsibleLineId?: string;
+  responsibleEmail?: string;
+  responsiblePhone?: string;
 }
 
 const IncidentReportDetail: React.FC = () => {
@@ -74,9 +84,10 @@ const IncidentReportDetail: React.FC = () => {
 
   const DetailField: React.FC<{ label: string; children: React.ReactNode; color?: string }> = ({ label, children, color }) => {
     const isSeverity = label.toLowerCase() === 'severity';
-    const isChipField = ['impact', 'domain', 'sub-domain'].includes(label.toLowerCase());
+    const isChipField = ['impact', 'domain', 'sub-domain','asset','center','vendor','manufacturer','part-number','incident-date'].includes(label.toLowerCase());
+
     return (
-      <Box sx={{ minWidth: { xs: '48%', sm: 160 }, flexGrow: 1, mb: { xs: 1.25, sm: 0 } }}>
+      <Box sx={{ flex: '1 1 220px', minWidth: 180, mb: { xs: 1.25, sm: 0 } }}>
         <Typography
           variant="caption"
           sx={{
@@ -85,7 +96,6 @@ const IncidentReportDetail: React.FC = () => {
             letterSpacing: '.6px',
             color: 'text.secondary',
             textTransform: 'uppercase',
-            backgroundColor: 'rgba(0,0,0,0.03)',
             px: 1,
             py: 0.25,
             borderRadius: 1,
@@ -101,16 +111,17 @@ const IncidentReportDetail: React.FC = () => {
               label={getSeverityLabel(incident.severity) || '-'}
               color={getSeverityColor(incident.severity)}
               size="small"
-              sx={{ fontWeight: 700 }}
+              sx={{ fontWeight: 700, px: 1.2, py: 0.4 }}
             />
           </Box>
         ) : isChipField ? (
           <Box sx={{ mt: 0.5 }}>
             <Chip
               label={children || '-'}
-              color="warning"
+              variant="outlined"
+              color="info"
               size="small"
-              sx={{ fontWeight: 700 }}
+              sx={{ fontWeight: 700, px: 1.2 }}
             />
           </Box>
         ) : (
@@ -118,12 +129,12 @@ const IncidentReportDetail: React.FC = () => {
             elevation={0}
             sx={{
               mt: 0.5,
-              p: 1,
-              bgcolor: color || 'background.default', // เพิ่มตรงนี้
-              borderLeft: '4px solid',
+              p: 1.25,
+              bgcolor: color || 'background.paper',
+              borderLeft: 4,
               borderColor: 'divider',
               borderRadius: 1,
-              minHeight: 44,
+              minHeight: 52,
               display: 'flex',
               alignItems: 'center'
             }}
@@ -165,6 +176,12 @@ const IncidentReportDetail: React.FC = () => {
           createdUserName: data.createdUserName || '',
           updatedUtc: data.updatedUtc || '',
           updatedUserName: data.updatedUserName || '',
+          // เพิ่ม mapping ของฟิลด์ที่ยังขาด
+          additionalInfo: (data as any).additional_info ?? (data as any).additionalInfo ?? '',
+          responsibleName: (data as any).responsible_name ?? (data as any).responsibleName ?? '',
+          responsibleLineId: (data as any).responsible_lineid ?? (data as any).responsibleLineId ?? '',
+          responsibleEmail: (data as any).responsible_email ?? (data as any).responsibleEmail ?? '',
+          responsiblePhone: (data as any).responsible_phone ?? (data as any).responsiblePhone ?? '',
          
           // Map other fields as needed
           id: data.id ?? 0
@@ -217,7 +234,7 @@ const IncidentReportDetail: React.FC = () => {
   const formattedCreatedUtc = formatDateTime(incident.createdUtc) ?? incident.createdUtc ?? '';
 
   return (
-    <Paper sx={{ p: 3, mt: 3 }}>
+    <Paper sx={{ p: { xs: 2.5, sm: 3 }, mt: 3, maxWidth: 1200, mx: 'auto', borderRadius: 3, boxShadow: 3 }}>
       {/* Header */}
       <Box
         sx={{
@@ -228,25 +245,31 @@ const IncidentReportDetail: React.FC = () => {
         }}
       >
         <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: 'wrap', minWidth: 0 }}>
-          <Typography variant="h5" sx={{ fontWeight: 600, mr: 1, whiteSpace: 'nowrap' }}>
-            Issue #{incident.caseNo}
-          </Typography>
-          {incident.title && (
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 500,
-                maxWidth: { xs: '100%', sm: 480 },
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                color: 'text.secondary'
-              }}
-              title={incident.title}
-            >
-              {incident.title}
+          <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40, fontSize: '0.95rem' }}>
+            {String(incident.caseNo || '').slice(-2)}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Issue #{incident.caseNo}
             </Typography>
-          )}
+            {incident.title && (
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 500,
+                  maxWidth: { xs: '100%', sm: 520 },
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  color: 'text.secondary'
+                }}
+                title={incident.title}
+              >
+                {incident.title}
+              </Typography>
+            )}
+          </Box>
+
           {(() => {
             const statusOption = incidentStatusOptions.find(opt => opt.value === incident.status);
             return (
@@ -295,18 +318,18 @@ const IncidentReportDetail: React.FC = () => {
             left: 0,
             top: 0,
             bottom: 0,
-            width: 4,
+            width: 6,
             borderTopLeftRadius: 8,
             borderBottomLeftRadius: 8,
             bgcolor: 'primary.main',
-            opacity: 0.4
+            opacity: 0.18
           }
         }}
       >
-        <Typography variant="overline" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+        <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '.6px' }}>
           Symptoms
         </Typography>
-        <Typography sx={{ mt: .5, fontSize: '.95rem' }}>
+        <Typography sx={{ mt: .75, fontSize: '.96rem', color: 'text.primary' }}>
           {incident.symptoms || '-'}
         </Typography>
       </Box>
@@ -329,13 +352,16 @@ const IncidentReportDetail: React.FC = () => {
           <DetailField label="Impact">{incident.impact}</DetailField>
           <DetailField label="Domain">{getDomainLabel(incident.domain)}</DetailField>
           <DetailField label="Sub-domain">{incident.subDomain}</DetailField>
+          <DetailField label="Incident-date">
+            {formatDateTime(incident.incidentDate) || incident.incidentDate || '-'}
+          </DetailField>
         </Stack>
         <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mt: 1 }}>
           <DetailField label="Asset">{incident.asset}</DetailField>
           <DetailField label="Center">{incident.center}</DetailField>
           <DetailField label="Vendor">{incident.vendor}</DetailField>
           <DetailField label="Manufacturer">{incident.manufacturer}</DetailField>
-          <DetailField label="Part Number">{incident.partNumber}</DetailField>
+          <DetailField label="Part-number">{incident.partNumber}</DetailField>
         </Stack>
        
         {/* Responsible Stack moved out from here */}
@@ -353,15 +379,43 @@ const IncidentReportDetail: React.FC = () => {
           boxShadow: 1
         }}
       >
-        <Typography variant="overline" sx={{ fontWeight: 600 }}>
+        <Typography variant="overline" sx={{ fontWeight: 600, mb: 1 }}>
           Responsible
         </Typography>
-        <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mt: 1 }}>
-          <DetailField label="Responsible Name">{incident.responsibleName}</DetailField>
-          <DetailField label="Responsible Line ID">{incident.responsibleLineId}</DetailField>
-          <DetailField label="Responsible Email">{incident.responsibleEmail}</DetailField>
-          <DetailField label="Responsible Phone">{incident.responsiblePhone}</DetailField>
-        </Stack>
+
+        {/* compact contact chips with icons and optional click */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          <Chip
+            icon={<PersonOutlineIcon />}
+            label={incident.responsibleName || '-'}
+            size="small"
+            sx={{ fontWeight: 600 }}
+          />
+          <Chip
+            icon={<ChatBubbleOutlineIcon />}
+            label={incident.responsibleLineId || '-'}
+            size="small"
+            sx={{ fontWeight: 600 }}
+          />
+          <Chip
+            icon={<EmailOutlinedIcon />}
+            label={incident.responsibleEmail || '-'}
+            size="small"
+            component={incident.responsibleEmail ? 'a' : 'div'}
+            href={incident.responsibleEmail ? `mailto:${incident.responsibleEmail}` : undefined}
+            clickable={!!incident.responsibleEmail}
+            sx={{ fontWeight: 600 }}
+          />
+          <Chip
+            icon={<PhoneOutlinedIcon />}
+            label={incident.responsiblePhone || '-'}
+            size="small"
+            component={incident.responsiblePhone ? 'a' : 'div'}
+            href={incident.responsiblePhone ? `tel:${incident.responsiblePhone}` : undefined}
+            clickable={!!incident.responsiblePhone}
+            sx={{ fontWeight: 600 }}
+          />
+        </Box>
       </Box>
 
       {/* Actions */}
