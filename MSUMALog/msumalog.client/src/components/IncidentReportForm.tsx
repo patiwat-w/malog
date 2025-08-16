@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Container, Paper, MenuItem, TextareaAutosize, Stack } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { format as formatDate } from 'date-fns';
 import './IncidentReportForm.css'; // เพิ่ม (ถ้ายังไม่ได้ import)
@@ -46,7 +47,7 @@ const IncidentReportForm: React.FC = () => {
     const isEdit = !!caseNoFromUrl;
 
     const today = new Date();
-    const isoToday = today.toISOString().split('T')[0];
+    const isoNow = formatDate(today, "yyyy-MM-dd'T'HH:mm:ss"); // include time
 
     const [formData, setFormData] = useState<IFormData>({
         id: undefined,
@@ -54,7 +55,7 @@ const IncidentReportForm: React.FC = () => {
         title: '',            // NEW
         asset: '',
         center: '',
-        incidentDate: isoToday,           // default today
+        incidentDate: isoNow,           // default now (date + time)
         symptoms: '',
         severity: '',
         impact: '',
@@ -90,8 +91,9 @@ const IncidentReportForm: React.FC = () => {
             .catch(() => { /* ไม่ต้องเติมอะไรถ้า error */ });
     }, []);
     
-    // Date object for the date picker (default today)
-    const [incidentDate, setIncidentDate] = useState<Date | null>(today);
+    // Date object for the pickers (separate date & time)
+    const [incidentDateOnly, setIncidentDateOnly] = useState<Date | null>(today);
+    const [incidentTimeOnly, setIncidentTimeOnly] = useState<Date | null>(today);
 
     // NEW: api states
     const [saving, setSaving] = useState(false);
@@ -120,7 +122,7 @@ const IncidentReportForm: React.FC = () => {
                     title: dto.title || dto.caseNo || 'Untitled',      // <-- fallback
                     asset: dto.asset || '',
                     center: dto.center || '',
-                    incidentDate: dto.incidentDate || isoToday,
+                    incidentDate: dto.incidentDate || isoNow,
                     symptoms: dto.symptoms || '',
                     severity: String(dto.severity ?? ''),
                     impact: dto.impact || '',
@@ -147,7 +149,7 @@ const IncidentReportForm: React.FC = () => {
         };
         load();
         return () => { ignore = true; };
-    }, [caseNoFromUrl, isoToday]);
+    }, [caseNoFromUrl, isoNow]);
 
     useEffect(() => {
         if (!isEdit) { // เฉพาะ create เท่านั้น
@@ -167,15 +169,23 @@ const IncidentReportForm: React.FC = () => {
     }, [isEdit]);
 
 
-    // keep incidentDate in sync with formData.incidentDate when it's a parseable date (ISO or yyyy-mm-dd)
+    // keep separate date & time pickers in sync with formData.incidentDate (parse ISO/date-only)
     useEffect(() => {
         if (!formData.incidentDate) {
-            setIncidentDate(null);
+            setIncidentDateOnly(null);
+            setIncidentTimeOnly(null);
             return;
         }
         const d = new Date(formData.incidentDate);
-        if (!isNaN(d.getTime())) setIncidentDate(d);
-        else setIncidentDate(null);
+        if (isNaN(d.getTime())) {
+            setIncidentDateOnly(null);
+            setIncidentTimeOnly(null);
+            return;
+        }
+        // date-only part (midnight local)
+        setIncidentDateOnly(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+        // time part (hours/minutes/seconds)
+        setIncidentTimeOnly(new Date(1970, 0, 1, d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds()));
     }, [formData.incidentDate]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -394,32 +404,79 @@ const IncidentReportForm: React.FC = () => {
 
                             <Box>
                                 <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                    <DatePicker
-                                        label="Incident Date (วันที่เกิดเหตุ)"
-                                        value={incidentDate}
-                                        format="dd MMM yyyy"
-                                        onChange={(newValue) => {
-                                            setIncidentDate(newValue);
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                incidentDate: newValue ? formatDate(newValue, 'yyyy-MM-dd') : ''
-                                            }));
-                                        }}
-                                        slotProps={{
-                                            textField: {
-                                                fullWidth: true,
-                                                size: 'small',
-                                                margin: 'dense',
-                                                id: 'incidentDate',
-                                                name: 'incidentDate',
-                                                required: true,
-                                                error: !(formData.incidentDate ?? '').toString().trim(),
-                                                helperText: !formData.incidentDate.trim() ? 'ต้องกรอก Incident Date' : ' ',
-                                                sx: getSxFor('incidentDate' as keyof IFormData),
-                                                inputProps: { className: getClassFor('incidentDate' as keyof IFormData) }
-                                            }
-                                        }}
-                                    />
+                                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <DatePicker
+                                            label="Incident Date (วันที่เกิดเหตุ)"
+                                            value={incidentDateOnly}
+                                            slotProps={{
+                                                textField: {
+                                                   
+                                                    fullWidth: true,
+                                                    size: 'small',
+                                                    margin: 'dense',
+                                                    id: 'incidentDate',
+                                                    name: 'incidentDate',
+                                                    required: true,
+                                                    error: !(formData.incidentDate ?? '').toString().trim(),
+                                                    helperText: !(formData.incidentDate ?? '').toString().trim() ? 'ต้องกรอก Incident Date' : ' ',
+                                                    sx: getSxFor('incidentDate' as keyof IFormData),
+                                                    inputProps: { className: getClassFor('incidentDate' as keyof IFormData) }
+                                                }
+                                            }}
+                                            onChange={(newDate) => {
+                                                setIncidentDateOnly(newDate);
+                                                // combine with existing time (or midnight)
+                                                const timePart = incidentTimeOnly ?? new Date(1970, 0, 1, 0, 0, 0);
+                                                if (!newDate) {
+                                                    setFormData(prev => ({ ...prev, incidentDate: '' }));
+                                                    return;
+                                                }
+                                                // build UTC date/time from local components
+                                                const combined = new Date(Date.UTC(
+                                                    newDate.getFullYear(),
+                                                    newDate.getMonth(),
+                                                    newDate.getDate(),
+                                                    timePart.getHours(),
+                                                    timePart.getMinutes(),
+                                                    timePart.getSeconds(),
+                                                    timePart.getMilliseconds()
+                                                ));
+                                                setFormData(prev => ({ ...prev, incidentDate: combined.toISOString() }));
+                                            }}
+                                            
+                                        />
+
+                                        <TimePicker
+                                            label="Time (เวลา)"
+                                            value={incidentTimeOnly}
+                                            onChange={(newTime) => {
+                                                setIncidentTimeOnly(newTime);
+                                                if (!newTime) {
+                                                    setFormData(prev => ({ ...prev, incidentDate: '' }));
+                                                    return;
+                                                }
+                                                const datePart = incidentDateOnly ?? new Date();
+                                                const combined = new Date(Date.UTC(
+                                                    datePart.getFullYear(),
+                                                    datePart.getMonth(),
+                                                    datePart.getDate(),
+                                                    newTime.getHours(),
+                                                    newTime.getMinutes(),
+                                                    newTime.getSeconds(),
+                                                    newTime.getMilliseconds()
+                                                ));
+                                                setFormData(prev => ({ ...prev, incidentDate: combined.toISOString() }));
+                                            }}
+                                            slotProps={{
+                                                textField: {
+                                                    size: 'small',
+                                                    margin: 'dense',
+                                                    sx: { width: 160 },
+                                                    inputProps: { className: getClassFor('incidentDate' as keyof IFormData) }
+                                                }
+                                            }}
+                                        />
+                                    </Box>
                                 </LocalizationProvider>
                             </Box>
                         </Box>
