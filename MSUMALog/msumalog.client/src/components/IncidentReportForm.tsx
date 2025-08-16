@@ -79,10 +79,10 @@ const IncidentReportForm: React.FC = () => {
         // ดึงข้อมูล user มาเติม default
         getCurrentUser()
             .then(user => {
-                if (user?.email) {
+                if (user) {
                     setFormData(f => ({
                         ...f,
-                        created_by: user.email // หรือใช้ชื่อ field ที่ต้องการ เช่น user.firstName
+                        created_by: user.email ?? '' // coerce to string to match IFormData
                     }));
                 }
             })
@@ -153,21 +153,20 @@ const IncidentReportForm: React.FC = () => {
         if (!isEdit) { // เฉพาะ create เท่านั้น
             getCurrentUser()
                 .then(user => {
-                    if (user?.email) {
+                    if (user) {
                         setFormData(f => ({
                             ...f,
-                            created_by: user.email,
-                            responsible_email: user.email // เติม responsible_email ด้วย email ของ user
+                            created_by: user.email ?? '',           // coerce to string
+                            responsible_email: user.email ?? ''     // coerce to string
                         }));
+                        //responsible_name
+                        if (user.firstName || user.lastName) {
+                            setFormData(f => ({
+                                ...f,
+                                responsible_name: `${user.firstName || ''} ${user.lastName || ''}`.trim()
+                            }));
+                        }
                     }
-                    //responsible_name
-                    if (user?.firstName || user?.lastName) {
-                        setFormData(f => ({
-                            ...f,
-                            responsible_name: `${user.firstName || ''} ${user.lastName || ''}`.trim()
-                        }));
-                    }
-                    
                     
                 })
                 .catch(() => { /* ไม่ต้องเติมอะไรถ้า error */ });
@@ -254,7 +253,7 @@ const IncidentReportForm: React.FC = () => {
             title: formData.title.trim(),        // <-- trim
             asset: formData.asset,
             center: formData.center,
-            incidentDate: formData.incident_date, // Map incident_date to occurredAt
+            
             symptoms: formData.symptoms,
             severity: formData.severity
                 ? parseInt(formData.severity, 10)
@@ -274,7 +273,8 @@ const IncidentReportForm: React.FC = () => {
             responsible_name: formData.responsible_name,
             responsible_lineid: formData.responsible_lineid,
             responsible_email: formData.responsible_email,
-            responsible_phone: formData.responsible_phone
+            responsible_phone: formData.responsible_phone,
+            occurredAt: formData.incident_date // <-- map to occurredAt
         };
     
         try {

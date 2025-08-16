@@ -16,11 +16,14 @@ import NotFoundPage from './components/NotFoundPage';
 import { getCurrentUser } from './api/client';
 import UserProfilePage from './components/UserProfilePage';
 
+import type { User } from './api/client';
+
 function App() {
     const location = useLocation();
     const showNav = location.pathname !== '/login';
     const [mobileOpen, setMobileOpen] = useState(false);
-    const [currentUser, setCurrentUser] = useState<{ firstName?: string; lastName?: string } | null>(null);
+    // broadened type to accept the full user object returned by getCurrentUser
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
 
     useEffect(() => {
         getCurrentUser()
@@ -81,7 +84,7 @@ function App() {
                                     startIcon={<AccountCircleIcon />}
                                     sx={{ textTransform: 'none', fontWeight: 500 }}
                                 >
-                                    {currentUser.firstName} {currentUser.lastName}
+                                    {currentUser?.firstName ?? ''} {currentUser?.lastName ?? ''}
                                 </Button>
                             )}
                             <Button color="inherit" component={Link} to="/logout">Logout</Button>

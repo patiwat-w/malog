@@ -282,39 +282,64 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Apply migrations + seed in development
-
+// Run migrations & seed once at startup. Use SQL Server application lock to ensure only one instance performs this.
+using (var scope = app.Services.CreateScope())
 {
-	// Migration & seed with retry and fresh scope per attempt
-	const int maxAttempts = 5;
-	for (int attempt = 1; attempt <= maxAttempts; attempt++)
-	{
-		using var scope = app.Services.CreateScope();
-		var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-		try
-		{
-			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-			logger.LogInformation("Applying migrations (attempt {Attempt}/{MaxAttempts})...", attempt, maxAttempts);
-			db.Database.Migrate();
-			SeedData.Initialize(db);
-			logger.LogInformation("Database migration and seeding completed.");
-			break;
-		}
-		catch (Exception ex)
-		{
-			logger.LogError(ex, "Database migration/seed failed on attempt {Attempt}/{MaxAttempts}", attempt, maxAttempts);
-			if (attempt == maxAttempts)
-			{
-				logger.LogCritical("Exceeded maximum migration attempts. Application will stop.");
-				// Rethrow to stop startup (fail-fast). Remove throw if you prefer to continue without DB.
-				throw;
-			}
-			// Exponential backoff before next attempt
-			var delaySeconds = Math.Min(30, Math.Pow(2, attempt));
-			logger.LogInformation("Waiting {DelaySeconds}s before retrying...", delaySeconds);
-			await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
-		}
-	}
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var conn = db.Database.GetDbConnection();
+        await conn.OpenAsync();
+        try
+        {
+            // Try to acquire an exclusive application lock. Timeout = 10000 ms (10s).
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "DECLARE @result int; EXEC @result = sp_getapplock @Resource = 'MSUMALog_Migrations', @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 10000; SELECT @result;";
+            var scalar = await cmd.ExecuteScalarAsync();
+            var result = scalar != null ? Convert.ToInt32(scalar) : -999;
+
+            // sp_getapplock returns >=0 on success, negative on failure
+            if (result >= 0)
+            {
+                logger.LogInformation("Acquired migration lock (sp_getapplock={Result}). Applying migrations and seeding...", result);
+                db.Database.Migrate();
+                SeedData.Initialize(db);
+                logger.LogInformation("Database migration and seeding completed.");
+            }
+            else
+            {
+                logger.LogWarning("Could not acquire migration lock (sp_getapplock={Result}). Skipping migrations/seed on this instance.", result);
+            }
+        }
+        finally
+        {
+            // Release lock explicitly and close connection if open.
+            if (conn.State == System.Data.ConnectionState.Open)
+            {
+                try
+                {
+                    using var relCmd = conn.CreateCommand();
+                    relCmd.CommandText = "EXEC sp_releaseapplock @Resource = 'MSUMALog_Migrations', @LockOwner = 'Session';";
+                    await relCmd.ExecuteNonQueryAsync();
+                }
+                catch
+                {
+                    // ignore release errors
+                }
+                finally
+                {
+                    await conn.CloseAsync();
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Database migration/seed failed at startup.");
+        // Rethrow to stop startup if you want fail-fast; otherwise comment the next line.
+        throw;
+    }
 }
 
 // Error handling middleware

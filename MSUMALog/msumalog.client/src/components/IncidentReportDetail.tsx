@@ -119,8 +119,8 @@ const IncidentReportDetail: React.FC = () => {
           intermediate_action: data.intermediate_action || '',
           long_term_action: data.long_term_action || '',
           created_by: data.created_by || '',
-          id: data.id ?? 0,
-          incidentDate: data.incident_date || '' // Add occurredAt property
+            id: data.id ?? 0,
+            occurredAt: data.incident_date || '' // Add occurredAt property
         };
         setIncident(mapped);
         setStatus(mapped.status ?? '');
@@ -156,7 +156,7 @@ const IncidentReportDetail: React.FC = () => {
         long_term_action: incident.long_term_action,
         created_by: incident.created_by,
         title: incident.title,
-        incidentDate: incident.incident_date ?? '' // Ensure incidentDate is included
+        occurredAt: incident.incident_date ?? '' // Ensure incidentDate is included
       });
       setIncident(prev => prev ? { ...prev, status } : prev);
     } finally {

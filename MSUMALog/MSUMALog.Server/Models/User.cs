@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
 
 namespace MSUMALog.Server.Models
 {
@@ -13,6 +14,7 @@ namespace MSUMALog.Server.Models
         public string Logs { get; set; }
         // hide password hash from API responses
         [JsonIgnore]
+        [MaxLength(256)]
         public string? PasswordHash { get; set; }
         public string? ProfilePicture { get; set; }
         public string? FirstName { get; set; }
