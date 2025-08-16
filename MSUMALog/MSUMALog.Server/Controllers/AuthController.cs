@@ -108,9 +108,16 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("me")]
+    [Authorize]
     [ProducesResponseType(typeof(User), StatusCodes.Status200OK)]
     public async Task<IActionResult> Me()
     {
+        Console.WriteLine("User.Identity.IsAuthenticated: " + (User.Identity?.IsAuthenticated ?? false));
+        foreach (var claim in User.Claims)
+        {
+            Console.WriteLine($"Claim: {claim.Type} = {claim.Value}");
+        }
+
         if (!User.Identity?.IsAuthenticated ?? true)
             return Unauthorized();
 
@@ -125,6 +132,17 @@ public class AuthController : ControllerBase
         return Ok(user); // return Model User ตรงๆ
     }
 
+      [Authorize]
+    [HttpGet("claims")]
+    public IActionResult Claims()
+    {
+        var claims = User.Claims
+            .Select(c => new { c.Type, c.Value })
+            .ToList();
+
+        return Ok(claims);
+    }
+
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
     {
@@ -133,4 +151,6 @@ public class AuthController : ControllerBase
 
         return NoContent();
     }
+
+  
 }

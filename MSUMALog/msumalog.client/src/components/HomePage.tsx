@@ -20,7 +20,7 @@ import { useTheme } from '@mui/material/styles';
 import { getIncidentReports } from '../api/client';
 import type { IncidentReportDto } from '../api/client';
 import {
-    getSeverityLabel,
+  
     getSeverityColor,
     incidentStatusOptions,
     getIncidentStatusPaletteColor,

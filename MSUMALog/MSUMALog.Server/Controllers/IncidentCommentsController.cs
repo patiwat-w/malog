@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MSUMALog.Server.DTOs;
 using MSUMALog.Server.Services;
+using MSUMALog.Server.Helpers; // Ensure the namespace containing UserClaimsHelper is imported
 
 namespace MSUMALog.Server.Controllers;
 
@@ -12,11 +13,13 @@ public class IncidentCommentsController(IIncidentCommentService service) : Contr
 {
     private readonly IIncidentCommentService _service = service;
 
+    [Authorize]
     [HttpGet("by-case/{caseNo}")]
     [ProducesResponseType(typeof(IEnumerable<IncidentCommentDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<IncidentCommentDto>>> GetByCase(string caseNo, CancellationToken ct = default)
         => Ok(await _service.GetByCaseNoAsync(caseNo, ct));
 
+    [Authorize]
     [HttpGet("by-incident/{incidentId:int}")]
     [ProducesResponseType(typeof(IEnumerable<IncidentCommentDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<IncidentCommentDto>>> GetByIncident(int incidentId, CancellationToken ct = default)
@@ -28,9 +31,16 @@ public class IncidentCommentsController(IIncidentCommentService service) : Contr
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IncidentCommentDto>> Create([FromBody] IncidentCommentDto dto, CancellationToken ct = default)
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (userIdClaim is null || !int.TryParse(userIdClaim, out var userId))
+        if (!User.Identity?.IsAuthenticated ?? true)
             return Unauthorized("User not authenticated");
+
+        var userId = UserClaimsHelper.GetUserId(User);
+        if (userId == null)
+            return Unauthorized("User not found");
+
+        var email = UserClaimsHelper.GetEmail(User);
+        if (string.IsNullOrWhiteSpace(email))
+            return Unauthorized("Email not found");
 
         // server sets author and audit fields
         dto.AuthorUserId = userId;
@@ -41,7 +51,7 @@ public class IncidentCommentsController(IIncidentCommentService service) : Contr
         var created = await _service.CreateAsync(dto, ct);
         return CreatedAtAction(nameof(GetByIncident), new { incidentId = created.IncidentReportId }, created);
     }
-
+    [Authorize]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

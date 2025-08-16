@@ -179,7 +179,7 @@ public class GoogleAuthController : ControllerBase
     }
 
     // A simple endpoint to get user information
-    [HttpGet("me")]
+    [HttpGet("my-info")]
     [Authorize]
     public IActionResult GetCurrentUser()
     {
@@ -192,6 +192,8 @@ public class GoogleAuthController : ControllerBase
 
         return Ok(new { Email = email });
     }
+
+    
     
     [HttpPost("logout")]
     public async Task<IActionResult> Logout()
