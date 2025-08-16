@@ -742,10 +742,20 @@ export interface components {
             /** Format: int32 */
             incidentReportId?: number;
             caseNo?: string | null;
-            author: string;
+            /** Format: int32 */
+            readonly authorUserId?: number | null;
+            readonly authorUserName?: string | null;
             body: string;
+            /** Format: int32 */
+            readonly createdUserId?: number | null;
+            /** Format: int32 */
+            readonly updatedUserId?: number | null;
+            readonly createdUserName?: string | null;
+            readonly updatedUserName?: string | null;
             /** Format: date-time */
-            createdUtc?: string;
+            readonly createdUtc?: string | null;
+            /** Format: date-time */
+            readonly updatedUtc?: string | null;
         };
         IncidentReportDto: {
             /** Format: int32 */
