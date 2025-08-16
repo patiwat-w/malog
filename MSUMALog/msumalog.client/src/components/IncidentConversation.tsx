@@ -13,10 +13,9 @@ import {
   getCommentsByCase,
   createComment,
   deleteComment,
-  getIncidentByCase,
-  type IncidentCommentDto
+  getIncidentByCase
 } from '../api/client';
-
+import type { IncidentCommentDto } from '../api/client';
 interface Props {
   caseNo: string;
   incidentId?: number;          // optional (ถ้าไม่ส่งมาจะโหลดเองจาก caseNo)
@@ -67,6 +66,7 @@ const IncidentConversation: React.FC<Props> = ({
         const dto = await getIncidentByCase(caseNo);
         if (ignore) return;
         setIncidentId(dto.id!);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
         if (!ignore) setError(e?.response?.data?.message || e?.message || 'Load incident failed');
       } finally {
@@ -87,6 +87,7 @@ const IncidentConversation: React.FC<Props> = ({
       try {
         const list = await getCommentsByCase(caseNo);
         if (!ignore) setComments(list);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
         if (!ignore) setError(e?.response?.data?.message || e?.message || 'Load comments failed');
       } finally {
@@ -230,7 +231,7 @@ const IncidentConversation: React.FC<Props> = ({
     try {
       const created = await createComment({
         incidentReportId: incidentId,
-        author: currentUser,
+        authorUserId: Number(currentUser),
         body: newComment.trim()
       });
       setComments(prev => [created, ...prev]);
@@ -239,6 +240,7 @@ const IncidentConversation: React.FC<Props> = ({
         editorRef.current.innerHTML = '';
         editorHtmlRef.current = '';
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setError(e?.response?.data?.message || e?.message || 'Create comment failed');
     } finally {
@@ -253,6 +255,7 @@ const IncidentConversation: React.FC<Props> = ({
     try {
       await deleteComment(id);
       setComments(prev => prev.filter(c => c.id !== id));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setError(e?.response?.data?.message || e?.message || 'Delete failed');
     }
@@ -277,12 +280,12 @@ const IncidentConversation: React.FC<Props> = ({
 
       <Stack spacing={2} sx={{ mb: 4 }}>
         {comments.map(c => {
-          const createdLocal = new Date(c.createdUtc).toLocaleString();
+          const createdLocal = c.createdUtc ? new Date(c.createdUtc).toLocaleString() : 'Invalid date';
           return (
             <Paper key={c.id} variant="outlined" sx={{ p: 1.5 }}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography variant="subtitle2">
-                  {c.author}{' '}
+                  {c.authorUserName  ?? '-'}{' '}
                   <Typography component="span" variant="caption" sx={{ color: 'text.secondary' }}>
                     {createdLocal}
                   </Typography>
@@ -291,7 +294,7 @@ const IncidentConversation: React.FC<Props> = ({
                   <Tooltip title="Delete comment">
                     <IconButton
                       size="small"
-                      onClick={() => handleDelete(c.id)}
+                      onClick={() => handleDelete(c.id!)}
                       sx={{ ml: 'auto' }}
                     >
                       <DeleteOutlineIcon fontSize="small" />

@@ -5,6 +5,7 @@ const http = axios.create({ baseURL: '/api' });
 
 export type IncidentReportDto = components['schemas']['IncidentReportDto'];
 export type User = components['schemas']['User'];
+export type IncidentCommentDto = components['schemas']['IncidentCommentDto'];
 
 // helper: convert UTC ISO string -> user's local display string (or undefined)
 function utcToLocal(utc?: string | null): string | undefined {
@@ -65,14 +66,7 @@ export async function deleteIncident(id: number) {
   return true;
 }
 
-export interface IncidentCommentDto {
-  id: number;
-  incidentReportId: number;
-  caseNo?: string;
-  author: string;
-  body: string;
-  createdUtc: string;
-}
+
 
 export async function getCommentsByCase(caseNo: string) {
   const res = await http.get<IncidentCommentDto[]>(`/IncidentComments/by-case/${encodeURIComponent(caseNo)}`);
