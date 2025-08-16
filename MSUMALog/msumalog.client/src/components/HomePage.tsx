@@ -24,7 +24,8 @@ import {
     getSeverityColor,
     incidentStatusOptions,
     getIncidentStatusPaletteColor,
-    severityOptions
+    severityOptions,
+    getSeverityLabelEn
 } from '../constants/incidentOptions';
 import Tooltip from '@mui/material/Tooltip';
 
@@ -102,14 +103,14 @@ function HomePage() {
             const s = value.trim();
             if (!s) return null;
             // MS JSON date: /Date(1234567890)/
-            const msMatch = /\/Date\((\-?\d+)\)\//.exec(s);
+            const msMatch = /\/Date\((-?\d+)\)\//.exec(s);
             if (msMatch) {
                 const n = parseInt(msMatch[1], 10);
                 const d = new Date(n);
                 return isNaN(d.getTime()) ? null : d;
             }
             // numeric string timestamp
-            if (/^\-?\d+$/.test(s)) {
+            if (/^-?\d+$/.test(s)) {
                 let n = parseInt(s, 10);
                 if (n < 1e12) n = n * 1000;
                 const d = new Date(n);
@@ -337,7 +338,7 @@ function HomePage() {
                         >
                             <MenuItem value="">All Severity</MenuItem>
                             {severityOptions.map(opt => (
-                                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                                <MenuItem key={opt.value} value={opt.value}>{opt.labelInEn}</MenuItem>
                             ))}
                         </TextField>
                         <Button
@@ -431,7 +432,7 @@ function HomePage() {
                                         </Box>
                                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', pr: 2 }}>
                                             <Chip
-                                                label={getSeverityLabel(issue.severity) || '-'}
+                                                label={getSeverityLabelEn(issue.severity) || '-'}
                                                 color={getSeverityColor(issue.severity)}
                                                 size="small"
                                                 sx={{ fontWeight: 700 }}

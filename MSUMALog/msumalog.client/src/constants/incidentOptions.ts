@@ -13,6 +13,9 @@ export interface DomainOption {
 export interface SeverityOption {
   value: string; // keep as string to match form state
   label: string;
+  labelInTh: string;
+  labelInEn: string;
+
   color?: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
 }
 
@@ -38,11 +41,11 @@ export const domainOptions: DomainOption[] = [
 ];
 
 export const severityOptions: SeverityOption[] = [
-  { value: '1', label: '1 - ต่ำมาก (Very Low)', color: 'primary' },    // น้ำเงิน
-  { value: '2', label: '2 - ต่ำ (Low)', color: 'success' },                // ฟ้า
-  { value: '3', label: '3 - ปานกลาง (Medium)', color: 'info' },     // เขียว
-  { value: '4', label: '4 - สูง (High)', color: 'warning' },            // ส้ม
-  { value: '5', label: '5 - สูงมาก (Critical)', color: 'error' }        // แดง
+  { value: '1', label: 'ต่ำมาก (Very Low)', labelInTh: 'ต่ำมาก', labelInEn: 'Very Low',  color: 'primary' },    // น้ำเงิน
+  { value: '2', label: 'ต่ำ (Low)', labelInTh: 'ต่ำ', labelInEn: 'Low', color: 'success' },                // ฟ้า
+  { value: '3', label: 'ปานกลาง (Medium)', labelInTh: 'ปานกลาง', labelInEn: 'Medium', color: 'info' },     // เขียว
+  { value: '4', label: 'สูง (High)', labelInTh: 'สูง', labelInEn: 'High', color: 'warning' },            // ส้ม
+  { value: '5', label: 'สูงมาก (Critical)', labelInTh: 'สูงมาก', labelInEn: 'Critical', color: 'error' }        // แดง
 ];
 
 export const incidentStatusOptions: IncidentStatusOption[] = [
@@ -58,6 +61,9 @@ export const getDomainLabel = (code: string | null | undefined) =>
 
 export const getSeverityLabel = (val: number | null | undefined) =>
   severityOptions.find(s => s.value == (val ?? ''))?.label || (val ?? '');
+
+export const getSeverityLabelEn = (val: number | null | undefined) =>
+  severityOptions.find(s => s.value == (val ?? ''))?.labelInEn || (val ?? '');
 
 export const getSeverityColor = (val: number | null | undefined) =>
   severityOptions.find(s => s.value == (val ?? ''))?.color || 'default';
