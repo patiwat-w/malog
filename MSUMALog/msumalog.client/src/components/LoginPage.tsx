@@ -221,26 +221,100 @@ function LoginPage() {
                     position: 'fixed' as const, inset: 0, background: 'rgba(0,0,0,0.45)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
                 }} onClick={() => setShowPdpa(false)}>
-                    <div style={{ width: 720, maxWidth: '100%', background: '#fff', borderRadius: 8, padding: 20, boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }} onClick={(e) => e.stopPropagation()}>
-                        <h3>รายละเอียด PDPA</h3>
-                        <div style={{ marginTop: 8, color: '#374151', fontSize: 14, lineHeight: 1.6 }}>
-                            <p>
-                                ข้อมูลนี้เป็นตัวอย่างข้อความ PDPA — โปรดแทนที่ด้วยเนื้อหาจริงของนโยบายความเป็นส่วนตัว
-                                และการประมวลผลข้อมูลส่วนบุคคลขององค์กรคุณ รวมถึงวัตถุประสงค์การเก็บข้อมูล สิทธิของผู้ใช้งาน
-                                และช่องทางติดต่อผู้ควบคุมข้อมูล
-                            </p>
-                            <ul>
-                                <li>วัตถุประสงค์: การให้บริการระบบแจ้งเหตุ</li>
-                                <li>ข้อมูลที่เก็บ: อีเมล ชื่อ รูปโปรไฟล์ และข้อมูลที่ผู้ใช้งานใส่</li>
-                                <li>สิทธิของผู้ใช้งาน: ขอเข้าถึง แก้ไข หรือลบข้อมูล</li>
-                            </ul>
-                        </div>
-                        <div style={{ marginTop: 14, textAlign: 'right' }}>
-                            <button onClick={() => setShowPdpa(false)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>
-                                ปิด
-                            </button>
-                        </div>
-                    </div>
+                   {/* start */}
+                   <div
+  style={{
+    width: 720,
+    maxWidth: '100%',
+    background: '#fff',
+    borderRadius: 8,
+    padding: 20,
+    boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+  }}
+  onClick={(e) => e.stopPropagation()}
+>
+  <h3>ข้อตกลงและเงื่อนไขการใช้งาน และนโยบายการคุ้มครองข้อมูลส่วนบุคคล (Agrement and PDPA)</h3>
+  {/* เพิ่มการจำกัดความสูงและเปิด scroll */}
+  <div style={{ marginTop: 8, color: '#374151', fontSize: 14, lineHeight: 1.6, maxHeight: '60vh', overflowY: 'auto', paddingRight: 8 }}>
+    <p>
+      ระบบ MSU-MALOG จัดทำขึ้นเพื่อให้บุคลากรสามารถรายงานปัญหาที่เกี่ยวข้องกับระบบ
+      โดยอาจมีการแนบข้อมูล เช่น รูปภาพ ไฟล์ หรือวิดีโอ เพื่อประกอบการรายงาน
+    </p>
+    <ul>
+      <li>
+        <strong>วัตถุประสงค์:</strong> ใช้เพื่อการตรวจสอบและแก้ไขปัญหาที่เกี่ยวข้องกับระบบทางการแพทย์
+      </li>
+      <li>
+        <strong>ข้อมูลที่เก็บ:</strong> ชื่อ นามสกุล อีเมล และรูปโปรไฟล์ (จาก Google Login) รวมถึงไฟล์/รูป/วิดีโอที่ผู้ใช้งานรายงาน
+      </li>
+      <li>
+        <strong>การใช้และการเปิดเผย:</strong> ข้อมูลจะถูกใช้และเปิดเผยเฉพาะแก่บุคคลที่เกี่ยวข้องภายในองค์กร
+        และ/หรือบริษัท Vendor ที่ได้รับมอบหมายเท่านั้น <br />
+        ข้อมูลจะไม่ถูกเปิดเผยต่อสาธารณะหรือบุคคลที่ไม่เกี่ยวข้อง
+      </li>
+      <li>
+        <strong>สิทธิของผู้ใช้งาน:</strong> มีสิทธิขอเข้าถึง แก้ไข หรือเพิกถอนข้อมูลส่วนบุคคล ตามกฎหมายคุ้มครองข้อมูลส่วนบุคคล
+      </li>
+      <li>
+        <strong>การยอมรับ:</strong> การเข้าใช้งานระบบถือว่าผู้ใช้งานได้อ่านและยอมรับข้อตกลงนี้แล้ว
+      </li>
+    </ul>
+
+    <p style={{ marginTop: 12, color: '#b91c1c' }}>
+      ⚠️ ข้อควรระวัง: ห้ามใส่ข้อมูลส่วนบุคคลของบุคคลอื่นหรือผู้ป่วย โดยไม่จำเป็น หรือหากไม่ได้รับความยินยอมจากผู้ป่วย
+      โปรดระมัดระวังในการใช้งาน หากจำเป็นต้องแนบรูปหรือข้อมูลที่มีบุคคลอื่น ควรทำการเบลอหรือปกปิดข้อมูลที่อ่อนไหวก่อนทุกครั้ง
+    </p>
+
+    <hr style={{ margin: '20px 0' }} />
+
+    <h4>PDPA & Terms of Use (English Version)</h4>
+    <p>
+      The MSU-MALOG  is designed to allow staff to report issues related to  systems.
+      Supporting files such as images, documents, or videos may be attached to facilitate the report.
+    </p>
+    <ul>
+      <li>
+        <strong>Purpose:</strong> To review and resolve issues related to medical systems.
+      </li>
+      <li>
+        <strong>Collected Data:</strong> First name, Last name, Email, and Profile Image (via Google Login),
+        as well as any attached files/images/videos submitted by the user.
+      </li>
+      <li>
+        <strong>Usage and Disclosure:</strong> Data will be used and disclosed only to authorized personnel
+        within the organization and/or assigned vendors. <br />
+        Data will not be made public or shared with unauthorized parties.
+      </li>
+      <li>
+        <strong>User Rights:</strong> Users have the right to access, correct, or request deletion of their
+        personal data in accordance with data protection laws.
+      </li>
+      <li>
+        <strong>Acceptance:</strong> By using the system, the user acknowledges and accepts these terms.
+      </li>
+    </ul>
+
+    <p style={{ marginTop: 12, color: '#b91c1c' }}>
+      ⚠️ Caution: Do not include unnecessary personal information of other individuals or patients without
+      proper consent. Please exercise care when using the system. If it is necessary to attach images or files containing other persons, sensitive information must be blurred or masked before submission.
+    </p>
+  </div>
+  <div style={{ marginTop: 14, textAlign: 'right' }}>
+    <button
+      onClick={() => setShowPdpa(false)}
+      style={{
+        padding: '8px 12px',
+        borderRadius: 6,
+        border: '1px solid #e5e7eb',
+        background: '#fff',
+        cursor: 'pointer',
+      }}
+    >
+      ปิด
+    </button>
+  </div>
+</div>
+                   {/* end */}
                 </div>
             )}
         </div>
