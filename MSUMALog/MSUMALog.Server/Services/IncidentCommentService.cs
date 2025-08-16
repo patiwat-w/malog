@@ -24,6 +24,10 @@ public class IncidentCommentService(
         // Project ผ่าน LINQ เพื่อลด entity load
         return await _db.IncidentComments
             .Where(c => c.IncidentReport!.CaseNo == caseNo)
+            .Include(c => c.IncidentReport)
+            .Include(c => c.AuthorUser)
+            .Include(c => c.CreatedUser)
+            .Include(c => c.UpdatedUser)
             .OrderByDescending(c => c.CreatedUtc)
             .ProjectTo<IncidentCommentDto>(_mapper.ConfigurationProvider)
             .ToListAsync(ct);
@@ -33,6 +37,10 @@ public class IncidentCommentService(
     {
         return await _db.IncidentComments
             .Where(c => c.IncidentReportId == incidentId)
+            .Include(c => c.IncidentReport)
+            .Include(c => c.AuthorUser)
+            .Include(c => c.CreatedUser)
+            .Include(c => c.UpdatedUser)
             .OrderByDescending(c => c.CreatedUtc)
             .ProjectTo<IncidentCommentDto>(_mapper.ConfigurationProvider)
             .ToListAsync(ct);
@@ -45,13 +53,24 @@ public class IncidentCommentService(
         if (report == null) throw new InvalidOperationException("Incident not found");
 
         var entity = _mapper.Map<IncidentComment>(dto);
-        entity.CreatedUtc = DateTime.UtcNow;
+
+        // apply server-managed / user fields from DTO (controller sets them)
+        if (dto.AuthorUserId.HasValue) entity.AuthorUserId = dto.AuthorUserId;
+        if (dto.CreatedUserId.HasValue) entity.CreatedUserId = dto.CreatedUserId;
+        if (dto.UpdatedUserId.HasValue) entity.UpdatedUserId = dto.UpdatedUserId;
+        entity.CreatedUtc = dto.CreatedUtc ?? DateTime.UtcNow;
+        entity.UpdatedUtc = dto.UpdatedUtc;
+
         await _repo.AddAsync(entity, ct);
 
-        // reload with navigation
+        // reload with navigation so mapping can populate CaseNo and user names
         var reloaded = await _db.IncidentComments
             .Include(c => c.IncidentReport)
+            .Include(c => c.AuthorUser)
+            .Include(c => c.CreatedUser)
+            .Include(c => c.UpdatedUser)
             .FirstAsync(c => c.Id == entity.Id, ct);
+
         return _mapper.Map<IncidentCommentDto>(reloaded);
     }
 

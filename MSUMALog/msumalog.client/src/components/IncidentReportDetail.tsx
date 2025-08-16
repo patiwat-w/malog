@@ -29,12 +29,14 @@ const parseToDate = (value: unknown): Date | null => {
   if (typeof value === 'string') {
     const s = value.trim();
     if (!s) return null;
+    // eslint-disable-next-line no-useless-escape
     const msMatch = /\/Date\((\-?\d+)\)\//.exec(s);
     if (msMatch) {
       const n = parseInt(msMatch[1], 10);
       const d = new Date(n);
       return isNaN(d.getTime()) ? null : d;
     }
+    // eslint-disable-next-line no-useless-escape
     if (/^\-?\d+$/.test(s)) {
       let n = parseInt(s, 10);
       if (n < 1e12) n = n * 1000;
@@ -70,6 +72,7 @@ const sanitizePhone = (v?: string) => {
   return v.replace(/[^+\d]/g, '');
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getContactChipProps = (type: 'email' | 'phone' | 'line', value?: string): Record<string, any> => {
   if (!value) {
     return { component: 'div', clickable: false };

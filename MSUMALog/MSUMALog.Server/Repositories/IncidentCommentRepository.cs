@@ -11,6 +11,7 @@ public class IncidentCommentRepository(ApplicationDbContext db) : IIncidentComme
     public Task<List<IncidentComment>> GetByIncidentIdAsync(int incidentId, CancellationToken ct = default) =>
         _db.IncidentComments
             .AsNoTracking()
+            .Include(c => c.AuthorUser) // เพิ่มตรงนี้
             .Where(c => c.IncidentReportId == incidentId)
             .OrderByDescending(c => c.CreatedUtc)
             .ToListAsync(ct);
@@ -18,6 +19,7 @@ public class IncidentCommentRepository(ApplicationDbContext db) : IIncidentComme
     public Task<List<IncidentComment>> GetByCaseNoAsync(string caseNo, CancellationToken ct = default) =>
         _db.IncidentComments
             .AsNoTracking()
+            .Include(c => c.AuthorUser) // เพิ่มตรงนี้
             .Where(c => c.IncidentReport!.CaseNo == caseNo)
             .OrderByDescending(c => c.CreatedUtc)
             .ToListAsync(ct);

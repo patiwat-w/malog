@@ -27,9 +27,27 @@ namespace MSUMALog.Server.Data
                     .WithMany() // หรือ .WithMany("Comments") ถ้าจะเพิ่ม ICollection<IncidentComment> ใน IncidentReport
                     .HasForeignKey(c => c.IncidentReportId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                // AuthorUser FK -> User.Id (restrict delete)
+                b.HasOne(c => c.AuthorUser)
+                    .WithMany()
+                    .HasForeignKey(c => c.AuthorUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // CreatedUser FK -> User.Id (restrict delete)
+                b.HasOne(c => c.CreatedUser)
+                    .WithMany()
+                    .HasForeignKey(c => c.CreatedUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // UpdatedUser FK -> User.Id (restrict delete)
+                b.HasOne(c => c.UpdatedUser)
+                    .WithMany()
+                    .HasForeignKey(c => c.UpdatedUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // Configure CreatedUserId and UpdatedUserId as FKs to User.Id
+            // Configure CreatedUserId and UpdatedUserId as FKs to User.Id for IncidentReport
             modelBuilder.Entity<IncidentReport>(b =>
             {
                 b.HasOne(ir => ir.CreatedUser)

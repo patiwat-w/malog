@@ -28,7 +28,16 @@ public class IncidentCommentsController(IIncidentCommentService service) : Contr
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IncidentCommentDto>> Create([FromBody] IncidentCommentDto dto, CancellationToken ct = default)
     {
- 
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim is null || !int.TryParse(userIdClaim, out var userId))
+            return Unauthorized("User not authenticated");
+
+        // server sets author and audit fields
+        dto.AuthorUserId = userId;
+        dto.CreatedUserId = userId;
+        dto.UpdatedUserId = userId;
+        dto.UpdatedUtc = DateTime.UtcNow;
+
         var created = await _service.CreateAsync(dto, ct);
         return CreatedAtAction(nameof(GetByIncident), new { incidentId = created.IncidentReportId }, created);
     }
