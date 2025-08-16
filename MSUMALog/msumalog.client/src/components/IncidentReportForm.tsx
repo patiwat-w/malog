@@ -104,7 +104,6 @@ const IncidentReportForm: React.FC = () => {
         let ignore = false;
         const load = async () => {
             if (!caseNoFromUrl) {
-                // NEW (create mode) – ใส่ค่า default เฉพาะ create
                 setFormData(f => ({
                     ...f,
                     status: f.status || 'Open'
@@ -116,30 +115,34 @@ const IncidentReportForm: React.FC = () => {
             try {
                 const dto = await getIncidentByCase(caseNoFromUrl);
                 if (ignore) return;
-                setFormData({
-                    id: dto.id,
-                    caseNo: dto.caseNo || caseNoFromUrl,
-                    title: dto.title || dto.caseNo || 'Untitled',      // <-- fallback
-                    asset: dto.asset || '',
-                    center: dto.center || '',
-                    incidentDate: dto.incidentDate || isoNow,
-                    symptoms: dto.symptoms || '',
-                    severity: String(dto.severity ?? ''),
-                    impact: dto.impact || '',
-                    domain: dto.domain || '',
-                    subDomain: dto.subDomain || '',
-                    vendor: dto.vendor || '',
-                    manufacturer: dto.manufacturer || '',
-                    partNumber: dto.partNumber || '',
-                    additionalInfo: dto.additionalInfo || '',
-                    interimAction: dto.interimAction || '',
-                    intermediateAction: dto.intermediateAction || '',
-                    longTermAction: dto.longTermAction || '',
-                    status: dto.status || '',
-                    responsibleName: dto.responsibleName || '',
-                    responsibleLineId: dto.responsibleLineId || '',
-                    responsibleEmail: dto.responsibleEmail || '',
-                    responsiblePhone: dto.responsiblePhone || ''
+                setFormData(prev => {
+                    // ถ้า id เหมือนเดิม ไม่ต้องเซ็ตใหม่
+                    if (prev.id === dto.id) return prev;
+                    return {
+                        id: dto.id,
+                        caseNo: dto.caseNo || caseNoFromUrl,
+                        title: dto.title || dto.caseNo || 'Untitled',
+                        asset: dto.asset || '',
+                        center: dto.center || '',
+                        incidentDate: dto.incidentDate || isoNow,
+                        symptoms: dto.symptoms || '',
+                        severity: String(dto.severity ?? ''),
+                        impact: dto.impact || '',
+                        domain: dto.domain || '',
+                        subDomain: dto.subDomain || '',
+                        vendor: dto.vendor || '',
+                        manufacturer: dto.manufacturer || '',
+                        partNumber: dto.partNumber || '',
+                        additionalInfo: dto.additionalInfo || '',
+                        interimAction: dto.interimAction || '',
+                        intermediateAction: dto.intermediateAction || '',
+                        longTermAction: dto.longTermAction || '',
+                        status: dto.status || '',
+                        responsibleName: dto.responsibleName || '',
+                        responsibleLineId: dto.responsibleLineId || '',
+                        responsibleEmail: dto.responsibleEmail || '',
+                        responsiblePhone: dto.responsiblePhone || ''
+                    };
                 });
             } catch (e: any) {
                 if (!ignore) setApiError(e?.response?.data?.message || e?.message || 'Load failed');
@@ -149,7 +152,7 @@ const IncidentReportForm: React.FC = () => {
         };
         load();
         return () => { ignore = true; };
-    }, [caseNoFromUrl, isoNow]);
+    }, [caseNoFromUrl]);
 
     useEffect(() => {
         if (!isEdit) { // เฉพาะ create เท่านั้น
