@@ -126,11 +126,44 @@ function HomePage() {
                 item.symptom ??
                 item.issue_description;
 
-            const status =
+            // original raw status text (may be "Closed", "In Progress", "Open", etc.)
+            const rawStatus =
                 item.status ??
                 item.state ??
                 item.current_status ??
                 (item.closed ? 'Closed' : 'In Progress');
+
+            // try to map rawStatus (label or value) to a canonical option.value from incidentStatusOptions
+            const mapStatusToValue = (s?: string | number | undefined) => {
+                if (s === undefined || s === null) return undefined;
+                const sStr = String(s).trim().toLowerCase();
+                // find by value or label (loose compare, normalize whitespace and case)
+                return incidentStatusOptions.find(opt => {
+                    const val = String(opt.value ?? '').trim().toLowerCase();
+                    const lbl = String(opt.label ?? '').trim().toLowerCase();
+                    return val === sStr || lbl === sStr || val === sStr.replace(/\s+/g, '') || lbl === sStr.replace(/\s+/g, '');
+                })?.value;
+            };
+
+            const status = mapStatusToValue(rawStatus) ?? rawStatus;
+
+            // normalize severity to canonical severityOptions[].value (string) when possible
+            const rawSeverity =
+                (item as Record<string, unknown>).severity ??
+                (item as Record<string, unknown>).severity_level ??
+                (item as Record<string, unknown>).severityLevel;
+
+            const mapSeverityToValue = (s?: string | number | undefined) => {
+                if (s === undefined || s === null) return undefined;
+                const sStr = String(s).trim().toLowerCase();
+                return severityOptions.find(opt => {
+                    const val = String(opt.value ?? '').trim().toLowerCase();
+                    const lbl = String(opt.label ?? '').trim().toLowerCase();
+                    return val === sStr || lbl === sStr || val === sStr.replace(/\s+/g, '') || lbl === sStr.replace(/\s+/g, '');
+                })?.value;
+            };
+
+            const severity = mapSeverityToValue(typeof rawSeverity === 'string' || typeof rawSeverity === 'number' ? rawSeverity : undefined) ?? (item as Record<string, unknown>).severity;
 
             const mapped: IncidentReportDto = {
                 ...(item as Record<string, unknown>),
@@ -139,7 +172,8 @@ function HomePage() {
                 center,
                 incident_date,
                 symptoms,
-                status
+                status,
+                severity
             } as IncidentReportDto;
 
             if (idx < 5) console.log('[HomePage] mapped item', idx, mapped);
@@ -190,8 +224,8 @@ function HomePage() {
     // Filtered issues
     const filteredIssues = issues.filter(issue => {
         const titleMatch = !search || (issue.title ?? '').toLowerCase().includes(search.toLowerCase());
-        const statusMatch = !filterStatus || issue.status === filterStatus;
-        const severityMatch = !filterSeverity || issue.severity === Number(filterSeverity);
+        const statusMatch = !filterStatus || String(issue.status ?? '') === filterStatus;
+        const severityMatch = !filterSeverity || String(issue.severity ?? '') === filterSeverity;
         return titleMatch && statusMatch && severityMatch;
     });
 
