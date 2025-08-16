@@ -4,6 +4,7 @@ import type { components } from './types';
 const http = axios.create({ baseURL: '/api' });
 
 export type IncidentReportDto = components['schemas']['IncidentReportDto'];
+export type User = components['schemas']['User'];
 
 export async function getIncidentReports() {
   console.log('[api] GET /IncidentReports start');
@@ -81,12 +82,24 @@ export async function checkAuth(): Promise<boolean> {
   }
 }
 
-export async function getCurrentUser() {
+export async function getCurrentUser(): Promise<User> {
   try {
-    const response = await http.get('/auth/me', { withCredentials: true });
+    const response = await http.get<User>('/auth/me', { withCredentials: true });
     return response.data; // ข้อมูล user ที่ backend ส่งกลับมา
   } catch (error) {
     console.error('[api] GET /auth/me error', error);
     throw error;
   }
+}
+
+// New: basic-login using email/password -> returns User and sets cookie
+export async function basicLogin(email: string, password: string): Promise<User> {
+  const res = await http.post<User>('/auth/basic-login', { email, password }, { withCredentials: true });
+  return res.data;
+}
+
+// New: set-password for currently authenticated user (password only)
+export async function setPassword(password: string) {
+  const res = await http.post<{ email: string }>('/auth/set-password', { password }, { withCredentials: true });
+  return res.data;
 }

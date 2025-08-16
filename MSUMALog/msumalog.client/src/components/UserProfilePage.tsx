@@ -1,15 +1,45 @@
-import { Box, Typography, Avatar, Paper } from '@mui/material';
+import { Box, Typography, Avatar, Paper, TextField, Button, Alert } from '@mui/material';
 import { useEffect, useState } from 'react';
-import { getCurrentUser } from '../api/client';
+import { getCurrentUser, setPassword } from '../api/client';
 
 export default function UserProfilePage() {
     const [user, setUser] = useState<any>(null);
+    const [password, setPasswordInput] = useState('');
+    const [confirm, setConfirm] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState(false);
 
     useEffect(() => {
         getCurrentUser()
             .then(setUser)
             .catch(() => setUser(null));
     }, []);
+
+    const handlePasswordChange = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        setSuccess(false);
+
+        if (!password || password.length < 8) {
+            setError('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+            return;
+        }
+        if (password !== confirm) {
+            setError('รหัสผ่านไม่ตรงกัน');
+            return;
+        }
+        setLoading(true);
+        try {
+            await setPassword(password);
+            setSuccess(true);
+            setPasswordInput('');
+            setConfirm('');
+        } catch (err) {
+            setError('เปลี่ยนรหัสผ่านไม่สำเร็จ');
+        }
+        setLoading(false);
+    };
 
     if (!user) {
         return (
@@ -26,7 +56,32 @@ export default function UserProfilePage() {
                 <Typography variant="h5">{user.firstName} {user.lastName}</Typography>
                 <Typography variant="body1" color="text.secondary">{user.email}</Typography>
                 <Typography variant="body2" color="text.secondary">Role: {user.role}</Typography>
-                {/* เพิ่ม field อื่นๆ ตามต้องการ */}
+            </Box>
+            <Box component="form" onSubmit={handlePasswordChange} sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography variant="subtitle1">เปลี่ยนรหัสผ่าน</Typography>
+                <TextField
+                    label="รหัสผ่านใหม่"
+                    type="password"
+                    value={password}
+                    onChange={e => setPasswordInput(e.target.value)}
+                    required
+                    fullWidth
+                    size="small"
+                />
+                <TextField
+                    label="ยืนยันรหัสผ่าน"
+                    type="password"
+                    value={confirm}
+                    onChange={e => setConfirm(e.target.value)}
+                    required
+                    fullWidth
+                    size="small"
+                />
+                <Button type="submit" variant="contained" disabled={loading}>
+                    {loading ? 'กำลังบันทึก...' : 'เปลี่ยนรหัสผ่าน'}
+                </Button>
+                {error && <Alert severity="error">{error}</Alert>}
+                {success && <Alert severity="success">เปลี่ยนรหัสผ่านสำเร็จ</Alert>}
             </Box>
         </Paper>
     );

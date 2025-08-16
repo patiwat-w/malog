@@ -11,7 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
-    "gen:api": "openapi-typescript http://localhost:5293/swagger/v1/swagger.json -o src/api/types.ts",
+    "gen:api": "set NODE_TLS_REJECT_UNAUTHORIZED=0 && openapi-typescript http://localhost:5293/swagger/v1/swagger.json -o src/api/types.ts",
     "postbuild": "xcopy /E /Y /I dist\\* ..\\MSUMALog.Server\\wwwroot\\"
   },
   "dependencies": {

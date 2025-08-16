@@ -67,3 +67,15 @@ export default tseslint.config([
   },
 ])
 ```
+
+## Generating API client types from Swagger
+
+If your backend uses a self-signed certificate, you may need to allow insecure TLS for local development.  
+To generate TypeScript types from your Swagger/OpenAPI spec, run:
+
+```powershell
+$env:NODE_TLS_REJECT_UNAUTHORIZED=0
+npx openapi-typescript http://localhost:5293/swagger/v1/swagger.json -o src/api/types.ts
+```
+
+This will fetch the schema and generate/update `src/api/types.ts` for use in your API client code.
