@@ -21,6 +21,8 @@ public class IncidentReportRepository(ApplicationDbContext context) : IIncidentR
     public async Task<IEnumerable<IncidentReport>> GetAllAsync(CancellationToken ct = default)
     {
         return await _context.IncidentReports
+            .Include(i => i.CreatedUser)
+            .Include(i => i.UpdatedUser)
             .AsNoTracking()
             .OrderByDescending(i => i.CreatedUtc)
             .ToListAsync(ct);
@@ -28,12 +30,19 @@ public class IncidentReportRepository(ApplicationDbContext context) : IIncidentR
 
     public async Task<IncidentReport?> GetByIdAsync(int id, CancellationToken ct = default)
     {
-        return await _context.IncidentReports.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id, ct);
+        return await _context.IncidentReports
+            .Include(i => i.CreatedUser)
+            .Include(i => i.UpdatedUser)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Id == id, ct);
     }
 
     public async Task<IncidentReport?> GetByCaseNoAsync(string caseNo, CancellationToken ct = default)
     {
-        return await _context.IncidentReports.AsNoTracking()
+        return await _context.IncidentReports
+            .Include(i => i.CreatedUser)
+            .Include(i => i.UpdatedUser)
+            .AsNoTracking()
             .FirstOrDefaultAsync(i => i.CaseNo == caseNo, ct);
     }
 

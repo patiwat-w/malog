@@ -15,6 +15,9 @@ using MSUMALog.Server.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// make IHttpContextAccessor available for services
+builder.Services.AddHttpContextAccessor();
+
 // เพิ่ม logging สำหรับ debug
 builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication", LogLevel.Debug);
 
@@ -123,7 +126,7 @@ builder.Services.AddAuthentication(options =>
                     FirstName = firstName,
                     LastName = lastName,
                     ProfilePicture = profilePicture,
-                    Logs = "Creating new user" // เพิ่มบรรทัดนี้
+                    Logs = "Creating new user"
                 };
                 db.Users.Add(user);
                 try
@@ -133,7 +136,6 @@ builder.Services.AddAuthentication(options =>
                 catch
                 {
                     Console.WriteLine("Error saving user to database");
-                    // ถ้าสร้าง user ไม่ได้ ให้ redirect ไป /login-fail
                     context.Response.Redirect("/login-fail");
                     return;
                 }
@@ -146,8 +148,21 @@ builder.Services.AddAuthentication(options =>
                 user.FirstName = firstName ?? user.FirstName;
                 user.LastName = lastName ?? user.LastName;
                 user.ProfilePicture = profilePicture ?? user.ProfilePicture;
-                user.Logs = "Updating existing user"; // เพิ่มบรรทัดนี้
+                user.Logs = "Updating existing user";
                 await db.SaveChangesAsync();
+            }
+
+            // publish user id and role into claims so downstream services can read current user's DB id
+            if (user != null)
+            {
+                // Add NameIdentifier claim (DB user id)
+                context.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()));
+                context.Identity.AddClaim(new Claim(ClaimTypes.Email, user.Email ?? ""));
+                context.Identity.AddClaim(new Claim(ClaimTypes.Name, user.FirstName ?? user.Email ?? ""));
+                context.Identity.AddClaim(new Claim(ClaimTypes.GivenName, user.FirstName ?? ""));
+                context.Identity.AddClaim(new Claim(ClaimTypes.Surname, user.LastName ?? ""));
+                context.Identity.AddClaim(new Claim("picture", user.ProfilePicture ?? ""));
+                context.Identity.AddClaim(new Claim(ClaimTypes.Role, user.Role ?? "User"));
             }
         }
     };

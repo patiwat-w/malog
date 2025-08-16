@@ -53,7 +53,7 @@ public class AuthController : ControllerBase
         // สร้าง claims คล้าย Google login
         var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Email),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), // <-- เปลี่ยนเป็น user.Id.ToString()
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Name, user.FirstName ?? user.Email),
             new Claim(ClaimTypes.GivenName, user.FirstName ?? string.Empty),

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MSUMALog.Server.Models;
 
@@ -59,8 +60,15 @@ public class IncidentReport
     [MaxLength(50)]
     public string Status { get; set; } = string.Empty;
 
-    [MaxLength(100)]
-    public string CreatedBy { get; set; } = string.Empty;
+    // Id of the user who created the report
+    public int? CreatedUserId { get; set; }
+    [ForeignKey(nameof(CreatedUserId))]
+    public User? CreatedUser { get; set; }
+
+    // Id of the user who last updated the report
+    public int? UpdatedUserId { get; set; }
+    [ForeignKey(nameof(UpdatedUserId))]
+    public User? UpdatedUser { get; set; }
 
     // Responsible person
     [MaxLength(150)]

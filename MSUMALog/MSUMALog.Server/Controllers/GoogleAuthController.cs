@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using MSUMALog.Server.Models;
 using MSUMALog.Server.Data;
+using System.Collections.Generic;
 
 namespace MSUMALog.Server.Controllers;
 
@@ -74,90 +75,106 @@ public class GoogleAuthController : ControllerBase
     {
         _logger.LogInformation("Google Callback: start");
 
-        // var result = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        // _logger.LogInformation("Google Callback: AuthenticateAsync Succeeded={Succeeded}", result.Succeeded);
+        // Authenticate the Google external result
+        var result = await HttpContext.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
+        if (!result.Succeeded)
+        {
+            _logger.LogInformation("Google Callback: external authentication failed");
+            return Redirect("/login-fail");
+        }
 
-        // if (!result.Succeeded)
-        // {
-        //    _logger.LogInformation("Google Callback: authentication failed. Failure={FailureMessage}", result.Failure?.Message ?? "none");
-        //     return BadRequest("Google authentication failed");
-        // }
+        var principal = result.Principal;
+        if (principal == null)
+        {
+            _logger.LogInformation("Google Callback: principal is null");
+            return Redirect("/login-fail");
+        }
 
-        // var principal = result.Principal;
-        // if (principal == null)
-        // {
-        //     _logger.LogInformation("Google Callback: result.Principal is null");
-        //     return BadRequest("Google authentication failed");
-        // }
+        var email = principal.FindFirst(ClaimTypes.Email)?.Value;
+        var firstName = principal.FindFirst(ClaimTypes.GivenName)?.Value;
+        var lastName = principal.FindFirst(ClaimTypes.Surname)?.Value;
+        var profilePicture = principal.FindFirst("picture")?.Value;
 
-        // var email = principal.FindFirst(ClaimTypes.Email)?.Value;
-        // var firstName = principal.FindFirst(ClaimTypes.GivenName)?.Value;
-        // var lastName = principal.FindFirst(ClaimTypes.Surname)?.Value;
-        // var profilePicture = principal.FindFirst("picture")?.Value;
+        if (string.IsNullOrEmpty(email))
+        {
+            _logger.LogInformation("Google Callback: Email claim missing");
+            return Redirect("/login-fail");
+        }
 
-        // _logger.LogInformation("Google Callback: Email = {Email}, FirstName = {FirstName}, LastName = {LastName}, ProfilePicture = {ProfilePicture}", email, firstName, lastName, profilePicture);
+        // Ensure local user exists and update stats
+        var user = _dbContext.Users.FirstOrDefault(u => u.Email == email);
+        if (user == null)
+        {
+            _logger.LogInformation("Google Callback: creating new user for {Email}", email);
+            user = new User
+            {
+                Email = email,
+                Role = "User",
+                LoginCount = 1,
+                LastLoginDate = DateTime.UtcNow,
+                FirstName = firstName,
+                LastName = lastName,
+                ProfilePicture = profilePicture
+            };
+            _dbContext.Users.Add(user);
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Google Callback: error saving new user");
+                return Redirect("/login-fail");
+            }
+        }
+        else
+        {
+            _logger.LogInformation("Google Callback: updating existing user {Email}", email);
+            user.LoginCount++;
+            user.LastLoginDate = DateTime.UtcNow;
+            user.FirstName = firstName ?? user.FirstName;
+            user.LastName = lastName ?? user.LastName;
+            user.ProfilePicture = profilePicture ?? user.ProfilePicture;
+            try
+            {
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Google Callback: error updating user");
+                return StatusCode(500, "Cannot update user");
+            }
+        }
 
-        // if (string.IsNullOrEmpty(email))
-        // {
-        //     _logger.LogInformation("Google Callback: Email claim is missing");
-        //     return BadRequest("Google authentication failed");
-        // }
+        // Build local claims and ensure NameIdentifier is the numeric user Id
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Name, user.FirstName ?? user.Email),
+            new Claim(ClaimTypes.GivenName, user.FirstName ?? string.Empty),
+            new Claim(ClaimTypes.Surname, user.LastName ?? string.Empty),
+            new Claim("picture", user.ProfilePicture ?? string.Empty),
+            new Claim(ClaimTypes.Role, user.Role ?? "User")
+        };
 
-        // // Check if the user exists in the database
-        // var user = _dbContext.Users.FirstOrDefault(u => u.Email == email);
-        // if (user == null)
-        // {
-        //     _logger.LogInformation("Google Callback: Creating new user.");
-        //     user = new User
-        //     {
-        //         Email = email,
-        //         Role = "User",
-        //         LoginCount = 1,
-        //         LastLoginDate = DateTime.UtcNow,
-        //         FirstName = firstName,
-        //         LastName = lastName,
-        //         ProfilePicture = profilePicture
-        //     };
-        //     _dbContext.Users.Add(user);
-        //     _logger.LogInformation("Google Callback: User added to DbContext.");
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var cookiePrincipal = new ClaimsPrincipal(identity);
 
-        //     try
-        //     {
-        //         await _dbContext.SaveChangesAsync();
-        //        _logger.LogInformation("Google Callback: Changes saved to database.");
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //        _logger.LogError(ex, "Google Callback: Error saving changes");
-        //         // Redirect to login-fail page if user creation fails
-        //         return Redirect("/login-fail");
-        //     }
-        // }
-        // else
-        // {
-        //     _logger.LogInformation("Google Callback: Updating existing user.");
-        //     user.LoginCount++;
-        //     user.LastLoginDate = DateTime.UtcNow;
-        //     user.FirstName = firstName ?? user.FirstName;
-        //     user.LastName = lastName ?? user.LastName;
-        //     user.ProfilePicture = profilePicture ?? user.ProfilePicture;
+        var redirectUri = result.Properties?.RedirectUri ?? "/home";
 
-        //     try
-        //     {
-        //         await _dbContext.SaveChangesAsync();
-        //         _logger.LogInformation("Google Callback: Changes saved to database.");
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         _logger.LogError(ex, "Google Callback: Error saving changes - {ErrorMessage}", ex.Message);
-        //         return StatusCode(500, "Cannot update user: " + ex.Message);
-        //     }
-        // }
+        // Sign in with cookie scheme using the local user id in NameIdentifier
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            cookiePrincipal,
+            new AuthenticationProperties
+            {
+                IsPersistent = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8),
+                RedirectUri = redirectUri
+            });
 
-        //var redirectUri = result.Properties?.RedirectUri ?? "/home";
-        // replace /home to /login-fail
-        var redirectUri ="/login-fail";
-       _logger.LogInformation("Google Callback: redirecting to {RedirectUri}", redirectUri);
+        _logger.LogInformation("Google Callback: signed in and redirecting to {RedirectUri}", redirectUri);
         return Redirect(redirectUri);
     }
 

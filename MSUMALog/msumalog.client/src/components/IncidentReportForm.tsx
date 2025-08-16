@@ -13,34 +13,35 @@ import { domainOptions, severityOptions, incidentStatusOptions } from '../consta
 
 interface IFormData {
     id?: number;                 // <-- เพิ่ม id
-    case_no: string;
+    caseNo: string;
     title: string;               // NEW
     asset: string;
     center: string;
-    incident_date: string;
+    incidentDate: string;
     symptoms: string;
     severity: string;
     impact: string;
     domain: string; // จะเก็บ code เช่น '001'
-    sub_domain: string;
+    subDomain: string;
     vendor: string;
     manufacturer: string;
-    part_number: string;
-    additional_info: string;
-    interim_action: string;
-    intermediate_action: string;
-    long_term_action: string;
+    partNumber: string;
+    additionalInfo: string;
+    interimAction: string;
+    intermediateAction: string;
+    longTermAction: string;
     status: string;
-    created_by: string;
     // added responsible person fields
-    responsible_name: string;
-    responsible_lineid: string;
-    responsible_email: string;
-    responsible_phone: string;
+    responsibleName: string;
+    responsibleLineId: string;
+    responsibleEmail: string;
+    responsiblePhone: string;
 }
 
 const IncidentReportForm: React.FC = () => {
-    const { case_no: caseNoFromUrl } = useParams<{ case_no: string }>();
+    // accept either :caseNo or :case_no route param to be robust
+    const params = useParams<Record<string, string | undefined>>();
+    const caseNoFromUrl = params.caseNo ?? params['case_no'];
     const navigate = useNavigate();
     const isEdit = !!caseNoFromUrl;
 
@@ -49,30 +50,29 @@ const IncidentReportForm: React.FC = () => {
 
     const [formData, setFormData] = useState<IFormData>({
         id: undefined,
-        case_no: '',
+        caseNo: '',
         title: '',            // NEW
         asset: '',
         center: '',
-        incident_date: isoToday,           // default today
+        incidentDate: isoToday,           // default today
         symptoms: '',
         severity: '',
         impact: '',
         domain: '',
-        sub_domain: '',
+        subDomain: '',
         vendor: '',
         manufacturer: '',
-        part_number: '',
-        additional_info: '',
-        interim_action: '',
-        intermediate_action: '',
-        long_term_action: '',
+        partNumber: '',
+        additionalInfo: '',
+        interimAction: '',
+        intermediateAction: '',
+        longTermAction: '',
         status: '',
-        created_by: '',
         // initialize new fields
-        responsible_name: '',
-        responsible_lineid: '',
-        responsible_email: '',
-        responsible_phone: ''
+        responsibleName: '',
+        responsibleLineId: '',
+        responsibleEmail: '',
+        responsiblePhone: ''
     });
 
     useEffect(() => {
@@ -82,7 +82,8 @@ const IncidentReportForm: React.FC = () => {
                 if (user) {
                     setFormData(f => ({
                         ...f,
-                        created_by: user.email ?? '' // coerce to string to match IFormData
+                        responsibleEmail: user.email ?? '', // coerce to string to match IFormData
+                        responsibleName: `${user.firstName || ''} ${user.lastName || ''}`.trim()
                     }));
                 }
             })
@@ -115,29 +116,28 @@ const IncidentReportForm: React.FC = () => {
                 if (ignore) return;
                 setFormData({
                     id: dto.id,
-                    case_no: dto.case_no || caseNoFromUrl,
-                    title: dto.title || dto.case_no || 'Untitled',      // <-- fallback
+                    caseNo: dto.caseNo || caseNoFromUrl,
+                    title: dto.title || dto.caseNo || 'Untitled',      // <-- fallback
                     asset: dto.asset || '',
                     center: dto.center || '',
-                    incident_date: dto.incident_date || isoToday,
+                    incidentDate: dto.incidentDate || isoToday,
                     symptoms: dto.symptoms || '',
                     severity: String(dto.severity ?? ''),
                     impact: dto.impact || '',
                     domain: dto.domain || '',
-                    sub_domain: dto.sub_domain || '',
+                    subDomain: dto.subDomain || '',
                     vendor: dto.vendor || '',
                     manufacturer: dto.manufacturer || '',
-                    part_number: dto.part_number || '',
-                    additional_info: dto.additional_info || '',
-                    interim_action: dto.interim_action || '',
-                    intermediate_action: dto.intermediate_action || '',
-                    long_term_action: dto.long_term_action || '',
+                    partNumber: dto.partNumber || '',
+                    additionalInfo: dto.additionalInfo || '',
+                    interimAction: dto.interimAction || '',
+                    intermediateAction: dto.intermediateAction || '',
+                    longTermAction: dto.longTermAction || '',
                     status: dto.status || '',
-                    created_by: dto.created_by || '',
-                    responsible_name: dto.responsible_name || '',
-                    responsible_lineid: dto.responsible_lineid || '',
-                    responsible_email: dto.responsible_email || '',
-                    responsible_phone: dto.responsible_phone || ''
+                    responsibleName: dto.responsibleName || '',
+                    responsibleLineId: dto.responsibleLineId || '',
+                    responsibleEmail: dto.responsibleEmail || '',
+                    responsiblePhone: dto.responsiblePhone || ''
                 });
             } catch (e: any) {
                 if (!ignore) setApiError(e?.response?.data?.message || e?.message || 'Load failed');
@@ -156,16 +156,9 @@ const IncidentReportForm: React.FC = () => {
                     if (user) {
                         setFormData(f => ({
                             ...f,
-                            created_by: user.email ?? '',           // coerce to string
-                            responsible_email: user.email ?? ''     // coerce to string
+                            responsibleEmail: user.email ?? '',           // coerce to string
+                            responsibleName: `${user.firstName || ''} ${user.lastName || ''}`.trim()
                         }));
-                        //responsible_name
-                        if (user.firstName || user.lastName) {
-                            setFormData(f => ({
-                                ...f,
-                                responsible_name: `${user.firstName || ''} ${user.lastName || ''}`.trim()
-                            }));
-                        }
                     }
                     
                 })
@@ -174,23 +167,23 @@ const IncidentReportForm: React.FC = () => {
     }, [isEdit]);
 
 
-    // keep incidentDate in sync with formData.incident_date when it's a parseable date (ISO or yyyy-mm-dd)
+    // keep incidentDate in sync with formData.incidentDate when it's a parseable date (ISO or yyyy-mm-dd)
     useEffect(() => {
-        if (!formData.incident_date) {
+        if (!formData.incidentDate) {
             setIncidentDate(null);
             return;
         }
-        const d = new Date(formData.incident_date);
+        const d = new Date(formData.incidentDate);
         if (!isNaN(d.getTime())) setIncidentDate(d);
         else setIncidentDate(null);
-    }, [formData.incident_date]);
+    }, [formData.incidentDate]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prevState => ({
             ...prevState,
             [name]: value
-        }));
+        } as unknown as IFormData));
     };
 
     // Add: helper to produce sx for TextField / MUI inputs (keeps font/spacing)
@@ -218,7 +211,7 @@ const IncidentReportForm: React.FC = () => {
         { key: 'title', label: 'Title' },
         { key: 'asset', label: 'Asset' },
         { key: 'center', label: 'Center' },
-        { key: 'incident_date', label: 'Incident Date' },
+        { key: 'incidentDate', label: 'Incident Date' },
         { key: 'symptoms', label: 'Symptoms' },
         { key: 'severity', label: 'Severity' }
     ];
@@ -246,10 +239,10 @@ const IncidentReportForm: React.FC = () => {
         const confirmed = window.confirm(isEdit ? 'ยืนยันการบันทึกการแก้ไข?' : 'ยืนยันการสร้างรายการ?');
         if (!confirmed) return;
     
-        // เตรียม DTO
-        const baseDto: IncidentReportDto = {
+        // เตรียม DTO (partial; server manages readonly/audit fields)
+        const baseDto: Partial<IncidentReportDto> = {
             id: formData.id, // อาจ undefined สำหรับ create
-            case_no: formData.case_no, // server อาจ generate ถ้าเว้นว่าง
+            caseNo: formData.caseNo, // server อาจ generate ถ้าเว้นว่าง
             title: formData.title.trim(),        // <-- trim
             asset: formData.asset,
             center: formData.center,
@@ -260,32 +253,32 @@ const IncidentReportForm: React.FC = () => {
                 : undefined, // หรือใส่ 0 ถ้า backend ต้องการค่าเสมอ: : 0
             impact: formData.impact,
             domain: formData.domain,
-            sub_domain: formData.sub_domain,
+            subDomain: formData.subDomain,
             vendor: formData.vendor,
             manufacturer: formData.manufacturer,
-            part_number: formData.part_number,
-            additional_info: formData.additional_info,
-            interim_action: formData.interim_action,
-            intermediate_action: formData.intermediate_action,
-            long_term_action: formData.long_term_action,
+            partNumber: formData.partNumber,
+            additionalInfo: formData.additionalInfo,
+            interimAction: formData.interimAction,
+            intermediateAction: formData.intermediateAction,
+            longTermAction: formData.longTermAction,
             status: formData.status,
-            created_by: formData.created_by,
-            responsible_name: formData.responsible_name,
-            responsible_lineid: formData.responsible_lineid,
-            responsible_email: formData.responsible_email,
-            responsible_phone: formData.responsible_phone,
-            occurredAt: formData.incident_date // <-- map to occurredAt
+            responsibleName: formData.responsibleName,
+            responsibleLineId: formData.responsibleLineId,
+            responsibleEmail: formData.responsibleEmail,
+            responsiblePhone: formData.responsiblePhone,
+            incidentDate: formData.incidentDate // <-- ISO yyyy-MM-dd
         };
     
         try {
             setSaving(true);
-            let finalCaseNo = formData.case_no;
+            let finalCaseNo = formData.caseNo;
             if (isEdit) {
                 if (!formData.id) throw new Error('Missing id for update');
-                await updateIncidentFull(baseDto);
+                // update expects dto including id
+                await updateIncidentFull(baseDto as Partial<IncidentReportDto> & { id: number });
             } else {
-                const created = await apiCreateIncident(baseDto);
-                finalCaseNo = created.case_no || finalCaseNo;
+                const created = await apiCreateIncident(baseDto as Partial<IncidentReportDto>);
+                finalCaseNo = created.caseNo || finalCaseNo;
             }
             navigate(`/issues/${finalCaseNo}`);
         } catch (err: any) {
@@ -334,18 +327,18 @@ const IncidentReportForm: React.FC = () => {
                                         fullWidth
                                         size="small"
                                         margin="dense"
-                                        id="case_no"
-                                        name="case_no"
+                                        id="caseNo"
+                                        name="caseNo"
                                         label="Case No"
-                                        value={formData.case_no}
+                                        value={formData.caseNo}
                                         disabled
-                                        sx={getSxFor('case_no')}
-                                        inputProps={{ className: getClassFor('case_no') }}
+                                        sx={getSxFor('caseNo' as keyof IFormData)}
+                                        inputProps={{ className: getClassFor('caseNo' as keyof IFormData) }}
                                     />
                                 </Box>
                             )}
                             {!isEdit && (
-                                <input type="hidden" name="case_no" value={formData.case_no} />
+                                <input type="hidden" name="caseNo" value={formData.caseNo} />
                             )}
                             <Box>
                                 <TextField
@@ -409,7 +402,7 @@ const IncidentReportForm: React.FC = () => {
                                             setIncidentDate(newValue);
                                             setFormData(prev => ({
                                                 ...prev,
-                                                incident_date: newValue ? formatDate(newValue, 'yyyy-MM-dd') : ''
+                                                incidentDate: newValue ? formatDate(newValue, 'yyyy-MM-dd') : ''
                                             }));
                                         }}
                                         slotProps={{
@@ -417,13 +410,13 @@ const IncidentReportForm: React.FC = () => {
                                                 fullWidth: true,
                                                 size: 'small',
                                                 margin: 'dense',
-                                                id: 'incident_date',
-                                                name: 'incident_date',
+                                                id: 'incidentDate',
+                                                name: 'incidentDate',
                                                 required: true,
-                                                error: !formData.incident_date.trim(),
-                                                helperText: !formData.incident_date.trim() ? 'ต้องกรอก Incident Date' : ' ',
-                                                sx: getSxFor('incident_date'),
-                                                inputProps: { className: getClassFor('incident_date') }
+                                                error: !(formData.incidentDate ?? '').toString().trim(),
+                                                helperText: !formData.incidentDate.trim() ? 'ต้องกรอก Incident Date' : ' ',
+                                                sx: getSxFor('incidentDate' as keyof IFormData),
+                                                inputProps: { className: getClassFor('incidentDate' as keyof IFormData) }
                                             }
                                         }}
                                     />
@@ -476,10 +469,10 @@ const IncidentReportForm: React.FC = () => {
                                     value={formData.severity}
                                     onChange={handleChange}
                                     required
-                                    error={!formData.severity.trim()}
+                                    error={!(formData.severity ?? '').toString().trim()}
                                     helperText={!formData.severity.trim() ? 'ต้องกรอก Severity' : 'เลือกระดับความรุนแรง 1 (ต่ำ) - 5 (สูงมาก)'}
-                                    sx={getSxFor('severity')}
-                                    inputProps={{ className: getClassFor('severity') }}
+                                    sx={getSxFor('severity' as keyof IFormData)}
+                                    inputProps={{ className: getClassFor('severity' as keyof IFormData) }}
                                 >
                                     {severityOptions.map(opt => (
                                         <MenuItem key={opt.value} value={opt.value}>
@@ -500,20 +493,20 @@ const IncidentReportForm: React.FC = () => {
                                 Responsible Person
                             </Typography>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="responsible_name" name="responsible_name" label="Responsible Name" value={formData.responsible_name} onChange={handleChange}
-                                sx={getSxFor('responsible_name')} inputProps={{ className: getClassFor('responsible_name') }} />
+                                <TextField fullWidth size="small" margin="dense" id="responsibleName" name="responsibleName" label="Responsible Name" value={formData.responsibleName} onChange={handleChange}
+                                sx={getSxFor('responsibleName')} inputProps={{ className: getClassFor('responsibleName') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="responsible_lineid" name="responsible_lineid" label="Line ID" value={formData.responsible_lineid} onChange={handleChange}
-                                sx={getSxFor('responsible_lineid')} inputProps={{ className: getClassFor('responsible_lineid') }} />
+                                <TextField fullWidth size="small" margin="dense" id="responsibleLineId" name="responsibleLineId" label="Line ID" value={formData.responsibleLineId} onChange={handleChange}
+                                sx={getSxFor('responsibleLineId')} inputProps={{ className: getClassFor('responsibleLineId') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="responsible_email" name="responsible_email" label="Email" type="email" value={formData.responsible_email} onChange={handleChange}
-                                sx={getSxFor('responsible_email')} inputProps={{ className: getClassFor('responsible_email') }} />
+                                <TextField fullWidth size="small" margin="dense" id="responsibleEmail" name="responsibleEmail" label="Email" type="email" value={formData.responsibleEmail} onChange={handleChange}
+                                sx={getSxFor('responsibleEmail')} inputProps={{ className: getClassFor('responsibleEmail') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="responsible_phone" name="responsible_phone" label="Contact Phone" value={formData.responsible_phone} onChange={handleChange}
-                                sx={getSxFor('responsible_phone')} inputProps={{ className: getClassFor('responsible_phone') }} />
+                                <TextField fullWidth size="small" margin="dense" id="responsiblePhone" name="responsiblePhone" label="Contact Phone" value={formData.responsiblePhone} onChange={handleChange}
+                                sx={getSxFor('responsiblePhone')} inputProps={{ className: getClassFor('responsiblePhone') }} />
                             </Box>
                         </Box>
 
@@ -529,8 +522,8 @@ const IncidentReportForm: React.FC = () => {
                                 </TextField>
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="sub_domain" name="sub_domain" label="Problem Sub-domain" value={formData.sub_domain} onChange={handleChange}
-                                sx={getSxFor('sub_domain')} inputProps={{ className: getClassFor('sub_domain') }} />
+                                <TextField fullWidth size="small" margin="dense" id="subDomain" name="subDomain" label="Problem Sub-domain" value={formData.subDomain} onChange={handleChange}
+                                sx={getSxFor('subDomain')} inputProps={{ className: getClassFor('subDomain') }} />
                             </Box>
                             <Box>
                                 <TextField fullWidth size="small" margin="dense" id="vendor" name="vendor" label="Vendor" value={formData.vendor} onChange={handleChange}
@@ -541,12 +534,12 @@ const IncidentReportForm: React.FC = () => {
                                 sx={getSxFor('manufacturer')} inputProps={{ className: getClassFor('manufacturer') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="part_number" name="part_number" label="Part/Control Number" value={formData.part_number} onChange={handleChange}
-                                sx={getSxFor('part_number')} inputProps={{ className: getClassFor('part_number') }} />
+                                <TextField fullWidth size="small" margin="dense" id="partNumber" name="partNumber" label="Part/Control Number" value={formData.partNumber} onChange={handleChange}
+                                sx={getSxFor('partNumber')} inputProps={{ className: getClassFor('partNumber') }} />
                             </Box>
                             <Box>
-                                <TextField fullWidth size="small" margin="dense" id="additional_info" name="additional_info" label="Additional Information" value={formData.additional_info} onChange={handleChange}
-                                sx={getSxFor('additional_info')} inputProps={{ className: getClassFor('additional_info') }} />
+                                <TextField fullWidth size="small" margin="dense" id="additionalInfo" name="additionalInfo" label="Additional Information" value={formData.additionalInfo} onChange={handleChange}
+                                sx={getSxFor('additionalInfo')} inputProps={{ className: getClassFor('additionalInfo') }} />
                             </Box>
                         </Box>
 
@@ -557,20 +550,20 @@ const IncidentReportForm: React.FC = () => {
                             </Typography>
                             <Box>
                                 <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Interim Action</Typography>
-                                <TextareaAutosize id="interim_action" name="interim_action" value={formData.interim_action} onChange={handleChange} minRows={4} placeholder="Interim Action" 
-                                className={getClassFor('interim_action')}
+                                <TextareaAutosize id="interimAction" name="interimAction" value={formData.interimAction} onChange={handleChange} minRows={4} placeholder="Interim Action" 
+                                className={getClassFor('interimAction')}
                                 style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
                             </Box>
                             <Box>
                                 <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Intermediate Action</Typography>
-                                <TextareaAutosize id="intermediate_action" name="intermediate_action" value={formData.intermediate_action} onChange={handleChange} minRows={4} placeholder="Intermediate Action" 
-                                className={getClassFor('intermediate_action')}
+                                <TextareaAutosize id="intermediateAction" name="intermediateAction" value={formData.intermediateAction} onChange={handleChange} minRows={4} placeholder="Intermediate Action" 
+                                className={getClassFor('intermediateAction')}
                                 style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
                             </Box>
                             <Box>
                                 <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Long-term Action</Typography>
-                                <TextareaAutosize id="long_term_action" name="long_term_action" value={formData.long_term_action} onChange={handleChange} minRows={4} placeholder="Long-term Action" 
-                                className={getClassFor('long_term_action')}
+                                <TextareaAutosize id="longTermAction" name="longTermAction" value={formData.longTermAction} onChange={handleChange} minRows={4} placeholder="Long-term Action" 
+                                className={getClassFor('longTermAction')}
                                 style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
                             </Box>
                             {isEdit && (
@@ -600,36 +593,22 @@ const IncidentReportForm: React.FC = () => {
                                                 sx={{
                                                     ...getSxFor('status'),
                                                     '& .MuiInputBase-root': {
-                                                        backgroundColor: '#f5f5f5',
-                                                        color: theme => theme.palette[statusOption?.color ?? 'default']?.main
+                                                      backgroundColor: '#f5f5f5',
+                                                      color: theme => {
+                                                        const colorKey = statusOption?.color;
+                                                        if (colorKey && colorKey !== 'default' && theme.palette[colorKey]) {
+                                                          return theme.palette[colorKey].main;
+                                                        }
+                                                        // ถ้าไม่มีสี ให้ไม่กำหนดสี (ใช้ค่า default ของ MUI)
+                                                        return undefined;
+                                                      }
                                                     }
-                                                }}
+                                                  }}
                                             />
                                         );
                                     })()}
                                 </Box>
                             )}
-                            <Box>
-                                <TextField
-                                    fullWidth
-                                    size="small"
-                                    margin="dense"
-                                    id="created_by"
-                                    name="created_by"
-                                    label="Created by"
-                                    value={formData.created_by}
-                                    onChange={handleChange}
-                                    InputProps={{
-                                        readOnly: true,
-                                        sx: { backgroundColor: '#f5f5f5' } // สีเทาอ่อน
-                                    }}
-                                    sx={{
-                                        ...getSxFor('created_by'),
-                                        '& .MuiInputBase-root': { backgroundColor: '#f5f5f5' } // keep readOnly gray
-                                    }}
-                                    // do NOT apply filled class to created_by so it stays gray
-                                />
-                            </Box>
                         </Box>
 
                     </Stack>

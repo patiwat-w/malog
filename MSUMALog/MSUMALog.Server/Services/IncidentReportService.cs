@@ -8,14 +8,17 @@ using System.Threading.Tasks;
 using System.Threading;
 using Microsoft.EntityFrameworkCore;
 using MSUMALog.Server.Data;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 
 namespace MSUMALog.Server.Services;
 
-public class IncidentReportService(IIncidentReportRepository repo, IMapper mapper, ApplicationDbContext db) : IIncidentReportService
+public class IncidentReportService(IIncidentReportRepository repo, IMapper mapper, ApplicationDbContext db, IHttpContextAccessor httpAccessor) : IIncidentReportService
 {
     private readonly IIncidentReportRepository _repo = repo;
     private readonly IMapper _mapper = mapper;
     private readonly ApplicationDbContext _db = db;
+    private readonly IHttpContextAccessor _httpAccessor = httpAccessor;
 
     private async Task<string> GenerateCaseNoAsync(CancellationToken ct)
     {
@@ -45,6 +48,12 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
 
         if (string.IsNullOrWhiteSpace(entity.CaseNo))
             entity.CaseNo = await GenerateCaseNoAsync(ct);
+
+        // record creator and created time (from logged-in user)
+        entity.CreatedUtc = DateTime.UtcNow;
+        var userIdClaim = _httpAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (int.TryParse(userIdClaim, out var uid))
+            entity.CreatedUserId = uid;
 
         await _repo.AddAsync(entity, ct);
         return _mapper.Map<IncidentReportDto>(entity);
@@ -76,7 +85,12 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
         // Map incoming dto to existing (keep Id)
         var updated = _mapper.Map(dto, existing);
         updated.Id = id;
+        // record updater and updated time (from logged-in user)
         updated.UpdatedUtc = DateTime.UtcNow;
+        var userIdClaim = _httpAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (int.TryParse(userIdClaim, out var uid))
+            updated.UpdatedUserId = uid;
+
         await _repo.UpdateAsync(updated, ct);
         return true;
     }

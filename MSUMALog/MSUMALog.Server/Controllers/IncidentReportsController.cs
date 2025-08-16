@@ -1,6 +1,9 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MSUMALog.Server.DTOs;
 using MSUMALog.Server.Services;
+using System;
 
 namespace MSUMALog.Server.Controllers;
 
@@ -33,15 +36,26 @@ public class IncidentReportsController(IIncidentReportService service) : Control
         return dto is null ? NotFound() : Ok(dto);
     }
 
+    [Authorize]
     [HttpPost]
     [ProducesResponseType(typeof(IncidentReportDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IncidentReportDto>> Create([FromBody] IncidentReportDto dto, CancellationToken ct = default)
     {
+     
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim is null || !int.TryParse(userIdClaim, out var userId))
+            return Unauthorized("User not authenticated");
+        
+        dto.CreatedUserId = userId;
+        dto.UpdatedUserId = userId;
+        dto.UpdatedUtc = DateTime.UtcNow;
+
         var created = await _service.CreateAsync(dto, ct);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
+    [Authorize]
     [HttpPut("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -50,15 +64,40 @@ public class IncidentReportsController(IIncidentReportService service) : Control
     {
         if (dto.Id != 0 && dto.Id != id)
             return BadRequest("Mismatched id.");
+
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim is null || !int.TryParse(userIdClaim, out var userId))
+            return Unauthorized("User not authenticated");
+
+        dto.UpdatedUserId = userId;
+        dto.UpdatedUtc = DateTime.UtcNow;
+
         var ok = await _service.UpdateAsync(id, dto, ct);
         return ok ? NoContent() : NotFound();
     }
 
+    [Authorize]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct = default)
     {
+        if (!User.Identity?.IsAuthenticated ?? true)
+            return Unauthorized();
+
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim is null || !int.TryParse(userIdClaim, out var userId))
+            return Unauthorized("User not authenticated");
+
+        var now = DateTime.UtcNow;
+        var metaDto = new IncidentReportDto
+        {
+            Id = id,
+            UpdatedUserId = userId,
+            UpdatedUtc = now
+        };
+        await _service.UpdateAsync(id, metaDto, ct);
+
         var ok = await _service.DeleteAsync(id, ct);
         return ok ? NoContent() : NotFound();
     }

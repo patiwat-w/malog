@@ -750,34 +750,43 @@ export interface components {
         IncidentReportDto: {
             /** Format: int32 */
             id?: number;
-            caseNo?: string | null;
+            readonly caseNo?: string | null;
             title: string;
             description?: string | null;
             /** Format: date-time */
-            occurredAt: string;
+            incidentDate?: string | null;
             /** Format: int32 */
             severity?: number;
-            case_no?: string | null;
             asset?: string | null;
             center?: string | null;
-            incident_date?: string | null;
             symptoms?: string | null;
             impact?: string | null;
             domain?: string | null;
-            sub_domain?: string | null;
+            subDomain?: string | null;
             vendor?: string | null;
             manufacturer?: string | null;
-            part_number?: string | null;
-            additional_info?: string | null;
-            interim_action?: string | null;
-            intermediate_action?: string | null;
-            long_term_action?: string | null;
+            partNumber?: string | null;
+            additionalInfo?: string | null;
+            interimAction?: string | null;
+            intermediateAction?: string | null;
+            longTermAction?: string | null;
             status?: string | null;
-            created_by?: string | null;
-            responsible_name?: string | null;
-            responsible_lineid?: string | null;
-            responsible_email?: string | null;
-            responsible_phone?: string | null;
+            /** Format: int32 */
+            readonly createdUserId?: number | null;
+            /** Format: int32 */
+            readonly updatedUserId?: number | null;
+            readonly createdUserName?: string | null;
+            readonly createdUserRole?: string | null;
+            readonly updatedUserName?: string | null;
+            readonly updatedUserRole?: string | null;
+            responsibleName?: string | null;
+            responsibleLineId?: string | null;
+            responsibleEmail?: string | null;
+            responsiblePhone?: string | null;
+            /** Format: date-time */
+            readonly createdUtc?: string | null;
+            /** Format: date-time */
+            readonly updatedUtc?: string | null;
         };
         LoginRequest: {
             email?: string | null;

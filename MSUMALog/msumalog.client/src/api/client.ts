@@ -6,32 +6,58 @@ const http = axios.create({ baseURL: '/api' });
 export type IncidentReportDto = components['schemas']['IncidentReportDto'];
 export type User = components['schemas']['User'];
 
+// helper: convert UTC ISO string -> user's local display string (or undefined)
+function utcToLocal(utc?: string | null): string | undefined {
+  if (!utc) return undefined;
+  const d = new Date(utc);
+  if (isNaN(d.getTime())) return undefined;
+  return d.toLocaleString(); // localized date+time for user's timezone
+}
+
 export async function getIncidentReports() {
   console.log('[api] GET /IncidentReports start');
   try {
     const res = await http.get<IncidentReportDto[]>('/IncidentReports');
-    console.log('[api] GET /IncidentReports status', res.status, 'data', res.data);
-    return res.data;
+    // convert created/updated UTC -> local display strings
+    const data = res.data.map(dto => ({
+      ...dto,
+      createdUtc: utcToLocal(dto.createdUtc) ?? dto.createdUtc,
+      updatedUtc: utcToLocal(dto.updatedUtc) ?? dto.updatedUtc
+    }));
+    console.log('[api] GET /IncidentReports status', res.status, 'data', data);
+    return data;
   } catch (e) {
     console.error('[api] GET /IncidentReports error', e);
     throw e;
   }
 }
 
-export async function createIncident(body: IncidentReportDto) {
+// Accept partial DTO (client should only send writable fields)
+export async function createIncident(body: Partial<IncidentReportDto>) {
   const res = await http.post<IncidentReportDto>('/IncidentReports', body);
-  return res.data;
+  // convert timestamps on response
+  const dto = {
+    ...res.data,
+    createdUtc: utcToLocal(res.data.createdUtc) ?? res.data.createdUtc,
+    updatedUtc: utcToLocal(res.data.updatedUtc) ?? res.data.updatedUtc
+  };
+  return dto;
+}
+
+// Update expects an object that includes the id (other fields may be partial)
+export async function updateIncidentFull(dto: Partial<IncidentReportDto> & { id: number }) {
+  await http.put(`/IncidentReports/${dto.id}`, dto);
+  return true;
 }
 
 export async function getIncidentByCase(caseNo: string) {
   const res = await http.get<IncidentReportDto>(`/IncidentReports/by-case/${encodeURIComponent(caseNo)}`);
-  return res.data;
-}
-
-export async function updateIncidentFull(dto: IncidentReportDto) {
-  if (!dto.id) throw new Error('Missing id');
-  await http.put(`/IncidentReports/${dto.id}`, dto);
-  return true;
+  const dto = {
+    ...res.data,
+    createdUtc: utcToLocal(res.data.createdUtc) ?? res.data.createdUtc,
+    updatedUtc: utcToLocal(res.data.updatedUtc) ?? res.data.updatedUtc
+  };
+  return dto;
 }
 
 export async function deleteIncident(id: number) {
@@ -50,12 +76,14 @@ export interface IncidentCommentDto {
 
 export async function getCommentsByCase(caseNo: string) {
   const res = await http.get<IncidentCommentDto[]>(`/IncidentComments/by-case/${encodeURIComponent(caseNo)}`);
-  return res.data;
+  // convert comment createdUtc to local string
+  const data = res.data.map(c => ({ ...c, createdUtc: utcToLocal(c.createdUtc) ?? c.createdUtc }));
+  return data;
 }
 
 export async function createComment(data: Omit<IncidentCommentDto, 'id' | 'createdUtc' | 'caseNo'>) {
   const res = await http.post<IncidentCommentDto>('/IncidentComments', data);
-  return res.data;
+  return { ...res.data, createdUtc: utcToLocal(res.data.createdUtc) ?? res.data.createdUtc };
 }
 
 export async function deleteComment(id: number) {

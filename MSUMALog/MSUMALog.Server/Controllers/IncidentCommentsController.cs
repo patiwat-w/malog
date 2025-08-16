@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MSUMALog.Server.DTOs;
 using MSUMALog.Server.Services;
@@ -20,13 +22,13 @@ public class IncidentCommentsController(IIncidentCommentService service) : Contr
     public async Task<ActionResult<IEnumerable<IncidentCommentDto>>> GetByIncident(int incidentId, CancellationToken ct = default)
         => Ok(await _service.GetByIncidentIdAsync(incidentId, ct));
 
+    [Authorize]
     [HttpPost]
     [ProducesResponseType(typeof(IncidentCommentDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<IncidentCommentDto>> Create([FromBody] IncidentCommentDto dto, CancellationToken ct = default)
     {
-        if (dto.IncidentReportId <= 0)
-            return BadRequest("IncidentReportId required");
+ 
         var created = await _service.CreateAsync(dto, ct);
         return CreatedAtAction(nameof(GetByIncident), new { incidentId = created.IncidentReportId }, created);
     }

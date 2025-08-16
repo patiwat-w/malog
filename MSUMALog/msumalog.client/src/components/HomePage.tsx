@@ -23,8 +23,6 @@ import {
     getSeverityLabel,
     getSeverityColor,
     incidentStatusOptions,
-    getIncidentStatusLabel,
-    getIncidentStatusColor,
     getIncidentStatusPaletteColor,
     severityOptions
 } from '../constants/incidentOptions';
@@ -32,32 +30,43 @@ import Tooltip from '@mui/material/Tooltip';
 
 // Add raw incident shape
 type RawIncident = {
-    case_no?: string;
-    caseNo?: string;
-    caseId?: string;
-    caseNumber?: string;
-    id?: string | number;
-    asset?: string;
-    device?: string;
-    asset_name?: string;
-    equipment?: string;
-    center?: string;
-    hospital?: string;
-    center_name?: string;
-    location?: string;
-    incident_date?: string;
-    date?: string;
-    incidentDate?: string;
-    reported_at?: string;
-    symptoms?: string;
-    description?: string;
-    symptom?: string;
-    issue_description?: string;
-    status?: string;
-    state?: string;
-    current_status?: string;
-    closed?: boolean;
-    [key: string]: unknown;
+	// canonical fields (from API schema)
+	id?: number | string;
+	caseNo?: string | null;
+	title?: string | null;
+	description?: string | null;
+	incidentDate?: string | null;
+	severity?: number | string | null;
+	asset?: string | null;
+	center?: string | null;
+
+	impact?: string | null;
+	domain?: string | null;
+	subDomain?: string | null;
+	vendor?: string | null;
+	manufacturer?: string | null;
+	partNumber?: string | null;
+	additionalInfo?: string | null;
+	interimAction?: string | null;
+	intermediateAction?: string | null;
+	longTermAction?: string | null;
+	status?: string | null;
+	createdUserId?: number | null;
+	updatedUserId?: number | null;
+	createdUserName?: string | null;
+	createdUserRole?: string | null;
+	updatedUserName?: string | null;
+	updatedUserRole?: string | null;
+	responsibleName?: string | null;
+	responsibleLineId?: string | null;
+	responsibleEmail?: string | null;
+	responsiblePhone?: string | null;
+	createdUtc?: string | null;
+	updatedUtc?: string | null;
+
+	
+	// allow any other unknown properties
+	[key: string]: unknown;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -78,6 +87,59 @@ function HomePage() {
     const navigate = useNavigate();
     const theme = useTheme();
 
+    // --- new: date parse + formatter (return human-readable Gregorian with AD/era) ---
+    const parseToDate = (value: unknown): Date | null => {
+        if (!value && value !== 0) return null;
+        if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+        if (typeof value === 'number') {
+            let n = value;
+            // if looks like seconds, convert to ms
+            if (n < 1e12) n = n * 1000;
+            const d = new Date(n);
+            return isNaN(d.getTime()) ? null : d;
+        }
+        if (typeof value === 'string') {
+            const s = value.trim();
+            if (!s) return null;
+            // MS JSON date: /Date(1234567890)/
+            const msMatch = /\/Date\((\-?\d+)\)\//.exec(s);
+            if (msMatch) {
+                const n = parseInt(msMatch[1], 10);
+                const d = new Date(n);
+                return isNaN(d.getTime()) ? null : d;
+            }
+            // numeric string timestamp
+            if (/^\-?\d+$/.test(s)) {
+                let n = parseInt(s, 10);
+                if (n < 1e12) n = n * 1000;
+                const d = new Date(n);
+                if (!isNaN(d.getTime())) return d;
+            }
+            // try ISO/parsible string
+            const d = new Date(s);
+            return isNaN(d.getTime()) ? null : d;
+        }
+        return null;
+    };
+
+    // Always use en-US with era:'short' so era shows "AD" (ค.ศ. = AD)
+    const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        era: 'short'
+    });
+
+    const formatDateTime = (value: unknown): string | undefined => {
+        const d = parseToDate(value);
+        if (!d) return undefined;
+        return dateTimeFormatter.format(d);
+    };
+    // --- end new helper ---
+
     useEffect(() => {
         let mounted = true;
         console.log('[HomePage] effect mount');
@@ -95,7 +157,7 @@ function HomePage() {
         };
 
         const normalizeIncident = (item: RawIncident, idx: number): IncidentReportDto => {
-            const case_no =
+            const caseNo =
                 item.case_no ??
                 item.caseNo ??
                 item.caseId ??
@@ -114,7 +176,7 @@ function HomePage() {
                 item.center_name ??
                 item.location;
 
-            const incident_date =
+            const incidentDate =
                 item.incident_date ??
                 item.date ??
                 item.incidentDate ??
@@ -145,7 +207,7 @@ function HomePage() {
                 })?.value;
             };
 
-            const status = mapStatusToValue(rawStatus) ?? rawStatus;
+            const status = mapStatusToValue(typeof rawStatus === 'string' || typeof rawStatus === 'number' ? rawStatus : undefined) ?? rawStatus;
 
             // normalize severity to canonical severityOptions[].value (string) when possible
             const rawSeverity =
@@ -165,12 +227,12 @@ function HomePage() {
 
             const severity = mapSeverityToValue(typeof rawSeverity === 'string' || typeof rawSeverity === 'number' ? rawSeverity : undefined) ?? (item as Record<string, unknown>).severity;
 
-            const mapped: IncidentReportDto = {
+            const mapped = {
                 ...(item as Record<string, unknown>),
-                case_no,
+                caseNo,
                 asset,
                 center,
-                incident_date,
+                incidentDate,
                 symptoms,
                 status,
                 severity
@@ -308,7 +370,7 @@ function HomePage() {
                 <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
                     
                     {filteredIssues.map((issue, index) => {
-                        const caseNo = issue.case_no ?? (issue.id ? `#${issue.id}` : `#${index}`);
+                        const caseNo = issue.caseNo ?? (issue.id ? `#${issue.id}` : `#${index}`);
                         const status = issue.status ?? 'Unknown';
                         const statusOption = incidentStatusOptions.find(opt => opt.value === status) ??
                             incidentStatusOptions.find(opt => opt.value === 'Open'); // fallback
@@ -321,6 +383,10 @@ function HomePage() {
                                 ? mainPalette[shadeKey as keyof typeof mainPalette]
                                 : theme.palette.text.primary);
                         }
+
+                        // compute a formatted incident date (try multiple possible fields)
+                        const rawDate = issue.createdUtc;
+                        const formattedDate = formatDateTime(rawDate) ?? '';
 
                         return (
                             <React.Fragment key={caseNo}>
@@ -357,7 +423,7 @@ function HomePage() {
                                               secondary={
                                                 <>
                                                   <Typography variant="body2" color="text.secondary" component="span">
-                                                    Opened By{issue.created_by ? `: ${issue.created_by}` : ''} {issue.incident_date ? `| ${issue.incident_date}` : ''}
+                                                    Opened By{issue.createdUtc ? `: ${issue.createdUserName}` : ''} {formattedDate ? `| ${formattedDate}` : ''}
                                                   </Typography>
                                                 </>
                                               }

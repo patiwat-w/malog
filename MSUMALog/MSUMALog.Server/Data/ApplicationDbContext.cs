@@ -28,6 +28,20 @@ namespace MSUMALog.Server.Data
                     .HasForeignKey(c => c.IncidentReportId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+
+            // Configure CreatedUserId and UpdatedUserId as FKs to User.Id
+            modelBuilder.Entity<IncidentReport>(b =>
+            {
+                b.HasOne(ir => ir.CreatedUser)
+                 .WithMany()
+                 .HasForeignKey(ir => ir.CreatedUserId)
+                 .OnDelete(DeleteBehavior.Restrict);
+
+                b.HasOne(ir => ir.UpdatedUser)
+                 .WithMany()
+                 .HasForeignKey(ir => ir.UpdatedUserId)
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
         }
     }
 }
