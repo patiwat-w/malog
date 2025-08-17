@@ -4,18 +4,20 @@ import MenuIcon from '@mui/icons-material/Menu';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { useState, useEffect } from 'react';
 import { Link, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import LoginPage from './components/LoginPage';
-import HomePage from './components/HomePage';
-import IncidentReportForm from './components/IncidentReportForm';
-import AppBreadcrumbs from './components/AppBreadcrumbs';
-import IncidentReportDetail from './components/IncidentReportDetail';
-import LogoutPage from './components/LogoutPage';
-import RequireAuth from './components/RequireAuth';
-import LoginFailPage from './components/LoginFailPage';
-import NotFoundPage from './components/NotFoundPage';
-import { getCurrentUser } from './api/client';
-import UserProfilePage from './components/UserProfilePage';
 
+import RequireAuth from './components/RequireAuth';
+import AppBreadcrumbs from './components/AppBreadcrumbs';
+
+
+import LoginPage from './pages/LoginPage';
+import HomePage from './pages/HomePage';
+import IncidentReportForm from './pages/IncidentReportForm';
+import IncidentReportDetail from './pages/IncidentReportDetail';
+import LogoutPage from './pages/LogoutPage';
+import LoginFailPage from './pages/LoginFailPage';
+import NotFoundPage from './pages/NotFoundPage';
+import { getCurrentUser } from './api/client';
+import UserProfilePage from './pages/UserProfilePage';
 import type { User } from './api/client';
 
 function App() {

@@ -6,15 +6,15 @@ import {
 } from '@mui/material';
 import { Grid } from '@mui/material';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import { getIncidentByCase, updateIncidentFull, type IncidentReportDto } from '../api/client';
-import { getDomainLabel, getSeverityLabel, getSeverityColor } from '../constants/incidentOptions';
-import IncidentConversation from './IncidentConversation';
-import { incidentStatusOptions } from '../constants/incidentOptions'; // เพิ่มบรรทัดนี้
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 
+import { getIncidentByCase, updateIncidentFull, type IncidentReportDto } from '../api/client';
+import IncidentConversation from '../components/IncidentConversation';
+import { getDomainLabel, getSeverityLabel, getSeverityColor } from '../constants/incidentOptions';
+import { incidentStatusOptions } from '../constants/incidentOptions'; 
 
 
 const parseToDate = (value: unknown): Date | null => {
@@ -36,14 +36,14 @@ const parseToDate = (value: unknown): Date | null => {
     const s = value.trim();
     if (!s) return null;
     // /Date(1234567890)/
-    const msMatch = /\/Date\((\-?\d+)\)\//.exec(s);
+    const msMatch = /\/Date\((\\-?\d+)\)\//.exec(s);
     if (msMatch) {
       const n = parseInt(msMatch[1], 10);
       const d = new Date(n);
       return isNaN(d.getTime()) ? null : d;
     }
     // pure number string
-    if (/^\-?\d+$/.test(s)) {
+    if (/^\\-?\d+$/.test(s)) {
       let n = parseInt(s, 10);
       if (n < 1e12) n = n * 1000;
       const d = new Date(n);
