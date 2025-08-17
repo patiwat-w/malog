@@ -6,7 +6,6 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { format as formatDate } from 'date-fns';
 import './IncidentReportForm.css'; // เพิ่ม (ถ้ายังไม่ได้ import)
 import { createIncident as apiCreateIncident, getIncidentByCase, updateIncidentFull, getCurrentUser } from '../api/client'; // เพิ่ม import
 import type { IncidentReportDto } from '../api/client';
@@ -47,7 +46,7 @@ const IncidentReportForm: React.FC = () => {
     const isEdit = !!caseNoFromUrl;
 
     const today = new Date();
-    const isoNow = formatDate(today, "yyyy-MM-dd'T'HH:mm:ss"); // include time
+    //const isoNow = formatDate(today, "yyyy-MM-dd'T'HH:mm:ss"); // include time
 
     const [formData, setFormData] = useState<IFormData>({
         id: undefined,
