@@ -16,6 +16,15 @@ import IncidentConversation from '../components/IncidentConversation';
 import { getDomainLabel, getSeverityLabel, getSeverityColor } from '../constants/incidentOptions';
 import { incidentStatusOptions } from '../constants/incidentOptions'; 
 
+// --- NEW imports for dialogs / backdrop / snackbar / alert ---
+import Backdrop from '@mui/material/Backdrop';
+import CircularProgress from '@mui/material/CircularProgress';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import Snackbar from '@mui/material/Snackbar';
+import MuiAlert from '@mui/material/Alert';
 
 const parseToDate = (value: unknown): Date | null => {
   if (!value && value !== 0) return null;
@@ -124,6 +133,15 @@ const IncidentReportDetail: React.FC = () => {
   const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // --- NEW UI state ---
+  const [loading, setLoading] = useState(false); // PageLoad when calling API
+  const [confirmOpen, setConfirmOpen] = useState(false); // ConfirmDialog before API
+  const [snackOpen, setSnackOpen] = useState(false); // SnackAlert on success
+  const [snackMessage, setSnackMessage] = useState(''); 
+  const [errorOpen, setErrorOpen] = useState(false); // AlertDialog on error
+  const [errorMessage, setErrorMessage] = useState('');
+  // --- end new state ---
+
   const DetailField: React.FC<{ label: string; children: React.ReactNode; color?: string }> = ({ label, children, color }) => {
     const isSeverity = label.toLowerCase() === 'severity';
     const isChipField = ['impact', 'domain', 'sub-domain','asset','center','vendor','manufacturer','part-number','incident-date'].includes(label.toLowerCase());
@@ -194,6 +212,7 @@ const IncidentReportDetail: React.FC = () => {
   useEffect(() => {
     if (!case_no) return;
     (async () => {
+      setLoading(true); // show PageLoad while fetching
       try {
         const data = await getIncidentByCase(case_no);
         if (!data) return;
@@ -233,15 +252,29 @@ const IncidentReportDetail: React.FC = () => {
         setStatus(mapped.status ?? '');
       } catch (e) {
         console.error(e);
+        setErrorMessage(String((e as Error)?.message ?? 'Failed to load incident'));
+        setErrorOpen(true);
+      } finally {
+        setLoading(false);
       }
     })();
   }, [case_no]);
 
+  // Replace direct submit with confirm flow
   const handleSubmitAction = async () => {
     if (!incident) return;
     const statusChanged = status !== incident.status;
     if (!statusChanged) return;
+    // open confirm dialog
+    setConfirmOpen(true);
+  };
+
+  // perform update after confirmation
+  const performUpdate = async () => {
+    if (!incident) return;
+    setConfirmOpen(false);
     setSubmitting(true);
+    setLoading(true);
     try {
       await updateIncidentFull({
         id: incident.id,
@@ -265,8 +298,15 @@ const IncidentReportDetail: React.FC = () => {
         title: incident.title
       });
       setIncident(prev => prev ? { ...prev, status } : prev);
+      setSnackMessage('Status updated successfully');
+      setSnackOpen(true);
+    } catch (e) {
+      console.error(e);
+      setErrorMessage(String((e as Error)?.message ?? 'Failed to update incident'));
+      setErrorOpen(true);
     } finally {
       setSubmitting(false);
+      setLoading(false);
     }
   };
 
@@ -563,7 +603,7 @@ const IncidentReportDetail: React.FC = () => {
           variant="contained"
           color="primary"
           disabled={status === incident.status || submitting}
-          onClick={handleSubmitAction}
+          onClick={handleSubmitAction} // now opens confirm dialog
           sx={{ minWidth: { xs: '100%', sm: 180 } }}
           startIcon={
             (() => {
@@ -585,6 +625,51 @@ const IncidentReportDetail: React.FC = () => {
       </Stack>
 
       {incident.caseNo && <IncidentConversation caseNo={incident.caseNo} incidentId={incident.id} />}
+
+      {/* --- PageLoad (Backdrop) --- */}
+      <Backdrop open={loading} sx={{ zIndex: theme => theme.zIndex.drawer + 1, color: '#fff' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+          <CircularProgress color="inherit" />
+          <Typography>Loading...</Typography>
+        </Box>
+      </Backdrop>
+
+      {/* --- ConfirmDialog before API call --- */}
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle>Confirm Update</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to update status to "{status}"?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)} disabled={submitting}>Cancel</Button>
+          <Button onClick={performUpdate} variant="contained" color="primary" disabled={submitting}>
+            {submitting ? 'Saving...' : 'Confirm'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* --- SnackAlert on success --- */}
+      <Snackbar
+        open={snackOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <MuiAlert onClose={() => setSnackOpen(false)} severity="success" elevation={6} variant="filled">
+          {snackMessage}
+        </MuiAlert>
+      </Snackbar>
+
+      {/* --- AlertDialog on error --- */}
+      <Dialog open={errorOpen} onClose={() => setErrorOpen(false)}>
+        <DialogTitle>Error</DialogTitle>
+        <DialogContent>
+          <MuiAlert severity="error" elevation={0}>{errorMessage}</MuiAlert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setErrorOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };
