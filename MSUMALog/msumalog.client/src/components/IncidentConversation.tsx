@@ -196,7 +196,7 @@ const IncidentConversation: React.FC<Props> = ({
                     {createdLocal}
                   </Typography>
                 </Typography>
-                {enableDelete && (
+                {enableDelete && currentUser?.id === c.authorUserId && (
                   <Tooltip title="Delete comment">
                     <IconButton
                       size="small"
