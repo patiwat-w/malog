@@ -6,6 +6,11 @@ import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import ListIcon from '@mui/icons-material/FormatListBulleted';
 import { marked } from 'marked'; // เพิ่มบรรทัดนี้ (ติดตั้งด้วย: npm install marked)
+import Dialog from '@mui/material/Dialog';
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 
 interface Props {
   value?: string | null;
@@ -63,6 +68,15 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
   const [selectedImage, setSelectedImage] = useState<HTMLImageElement | null>(null);
   const [imgToolbarPos, setImgToolbarPos] = useState<{ x: number; y: number } | null>(null);
   const [imgWidthPercent, setImgWidthPercent] = useState<number>(100);
+  const [zoomImageSrc, setZoomImageSrc] = useState<string | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<number>(1); // เพิ่ม state สำหรับ zoom
+
+  useEffect(() => {
+    if (!zoomImageSrc) setZoomLevel(1); // reset zoom เมื่อปิด Dialog
+  }, [zoomImageSrc]);
+
+  const handleZoomIn = () => setZoomLevel(z => Math.min(z + 0.2, 3));
+  const handleZoomOut = () => setZoomLevel(z => Math.max(z - 0.2, 0.2));
 
   useEffect(() => {
     turndownRef.current = new TurndownService({
@@ -158,6 +172,10 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
     const target = e.target as HTMLElement;
     if (target && target.tagName === 'IMG') {
       const img = target as HTMLImageElement;
+      if (readOnly) {
+        setZoomImageSrc(img.src);
+        return;
+      }
       setSelectedImage(img);
       const editor = editorRef.current!;
       const editorRect = editor.getBoundingClientRect();
@@ -242,7 +260,7 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
           contentEditable={!readOnly}
           suppressContentEditableWarning
           onInput={readOnly ? undefined : syncFromEditor}
-          onClick={readOnly ? undefined : handleEditorClick}
+          onClick={handleEditorClick}
           sx={{
             minHeight,
             padding: '12px 14px',
@@ -317,6 +335,53 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
           </Paper>
         )}
       </Box>
+      {/* --- Image Zoom Dialog --- */}
+      <Dialog open={!!zoomImageSrc} onClose={() => setZoomImageSrc(null)} maxWidth="md" fullScreen>
+        <Box sx={{ position: 'relative', bgcolor: '#222', minHeight: '100vh', width: '100vw' }}>
+          <IconButton
+            onClick={() => setZoomImageSrc(null)}
+            sx={{ position: 'absolute', top: 16, right: 16, color: '#fff', zIndex: 2 }}
+          >
+            <CloseIcon />
+          </IconButton>
+          {/* ปุ่ม Zoom */}
+          <Box sx={{ position: 'absolute', top: 16, left: 16, zIndex: 2, display: 'flex', gap: 1 }}>
+            <IconButton
+              onClick={handleZoomOut}
+              sx={{ color: '#fff', bgcolor: 'rgba(0,0,0,0.3)' }}
+              size="large"
+              aria-label="Zoom out"
+            >
+              <RemoveIcon />
+            </IconButton>
+            <IconButton
+              onClick={handleZoomIn}
+              sx={{ color: '#fff', bgcolor: 'rgba(0,0,0,0.3)' }}
+              size="large"
+              aria-label="Zoom in"
+            >
+              <AddIcon />
+            </IconButton>
+          </Box>
+          {zoomImageSrc && (
+            <img
+              src={zoomImageSrc}
+              alt="zoom"
+              style={{
+                maxWidth: `${98 * zoomLevel}vw`,
+                maxHeight: `${90 * zoomLevel}vh`,
+                width: 'auto',
+                height: 'auto',
+                display: 'block',
+                margin: 'auto',
+                borderRadius: 8,
+                background: '#222',
+                transition: 'max-width 0.2s, max-height 0.2s'
+              }}
+            />
+          )}
+        </Box>
+      </Dialog>
     </Box>
   );
 };
