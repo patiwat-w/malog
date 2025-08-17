@@ -442,9 +442,10 @@ const IncidentReportForm: React.FC = () => {
                                         <DatePicker
                                             label="Incident Date (วันที่เกิดเหตุ)"
                                             value={incidentDateOnly}
+                                            format="dd/MM/yyyy" // กำหนดรูปแบบวัน/เดือน/ปี
                                             slotProps={{
                                                 textField: {
-                                                   
+                                                    
                                                     fullWidth: true,
                                                     size: 'small',
                                                     margin: 'dense',

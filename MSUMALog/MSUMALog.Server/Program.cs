@@ -22,7 +22,12 @@ builder.Services.AddHttpContextAccessor();
 builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication", LogLevel.Debug);
 
 // Add services
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

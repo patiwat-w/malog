@@ -27,42 +27,56 @@ const parseToDate = (value: unknown): Date | null => {
     return isNaN(d.getTime()) ? null : d;
   }
   if (typeof value === 'string') {
+    // if lasst character != 'Z', include 'Z' to treat as UTC
+    if (value.length > 0 && !value.endsWith('Z')) {
+      value += 'Z';
+    }
+   
+
     const s = value.trim();
     if (!s) return null;
-    // eslint-disable-next-line no-useless-escape
+    // /Date(1234567890)/
     const msMatch = /\/Date\((\-?\d+)\)\//.exec(s);
     if (msMatch) {
       const n = parseInt(msMatch[1], 10);
       const d = new Date(n);
       return isNaN(d.getTime()) ? null : d;
     }
-    // eslint-disable-next-line no-useless-escape
+    // pure number string
     if (/^\-?\d+$/.test(s)) {
       let n = parseInt(s, 10);
       if (n < 1e12) n = n * 1000;
       const d = new Date(n);
       if (!isNaN(d.getTime())) return d;
     }
+    // ถ้าเป็นรูปแบบ yyyy-MM-dd HH:mm:ss (ไม่มี Z หรือ offset)
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s)) {
+      // ตีความเป็น UTC
+      const [datePart, timePart] = s.split(' ');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hour, minute, second] = timePart.split(':').map(Number);
+      const d = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+      return isNaN(d.getTime()) ? null : d;
+    }
+    // default: let JS parse (ISO string with Z/offset)
     const d = new Date(s);
     return isNaN(d.getTime()) ? null : d;
   }
   return null;
 };
 
-const dateTimeFormatter = new Intl.DateTimeFormat('en-US', {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  era: 'short'
-});
-
 const formatDateTime = (value: unknown): string | undefined => {
   const d = parseToDate(value);
   if (!d) return undefined;
-  return dateTimeFormatter.format(d);
+  // ใช้ local timezone ของเครื่อง user
+  return d.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
 };
 
 // --- new helper utilities for contact chips ---
@@ -389,11 +403,16 @@ const IncidentReportDetail: React.FC = () => {
           <Grid  >
             <DetailField label="Sub-domain">{incident.subDomain}</DetailField>
           </Grid>
-          <Grid >
-            <DetailField label="Incident-date">
-              {formatDateTime(incident.incidentDate) || incident.incidentDate || '-'}
-            </DetailField>
-          </Grid>
+          <Grid>
+  <DetailField label="Incident-date">
+    <Box>
+
+      <Typography variant="body2" color="primary">
+      {formatDateTime(incident.incidentDate) || '-'}
+      </Typography>
+    </Box>
+  </DetailField>
+</Grid>
         </Grid>
       </Box>
 
