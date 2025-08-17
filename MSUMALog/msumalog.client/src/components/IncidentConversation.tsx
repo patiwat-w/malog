@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Paper, Typography, Stack, Button, IconButton, Tooltip, CircularProgress, Alert } from '@mui/material';
+import { Box, Paper, Typography, Stack, Button, IconButton, Tooltip, CircularProgress } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -16,6 +16,11 @@ import {
   getIncidentByCase
 } from '../api/client';
 import type { IncidentCommentDto } from '../api/client';
+import SnackbarAlert from './SnackbarAlert';
+import PageLoading from './PageLoading';
+import ConfirmDialog from './ConfirmDialog';
+import AlertDialog from './AlertDialog';
+
 interface Props {
   caseNo: string;
   incidentId?: number;          // optional (ถ้าไม่ส่งมาจะโหลดเองจาก caseNo)
@@ -38,6 +43,14 @@ const IncidentConversation: React.FC<Props> = ({
   const [loading, setLoading] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // New states for dialogs/snackbar/delete
+  const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTargetId, setConfirmTargetId] = useState<number | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({ open: false, message: '', severity: 'info' });
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertMsg, setAlertMsg] = useState('');
 
   // Editor refs/state
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -68,7 +81,12 @@ const IncidentConversation: React.FC<Props> = ({
         setIncidentId(dto.id!);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
-        if (!ignore) setError(e?.response?.data?.message || e?.message || 'Load incident failed');
+        if (!ignore) {
+          const msg = e?.response?.data?.message || e?.message || 'Load incident failed';
+          setError(msg);
+          setAlertMsg(msg);
+          setAlertOpen(true);
+        }
       } finally {
         if (!ignore) setLoading(false);
       }
@@ -89,7 +107,12 @@ const IncidentConversation: React.FC<Props> = ({
         if (!ignore) setComments(list);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
-        if (!ignore) setError(e?.response?.data?.message || e?.message || 'Load comments failed');
+        if (!ignore) {
+          const msg = e?.response?.data?.message || e?.message || 'Load comments failed';
+          setError(msg);
+          setAlertMsg(msg);
+          setAlertOpen(true);
+        }
       } finally {
         if (!ignore) setLoadingComments(false);
       }
@@ -240,30 +263,56 @@ const IncidentConversation: React.FC<Props> = ({
         editorRef.current.innerHTML = '';
         editorHtmlRef.current = '';
       }
+      setSnackbar({ open: true, message: 'Comment posted', severity: 'success' });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Create comment failed');
+      const msg = e?.response?.data?.message || e?.message || 'Create comment failed';
+      setError(msg);
+      setAlertMsg(msg);
+      setAlertOpen(true);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = (id: number) => {
     if (!enableDelete) return;
-    const yes = window.confirm('Delete this comment?');
-    if (!yes) return;
+    setConfirmTargetId(id);
+    setConfirmOpen(true);
+  };
+
+  const onConfirmDelete = async () => {
+    const id = confirmTargetId;
+    if (!id) {
+      setConfirmOpen(false);
+      return;
+    }
+    setConfirmOpen(false);
+    setDeleting(true);
+    setError(null);
     try {
       await deleteComment(id);
       setComments(prev => prev.filter(c => c.id !== id));
+      setSnackbar({ open: true, message: 'Comment deleted', severity: 'success' });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Delete failed');
+      const msg = e?.response?.data?.message || e?.message || 'Delete failed';
+      setError(msg);
+      setAlertMsg(msg);
+      setAlertOpen(true);
+    } finally {
+      setDeleting(false);
+      setConfirmTargetId(null);
     }
   };
+
+  const pageLoadingOpen = loading || loadingComments || submitting || deleting;
 
   return (
     <Box sx={{ mt: 4 }}>
       <Typography variant="h6" sx={{ mb: 1 }}>Discussions</Typography>
+
+      <PageLoading open={pageLoadingOpen} />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -433,6 +482,28 @@ const IncidentConversation: React.FC<Props> = ({
       >
         {submitting ? 'Posting...' : 'Post Comment'}
       </Button>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete comment"
+        message="Delete this comment?"
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={onConfirmDelete}
+      />
+
+      <SnackbarAlert
+        open={snackbar.open}
+        message={snackbar.message}
+        severity={snackbar.severity}
+        onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+      />
+
+      <AlertDialog
+        open={alertOpen}
+        title="Error"
+        message={alertMsg}
+        onClose={() => setAlertOpen(false)}
+      />
     </Box>
   );
 };
