@@ -55,7 +55,7 @@ const IncidentReportForm: React.FC = () => {
         title: '',            // NEW
         asset: '',
         center: '',
-        incidentDate: isoNow,           // default now (date + time)
+        incidentDate: '',           // <-- changed: keep incidentDate empty during editing; use pickers instead
         symptoms: '',
         severity: '',
         impact: '',
@@ -115,6 +115,8 @@ const IncidentReportForm: React.FC = () => {
             try {
                 const dto = await getIncidentByCase(caseNoFromUrl);
                 if (ignore) return;
+                // set form fields (keep incidentDate in formData for reference/audit but
+                // set pickers separately so editing uses the picker state)
                 setFormData(prev => {
                     // ถ้า id เหมือนเดิม ไม่ต้องเซ็ตใหม่
                     if (prev.id === dto.id) return prev;
@@ -124,7 +126,7 @@ const IncidentReportForm: React.FC = () => {
                         title: dto.title || dto.caseNo || 'Untitled',
                         asset: dto.asset || '',
                         center: dto.center || '',
-                        incidentDate: dto.incidentDate || isoNow,
+                        incidentDate: dto.incidentDate || '', // keep server value but do not update on picker changes
                         symptoms: dto.symptoms || '',
                         severity: String(dto.severity ?? ''),
                         impact: dto.impact || '',
@@ -144,6 +146,22 @@ const IncidentReportForm: React.FC = () => {
                         responsiblePhone: dto.responsiblePhone || ''
                     };
                 });
+
+                // initialize pickers from dto.incidentDate (if valid)
+                if (dto.incidentDate) {
+                    const d = new Date(dto.incidentDate);
+                    if (!isNaN(d.getTime())) {
+                        setIncidentDateOnly(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+                        setIncidentTimeOnly(new Date(1970, 0, 1, d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds()));
+                    } else {
+                        setIncidentDateOnly(null);
+                        setIncidentTimeOnly(null);
+                    }
+                } else {
+                    // fallback for old data: default to today
+                    setIncidentDateOnly(today);
+                    setIncidentTimeOnly(today);
+                }
             } catch (e: any) {
                 if (!ignore) setApiError(e?.response?.data?.message || e?.message || 'Load failed');
             } finally {
@@ -173,23 +191,8 @@ const IncidentReportForm: React.FC = () => {
 
 
     // keep separate date & time pickers in sync with formData.incidentDate (parse ISO/date-only)
-    useEffect(() => {
-        if (!formData.incidentDate) {
-            setIncidentDateOnly(null);
-            setIncidentTimeOnly(null);
-            return;
-        }
-        const d = new Date(formData.incidentDate);
-        if (isNaN(d.getTime())) {
-            setIncidentDateOnly(null);
-            setIncidentTimeOnly(null);
-            return;
-        }
-        // date-only part (midnight local)
-        setIncidentDateOnly(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
-        // time part (hours/minutes/seconds)
-        setIncidentTimeOnly(new Date(1970, 0, 1, d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds()));
-    }, [formData.incidentDate]);
+    // remove the effect that synced formData.incidentDate -> pickers
+    // (DO NOT add it back). Pickers and formData are now separate during editing.
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -202,7 +205,10 @@ const IncidentReportForm: React.FC = () => {
     // Add: helper to produce sx for TextField / MUI inputs (keeps font/spacing)
     const getSxFor = (key: keyof IFormData, extraSx = {}) => {
         const base = { '& .MuiInputBase-input': { fontSize: '1rem', py: 1.2 } };
-        const isFilled = typeof formData[key] === 'string' && formData[key].trim().length > 0;
+        // treat incidentDate specially (based on picker state)
+        const isFilled = key === 'incidentDate'
+            ? !!incidentDateOnly
+            : (typeof formData[key] === 'string' && formData[key].trim().length > 0);
         if (isFilled) {
             return {
                 ...base,
@@ -215,16 +221,19 @@ const IncidentReportForm: React.FC = () => {
 
     // New: return class name for the input element (textarea/input)
     const getClassFor = (key: keyof IFormData) => {
-        const isFilled = typeof formData[key] === 'string' && formData[key].trim().length > 0;
+        const isFilled = key === 'incidentDate'
+            ? !!incidentDateOnly
+            : (typeof formData[key] === 'string' && formData[key].trim().length > 0);
         return isFilled ? 'input-field filled' : 'input-field';
     };
 
     // Change: type keys as keyof IFormData so TS knows valid property names
+    // Change required fields: remove incidentDate (we validate pickers separately)
     const requiredFields: Array<{ key: keyof IFormData; label: string }> = [
         { key: 'title', label: 'Title' },
         { key: 'asset', label: 'Asset' },
         { key: 'center', label: 'Center' },
-        { key: 'incidentDate', label: 'Incident Date' },
+        // incidentDate removed from here
         { key: 'symptoms', label: 'Symptoms' },
         { key: 'severity', label: 'Severity' }
     ];
@@ -236,21 +245,43 @@ const IncidentReportForm: React.FC = () => {
         return val == null;
     });
 
+    // Add separate date missing check (we require date picker at least)
+    const incidentDateMissing = !incidentDateOnly; // require date; time optional (we'll default to 00:00 if missing)
+
     // Add a general invalid flag for use in the UI (replaces undefined isTitleInvalid)
-    const isFormInvalid = missingFields.length > 0;
+    const isFormInvalid = missingFields.length > 0 || incidentDateMissing;
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (loading || saving) return;
         setApiError(null);
     
-        if (missingFields.length > 0) {
-            setApiError('กรุณากรอกข้อมูลให้ครบถ้วน: ' + missingFields.map(f => f.label).join(', '));
+        if (missingFields.length > 0 || incidentDateMissing) {
+            const missingLabels = missingFields.map(f => f.label);
+            if (incidentDateMissing) missingLabels.push('Incident Date');
+            setApiError('กรุณากรอกข้อมูลให้ครบถ้วน: ' + missingLabels.join(', '));
             return;
         }
     
         const confirmed = window.confirm(isEdit ? 'ยืนยันการบันทึกการแก้ไข?' : 'ยืนยันการสร้างรายการ?');
         if (!confirmed) return;
+    
+        // COMBINE pickers into ISO here (pickers are local-edit state)
+        const datePart = incidentDateOnly ?? new Date();
+        const timePart = incidentTimeOnly ?? new Date(1970, 0, 1, 0, 0, 0);
+    
+        // Create a local Date using the selected local hours/minutes.
+        // This preserves the exact local time the user picked (no unexpected timezone shift).
+        const combinedLocal = new Date(
+            datePart.getFullYear(),
+            datePart.getMonth(),
+            datePart.getDate(),
+            timePart.getHours(),
+            timePart.getMinutes(),
+            timePart.getSeconds(),
+            timePart.getMilliseconds()
+        );
+        const incidentIso = combinedLocal.toISOString();
     
         // เตรียม DTO (partial; server manages readonly/audit fields)
         const baseDto: Partial<IncidentReportDto> = {
@@ -279,7 +310,7 @@ const IncidentReportForm: React.FC = () => {
             responsibleLineId: formData.responsibleLineId,
             responsibleEmail: formData.responsibleEmail,
             responsiblePhone: formData.responsiblePhone,
-            incidentDate: formData.incidentDate // <-- ISO yyyy-MM-dd
+            incidentDate: incidentIso // <-- COMBINED ISO at save time
         };
     
         try {
@@ -420,31 +451,15 @@ const IncidentReportForm: React.FC = () => {
                                                     id: 'incidentDate',
                                                     name: 'incidentDate',
                                                     required: true,
-                                                    error: !(formData.incidentDate ?? '').toString().trim(),
-                                                    helperText: !(formData.incidentDate ?? '').toString().trim() ? 'ต้องกรอก Incident Date' : ' ',
+                                                    error: !incidentDateOnly,
+                                                    helperText: !incidentDateOnly ? 'ต้องกรอก Incident Date' : ' ',
                                                     sx: getSxFor('incidentDate' as keyof IFormData),
                                                     inputProps: { className: getClassFor('incidentDate' as keyof IFormData) }
                                                 }
                                             }}
                                             onChange={(newDate) => {
                                                 setIncidentDateOnly(newDate);
-                                                // combine with existing time (or midnight)
-                                                const timePart = incidentTimeOnly ?? new Date(1970, 0, 1, 0, 0, 0);
-                                                if (!newDate) {
-                                                    setFormData(prev => ({ ...prev, incidentDate: '' }));
-                                                    return;
-                                                }
-                                                // build UTC date/time from local components
-                                                const combined = new Date(Date.UTC(
-                                                    newDate.getFullYear(),
-                                                    newDate.getMonth(),
-                                                    newDate.getDate(),
-                                                    timePart.getHours(),
-                                                    timePart.getMinutes(),
-                                                    timePart.getSeconds(),
-                                                    timePart.getMilliseconds()
-                                                ));
-                                                setFormData(prev => ({ ...prev, incidentDate: combined.toISOString() }));
+                                                // DO NOT write to formData.incidentDate here; combine only on submit
                                             }}
                                             
                                         />
@@ -454,21 +469,7 @@ const IncidentReportForm: React.FC = () => {
                                             value={incidentTimeOnly}
                                             onChange={(newTime) => {
                                                 setIncidentTimeOnly(newTime);
-                                                if (!newTime) {
-                                                    setFormData(prev => ({ ...prev, incidentDate: '' }));
-                                                    return;
-                                                }
-                                                const datePart = incidentDateOnly ?? new Date();
-                                                const combined = new Date(Date.UTC(
-                                                    datePart.getFullYear(),
-                                                    datePart.getMonth(),
-                                                    datePart.getDate(),
-                                                    newTime.getHours(),
-                                                    newTime.getMinutes(),
-                                                    newTime.getSeconds(),
-                                                    newTime.getMilliseconds()
-                                                ));
-                                                setFormData(prev => ({ ...prev, incidentDate: combined.toISOString() }));
+                                                // DO NOT write to formData.incidentDate here; combine only on submit
                                             }}
                                             slotProps={{
                                                 textField: {
