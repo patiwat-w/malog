@@ -16,6 +16,7 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import PageLoading from "../components/PageLoading"; // <-- added
 import SnackbarAlert from "../components/SnackbarAlert"; // <-- added
 import AlertDialog from "../components/AlertDialog"; // <-- added
+import WysiwygMarkdownEditor from '../components/WysiwygMarkdownEditor'; // <-- added
 
 interface IFormData {
     id?: number;                 // <-- เพิ่ม id
@@ -699,21 +700,30 @@ const IncidentReportForm: React.FC = () => {
                                 </Typography>
                                 <Box>
                                     <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Interim Action</Typography>
-                                    <TextareaAutosize id="interimAction" name="interimAction" value={formData.interimAction} onChange={handleChange} minRows={4} placeholder="Interim Action" 
-                                    className={getClassFor('interimAction')}
-                                    style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
+                                    <WysiwygMarkdownEditor
+                                        value={formData.interimAction}
+                                        onChange={(md) => setFormData(prev => ({ ...prev, interimAction: md }))}
+                                        minHeight={140}
+                                        placeholder="Interim Action"
+                                    />
                                 </Box>
                                 <Box>
                                     <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Intermediate Action</Typography>
-                                    <TextareaAutosize id="intermediateAction" name="intermediateAction" value={formData.intermediateAction} onChange={handleChange} minRows={4} placeholder="Intermediate Action" 
-                                    className={getClassFor('intermediateAction')}
-                                    style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
+                                    <WysiwygMarkdownEditor
+                                        value={formData.intermediateAction}
+                                        onChange={(md) => setFormData(prev => ({ ...prev, intermediateAction: md }))}
+                                        minHeight={140}
+                                        placeholder="Intermediate Action"
+                                    />
                                 </Box>
                                 <Box>
                                     <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Long-term Action</Typography>
-                                    <TextareaAutosize id="longTermAction" name="longTermAction" value={formData.longTermAction} onChange={handleChange} minRows={4} placeholder="Long-term Action" 
-                                    className={getClassFor('longTermAction')}
-                                    style={{ width: '100%', fontSize: '1rem', padding: '8px 12px', boxSizing: 'border-box', borderRadius: 4, borderColor: '#c4c4c4' }} />
+                                    <WysiwygMarkdownEditor
+                                        value={formData.longTermAction}
+                                        onChange={(md) => setFormData(prev => ({ ...prev, longTermAction: md }))}
+                                        minHeight={140}
+                                        placeholder="Long-term Action"
+                                    />
                                 </Box>
                                 {isEdit && (
                                     <Box>
