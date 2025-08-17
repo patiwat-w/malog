@@ -11,7 +11,7 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 
-import { getIncidentByCase, updateIncidentFull, type IncidentReportDto } from '../api/client';
+import { getIncidentByCase, updateIncidentFull, getCurrentUser, type IncidentReportDto, type User } from '../api/client';
 import IncidentConversation from '../components/IncidentConversation';
 import { getDomainLabel, getSeverityLabel, getSeverityColor } from '../constants/incidentOptions';
 import { incidentStatusOptions } from '../constants/incidentOptions'; 
@@ -141,6 +141,7 @@ const IncidentReportDetail: React.FC = () => {
   const [snackMessage, setSnackMessage] = useState(''); 
   const [errorOpen, setErrorOpen] = useState(false); // AlertDialog on error
   const [errorMessage, setErrorMessage] = useState('');
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   // --- end new state ---
 
   const DetailField: React.FC<{ label: string; children: React.ReactNode; color?: string }> = ({ label, children, color }) => {
@@ -260,6 +261,19 @@ const IncidentReportDetail: React.FC = () => {
       }
     })();
   }, [case_no]);
+
+  useEffect(() => {
+    // Fetch current user on mount
+    (async () => {
+      try {
+        const user = await getCurrentUser();
+        setCurrentUser(user);
+      } catch (e) {
+        console.error(e);
+        setCurrentUser(null);
+      }
+    })();
+  }, []);
 
   // Replace direct submit with confirm flow
   const handleSubmitAction = async () => {
@@ -628,7 +642,13 @@ const IncidentReportDetail: React.FC = () => {
         </Button>
       </Stack>
 
-      {incident.caseNo && <IncidentConversation caseNo={incident.caseNo} incidentId={incident.id} />}
+      {incident.caseNo && currentUser && (
+        <IncidentConversation
+          caseNo={incident.caseNo}
+          incidentId={incident.id}
+          currentUser={currentUser}
+        />
+      )}
 
       {/* --- PageLoad (Backdrop) --- */}
       <Backdrop open={loading} sx={{ zIndex: theme => theme.zIndex.drawer + 1, color: '#fff' }}>

@@ -11,6 +11,7 @@ import {
   getIncidentByCase
 } from '../api/client';
 import type { IncidentCommentDto } from '../api/client';
+import type { User } from '../api/client';
 import SnackbarAlert from './SnackbarAlert';
 import PageLoading from './PageLoading';
 import ConfirmDialog from './ConfirmDialog';
@@ -20,7 +21,7 @@ import WysiwygMarkdownEditor from './WysiwygMarkdownEditor';
 interface Props {
   caseNo: string;
   incidentId?: number;          // optional (ถ้าไม่ส่งมาจะโหลดเองจาก caseNo)
-  currentUser?: string;
+    currentUser?: User;
   heightMin?: number;
   enableDelete?: boolean;
 }
@@ -28,7 +29,7 @@ interface Props {
 const IncidentConversation: React.FC<Props> = ({
   caseNo,
   incidentId: incidentIdProp,
-  currentUser = 'CurrentUser',
+  currentUser = undefined,
   heightMin = 140,
   enableDelete = true
 }) => {
@@ -114,7 +115,7 @@ const IncidentConversation: React.FC<Props> = ({
     try {
       const created = await createComment({
         incidentReportId: incidentId,
-        authorUserId: Number(currentUser),
+        authorUserId: Number(typeof currentUser === 'object' && currentUser?.id ? currentUser.id : 0), // Ensure currentUser is a number
         body: newComment.trim()
       });
       setComments(prev => [created, ...prev]);
