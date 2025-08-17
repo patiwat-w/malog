@@ -8,17 +8,19 @@ import ListIcon from '@mui/icons-material/FormatListBulleted';
 import { marked } from 'marked'; // เพิ่มบรรทัดนี้ (ติดตั้งด้วย: npm install marked)
 
 interface Props {
-  value: string;
-  onChange: (md: string) => void;
+  value?: string | null;
+  onChange?: (md: string) => void;
   minHeight?: number;
   placeholder?: string;
+  readOnly?: boolean; // เพิ่มตรงนี้
 }
 
 const WysiwygMarkdownEditor: React.FC<Props> = ({
   value,
   onChange,
   minHeight = 140,
-  placeholder = 'พิมพ์คอมเมนต์ (WYSIWYG จะถูกแปลงเป็น Markdown อัตโนมัติ)'
+  placeholder = 'พิมพ์คอมเมนต์ (WYSIWYG จะถูกแปลงเป็น Markdown อัตโนมัติ)',
+  readOnly = false // เพิ่มตรงนี้
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const turndownRef = useRef<TurndownService | null>(null);
@@ -165,25 +167,29 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
   return (
     <Box>
       <Box sx={{ mb: 1, flexWrap: 'wrap', display: 'flex', gap: 1 }}>
-        <Button size="small" variant="outlined" onClick={() => format('bold')} startIcon={<FormatBoldIcon />}>Bold</Button>
-        <Button size="small" variant="outlined" onClick={() => format('italic')} startIcon={<FormatItalicIcon />}>Italic</Button>
-        <Button size="small" variant="outlined" onClick={() => format('insertUnorderedList')} startIcon={<ListIcon />}>List</Button>
-        <Button size="small" variant="outlined" onClick={handlePickImage} startIcon={<ImageIcon />}>Image</Button>
-        <input
-          ref={fileInputRef}
-          hidden
-          type="file"
-          accept="image/*"
-          onChange={handleImageChange}
-        />
+        {!readOnly && (
+          <>
+            <Button size="small" variant="outlined" onClick={() => format('bold')} startIcon={<FormatBoldIcon />}>Bold</Button>
+            <Button size="small" variant="outlined" onClick={() => format('italic')} startIcon={<FormatItalicIcon />}>Italic</Button>
+            <Button size="small" variant="outlined" onClick={() => format('insertUnorderedList')} startIcon={<ListIcon />}>List</Button>
+            <Button size="small" variant="outlined" onClick={handlePickImage} startIcon={<ImageIcon />}>Image</Button>
+            <input
+              ref={fileInputRef}
+              hidden
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+            />
+          </>
+        )}
       </Box>
       <Box sx={{ position: 'relative' }}>
         <Box
           ref={editorRef}
-          contentEditable
+          contentEditable={!readOnly}
           suppressContentEditableWarning
-          onInput={syncFromEditor}
-          onClick={handleEditorClick}
+          onInput={readOnly ? undefined : syncFromEditor}
+          onClick={readOnly ? undefined : handleEditorClick}
           sx={{
             minHeight,
             padding: '12px 14px',
@@ -194,8 +200,8 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
             outline: 'none',
             whiteSpace: 'pre-wrap',
             overflowWrap: 'anywhere',
-            background: '#fff',
-            cursor: 'text',
+            background: readOnly ? '#f5f5f5' : '#fff',
+            cursor: readOnly ? 'default' : 'text',
             '& img': {
               maxWidth: '100%',
               borderRadius: 1,
@@ -204,7 +210,7 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
           }}
           data-placeholder={placeholder}
         />
-        {selectedImage && imgToolbarPos && (
+        {!readOnly && selectedImage && imgToolbarPos && (
           <Paper
             elevation={4}
             sx={{

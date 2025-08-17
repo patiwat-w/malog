@@ -15,6 +15,7 @@ import { getIncidentByCase, updateIncidentFull, type IncidentReportDto } from '.
 import IncidentConversation from '../components/IncidentConversation';
 import { getDomainLabel, getSeverityLabel, getSeverityColor } from '../constants/incidentOptions';
 import { incidentStatusOptions } from '../constants/incidentOptions'; 
+import WysiwygMarkdownEditor from '../components/WysiwygMarkdownEditor'; // เพิ่ม import นี้
 
 // --- NEW imports for dialogs / backdrop / snackbar / alert ---
 import Backdrop from '@mui/material/Backdrop';
@@ -565,17 +566,20 @@ const IncidentReportDetail: React.FC = () => {
           Actions
         </Typography>
 
-        <Grid container spacing={2} sx={{ mt: 1 }}>
-        <Grid  >
-            <DetailField label="Interim">{incident.interimAction}</DetailField>
-          </Grid>
-          <Grid  >
-            <DetailField label="Intermediate">{incident.intermediateAction}</DetailField>
-          </Grid>
-          <Grid  >
-            <DetailField label="Long-term">{incident.longTermAction}</DetailField>
-          </Grid>
-        </Grid>
+        <Grid container direction="column" spacing={2} sx={{ mt: 1 }}>
+        <Box>
+          <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Interim Action</Typography>
+        <WysiwygMarkdownEditor value={incident.interimAction} readOnly minHeight={100} />
+        </Box>
+        <Box>
+          <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Intermediate Action</Typography>
+        <WysiwygMarkdownEditor value={incident.intermediateAction} readOnly minHeight={100} />
+        </Box>
+        <Box>
+          <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Long-term Action</Typography>
+        <WysiwygMarkdownEditor value={incident.longTermAction} readOnly minHeight={100} />
+        </Box>
+      </Grid>
       </Box>
 
       <Divider sx={{ my: 3 }} />
