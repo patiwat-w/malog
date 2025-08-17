@@ -45,16 +45,16 @@ public class IncidentReport
     [MaxLength(100)]
     public string? PartNumber { get; set; } = string.Empty;
 
-    [MaxLength(4000)]
+    [Column(TypeName = "nvarchar(max)")]
     public string? AdditionalInfo { get; set; } = string.Empty;
 
-    [MaxLength(4000)]
+  [Column(TypeName = "nvarchar(max)")]
     public string? InterimAction { get; set; } = string.Empty;
 
-    [MaxLength(4000)]
+    [Column(TypeName = "nvarchar(max)")]
     public string? IntermediateAction { get; set; } = string.Empty;
 
-    [MaxLength(4000)]
+   [Column(TypeName = "nvarchar(max)")]
     public string? LongTermAction { get; set; } = string.Empty;
 
     [MaxLength(50)]

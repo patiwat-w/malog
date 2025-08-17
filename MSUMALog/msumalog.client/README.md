@@ -79,3 +79,10 @@ npx openapi-typescript http://localhost:5293/swagger/v1/swagger.json -o src/api/
 ```
 
 This will fetch the schema and generate/update `src/api/types.ts` for use in your API client code.
+
+## อัปเดต schema ในฐานข้อมูล
+
+```powershell
+dotnet ef migrations add UpdateIncidentReportColumns
+dotnet ef database update
+```

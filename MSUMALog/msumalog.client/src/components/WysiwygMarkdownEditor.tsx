@@ -15,6 +15,34 @@ interface Props {
   readOnly?: boolean; // เพิ่มตรงนี้
 }
 
+const MAX_IMAGE_SIZE = 500 * 1024; // 500 KB
+const MAX_IMAGE_WIDTH = 1024; // px
+
+const resizeImageFile = (file: File, mimeType = 'image/jpeg'): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const scale = Math.min(1, MAX_IMAGE_WIDTH / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject('Canvas error');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // quality 0.8 for jpeg
+        const dataUrl = canvas.toDataURL(mimeType, 0.8);
+        resolve(dataUrl);
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 const WysiwygMarkdownEditor: React.FC<Props> = ({
   value,
   onChange,
@@ -68,7 +96,9 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
       // mark this as a local change so the prop update echo does not reset caret
       lastLocalValueRef.current = md;
       isLocalChangeRef.current = true;
-      onChange(md);
+      if (onChange) {
+        onChange(md);
+      }
     }
   };
   
@@ -89,15 +119,38 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
 
   const handlePickImage = () => fileInputRef.current?.click();
 
-  const handleImageChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+  const handleImageChange: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      insertHtmlAtCursor(`<img src="${dataUrl}" alt="image" style="max-width:100%;border-radius:4px;" />`);
-    };
-    reader.readAsDataURL(file);
+
+    // ตรวจสอบชนิดไฟล์
+    if (!file.type.startsWith('image/')) {
+      alert('ไฟล์ที่เลือกไม่ใช่รูปภาพ');
+      e.target.value = '';
+      return;
+    }
+
+    let dataUrl: string;
+    // Resize ทุกรูปที่ขนาดเกิน 500 KB หรือไม่ใช่ JPEG
+    if (file.size > MAX_IMAGE_SIZE || file.type !== 'image/jpeg') {
+      try {
+        dataUrl = await resizeImageFile(file, 'image/jpeg');
+      } catch {
+        alert('ไม่สามารถปรับขนาดภาพได้');
+        e.target.value = '';
+        return;
+      }
+    } else {
+      // ขนาดไม่เกิน ใช้ไฟล์เดิม
+      const reader = new FileReader();
+      dataUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    insertHtmlAtCursor(`<img src="${dataUrl}" alt="image" style="max-width:100%;border-radius:4px;" />`);
     e.target.value = '';
   };
 

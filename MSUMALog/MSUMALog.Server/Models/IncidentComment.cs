@@ -17,7 +17,8 @@ public class IncidentComment
     public User? AuthorUser { get; set; }
 
     // เก็บเป็น Markdown / อนุญาต raw <img> (sanitize ฝั่ง client หรือเพิ่มขั้นตอนภายหลัง)
-    [Required, MaxLength(8000)]
+    [Required]
+    [Column(TypeName = "nvarchar(max)")]
     public string Body { get; set; } = string.Empty;
 
     public int? CreatedUserId { get; set; }

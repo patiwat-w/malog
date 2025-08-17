@@ -82,6 +82,8 @@ const IncidentReportForm: React.FC = () => {
         responsiblePhone: ''
     });
 
+    const [originalFormData, setOriginalFormData] = useState<IFormData | null>(null);
+
     useEffect(() => {
         // ดึงข้อมูล user มาเติม default
         getCurrentUser()
@@ -206,6 +208,16 @@ const IncidentReportForm: React.FC = () => {
         }
     }, [isEdit]);
 
+    useEffect(() => {
+        if (isEdit && formData.id) {
+            setOriginalFormData(formData);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData.id]);
+
+    const isFormChanged = isEdit && originalFormData
+        ? JSON.stringify({ ...formData, incidentDate: undefined }) !== JSON.stringify({ ...originalFormData, incidentDate: undefined })
+        : true;
 
     // keep separate date & time pickers in sync with formData.incidentDate (parse ISO/date-only)
     // remove the effect that synced formData.incidentDate -> pickers
@@ -727,45 +739,26 @@ const IncidentReportForm: React.FC = () => {
                                 </Box>
                                 {isEdit && (
                                     <Box>
-                                        {(() => {
-                                            const statusOption = incidentStatusOptions.find(opt => opt.value === formData.status);
-                                            return (
-                                                <TextField
-                                                    fullWidth
-                                                    size="small"
-                                                    margin="dense"
-                                                    id="status"
-                                                    name="status"
-                                                    label="Incident Status"
-                                                    value={statusOption?.label || formData.status}
-                                                    InputProps={{
-                                                        readOnly: true,
-                                                        startAdornment: statusOption?.icon ? (
-                                                            <Box sx={{ mr: 1 }}>
-                                                                <span>
-                                                                    {statusOption.icon}
-                                                                </span>
-                                                            </Box>
-                                                        ) : undefined,
-                                                        sx: { backgroundColor: '#f5f5f5' }
-                                                    }}
-                                                    sx={{
-                                                        ...getSxFor('status'),
-                                                        '& .MuiInputBase-root': {
-                                                          backgroundColor: '#f5f5f5',
-                                                          color: theme => {
-                                                            const colorKey = statusOption?.color;
-                                                            if (colorKey && colorKey !== 'default' && theme.palette[colorKey]) {
-                                                              return theme.palette[colorKey].main;
-                                                            }
-                                                            // ถ้าไม่มีสี ให้ไม่กำหนดสี (ใช้ค่า default ของ MUI)
-                                                            return undefined;
-                                                          }
-                                                        }
-                                                      }}
-                                                />
-                                            );
-                                        })()}
+                                        <TextField
+                                            select
+                                            fullWidth
+                                            size="small"
+                                            margin="dense"
+                                            id="status"
+                                            name="status"
+                                            label="Incident Status"
+                                            value={formData.status}
+                                            onChange={handleChange}
+                                            sx={getSxFor('status')}
+                                            inputProps={{ className: getClassFor('status') }}
+                                        >
+                                            {incidentStatusOptions.map(opt => (
+                                                <MenuItem key={opt.value} value={opt.value}>
+                                                    {opt.icon && <span style={{ marginRight: 8 }}>{opt.icon}</span>}
+                                                    {opt.label}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
                                     </Box>
                                 )}
                             </Box>
@@ -782,11 +775,33 @@ const IncidentReportForm: React.FC = () => {
                             type="submit"
                             fullWidth
                             variant="contained"
-                            disabled={saving || isFormInvalid}
+                            disabled={saving || isFormInvalid || (isEdit && !isFormChanged)}
                             sx={{ mt: 3, mb: 2, py: 2, fontSize: '1.05rem' }}
                         >
                             {saving ? 'Saving...' : (isEdit ? 'Save Changes' : 'Submit')}
                         </Button>
+
+                        {/* เพิ่มปุ่ม Close เฉพาะเมื่อมีการบันทึกแล้ว (formData.id มีค่า) */}
+                        {formData.id && (
+                            <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+                                <Button
+                                    variant="outlined"
+                                    color="primary"
+                                    fullWidth
+                                    onClick={() => navigate('/issues')}
+                                >
+                                    Close to List
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    color="secondary"
+                                    fullWidth
+                                    onClick={() => navigate(`/issues/${formData.caseNo}`)}
+                                >
+                                    Close to Detail
+                                </Button>
+                            </Stack>
+                        )}
                     </Box>
                 </Paper>
             </Container>
