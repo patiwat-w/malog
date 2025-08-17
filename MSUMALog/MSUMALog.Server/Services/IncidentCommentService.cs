@@ -46,6 +46,18 @@ public class IncidentCommentService(
             .ToListAsync(ct);
     }
 
+    public async Task<IncidentCommentDto?> GetByIdAsync(int id, CancellationToken ct = default)
+    {
+        var entity = await _db.IncidentComments
+            .Include(c => c.IncidentReport)
+            .Include(c => c.AuthorUser)
+            .Include(c => c.CreatedUser)
+            .Include(c => c.UpdatedUser)
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
+
+        return entity is null ? null : _mapper.Map<IncidentCommentDto>(entity);
+    }
+
     public async Task<IncidentCommentDto> CreateAsync(IncidentCommentDto dto, CancellationToken ct)
     {
         // ตรวจสอบ incident

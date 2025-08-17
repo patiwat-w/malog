@@ -5,20 +5,43 @@ using MSUMALog.Server.DTOs;
 using MSUMALog.Server.Services;
 using System;
 using MSUMALog.Server.Helpers;
+using MSUMALog.Server.Data;
+using Microsoft.AspNetCore.Identity;
 
 namespace MSUMALog.Server.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class IncidentReportsController(IIncidentReportService service) : ControllerBase
+public class IncidentReportsController(
+    IIncidentReportService service,
+    ApplicationDbContext db
+) : ControllerBase
 {
     private readonly IIncidentReportService _service = service;
+    private readonly ApplicationDbContext _db = db;
+
+    private readonly string _userRole = "User";
+    private const string UserNotFoundMessage = "User not found";
+    private const string NoPermissionMessage = "No Permission";
 
     [Authorize]
     [HttpGet]
     [ProducesResponseType(typeof(IEnumerable<IncidentReportDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<IncidentReportDto>>> GetAll(CancellationToken ct = default)
-        => Ok(await _service.GetAllAsync(ct));
+    {
+        if (!User.Identity?.IsAuthenticated ?? true)
+            return Unauthorized("User not authenticated");
+
+        var userData = UserClaimsHelper.GetUser(User, _db);
+        if (userData?.Id is null)
+            return Unauthorized(UserNotFoundMessage);
+           
+
+        if (userData.Role == _userRole)
+            return Ok(await _service.GetAllAsync(ct, userData.Id));
+
+        return Ok(await _service.GetAllAsync(ct));
+    }
 
     [Authorize]
     [HttpGet("{id:int}")]
@@ -26,18 +49,38 @@ public class IncidentReportsController(IIncidentReportService service) : Control
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IncidentReportDto>> GetById(int id, CancellationToken ct = default)
     {
+        var userData = UserClaimsHelper.GetUser(User, _db);
+        if (userData is null)
+            return Unauthorized(UserNotFoundMessage);
+
         var dto = await _service.GetByIdAsync(id, ct);
-        return dto is null ? NotFound() : Ok(dto);
+        if (dto is null)
+            return NotFound();
+
+            return Forbid(NoPermissionMessage);
+            return Forbid("No Permission");
+
+        return Ok(dto);
     }
 
-     [Authorize]
+    [Authorize]
     [HttpGet("by-case/{caseNo}")]
     [ProducesResponseType(typeof(IncidentReportDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IncidentReportDto>> GetByCaseNo(string caseNo, CancellationToken ct = default)
     {
+        var userData = UserClaimsHelper.GetUser(User, _db);
+        if (userData is null)
+            return Unauthorized(UserNotFoundMessage);
+
         var dto = await _service.GetByCaseNoAsync(caseNo, ct);
-        return dto is null ? NotFound() : Ok(dto);
+        if (dto is null)
+            return NotFound();
+
+        if (userData.Role == _userRole && dto.CreatedUserId != userData.Id)
+            return Forbid(NoPermissionMessage);
+
+        return Ok(dto);
     }
 
     [Authorize]
@@ -51,9 +94,7 @@ public class IncidentReportsController(IIncidentReportService service) : Control
 
         var userId = UserClaimsHelper.GetUserId(User);
         if (userId == null)
-            return Unauthorized("User not found");
-
-
+            return Unauthorized(UserNotFoundMessage);
 
         dto.CreatedUserId = userId.Value;
         dto.UpdatedUserId = userId.Value;
@@ -73,16 +114,18 @@ public class IncidentReportsController(IIncidentReportService service) : Control
         if (dto.Id != 0 && dto.Id != id)
             return BadRequest("Mismatched id.");
 
-        if (!User.Identity?.IsAuthenticated ?? true)
-            return Unauthorized("User not authenticated");
+        var userData = UserClaimsHelper.GetUser(User, _db);
+        if (userData is null)
+            return Unauthorized(UserNotFoundMessage);
 
-        var userId = UserClaimsHelper.GetUserId(User);
-        if (userId == null)
-            return Unauthorized("User not found");
+        var existing = await _service.GetByIdAsync(id, ct);
+        if (existing is null)
+            return NotFound();
 
+        if (userData.Role == _userRole && existing.CreatedUserId != userData.Id)
+            return Forbid(NoPermissionMessage);
 
-
-        dto.UpdatedUserId = userId.Value;
+        dto.UpdatedUserId = userData.Id;
         dto.UpdatedUtc = DateTime.UtcNow;
 
         var ok = await _service.UpdateAsync(id, dto, ct);
@@ -95,20 +138,22 @@ public class IncidentReportsController(IIncidentReportService service) : Control
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct = default)
     {
-        if (!User.Identity?.IsAuthenticated ?? true)
-            return Unauthorized("User not authenticated");
+        var userData = UserClaimsHelper.GetUser(User, _db);
+        if (userData is null)
+            return Unauthorized(UserNotFoundMessage);
 
-        var userId = UserClaimsHelper.GetUserId(User);
-        if (userId == null)
-            return Unauthorized("User not found");
+        var existing = await _service.GetByIdAsync(id, ct);
+        if (existing is null)
+            return NotFound();
 
-
+        if (userData.Role == _userRole && existing.CreatedUserId != userData.Id)
+            return Forbid(NoPermissionMessage);
 
         var now = DateTime.UtcNow;
         var metaDto = new IncidentReportDto
         {
             Id = id,
-            UpdatedUserId = userId.Value,
+            UpdatedUserId = userData.Id,
             UpdatedUtc = now
         };
         await _service.UpdateAsync(id, metaDto, ct);

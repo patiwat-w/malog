@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using System.Linq;
+using MSUMALog.Server.Models;
+using MSUMALog.Server.Data; // สมมติว่า DbContext อยู่ namespace นี้
 
 namespace MSUMALog.Server.Helpers;
 
@@ -37,5 +39,14 @@ public static class UserClaimsHelper
     public static IEnumerable<(string Type, string Value)> GetAllClaims(ClaimsPrincipal user)
     {
         return user.Claims.Select(c => (c.Type, c.Value));
+    }
+
+    public static User? GetUser(ClaimsPrincipal user, ApplicationDbContext db)
+    {
+        var userId = GetUserId(user);
+        if (userId == null)
+            return null;
+
+        return db.Users.FirstOrDefault(u => u.Id == userId.Value);
     }
 }

@@ -1,17 +1,26 @@
+using System;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MSUMALog.Server.DTOs;
 using MSUMALog.Server.Services;
-using MSUMALog.Server.Helpers; // Ensure the namespace containing UserClaimsHelper is imported
+using MSUMALog.Server.Helpers;
+using MSUMALog.Server.Data; // Ensure the namespace containing UserClaimsHelper is imported
 
 namespace MSUMALog.Server.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class IncidentCommentsController(IIncidentCommentService service) : ControllerBase
+public class IncidentCommentsController : ControllerBase
 {
-    private readonly IIncidentCommentService _service = service;
+    private readonly IIncidentCommentService _service;
+    private readonly ApplicationDbContext _dbContext;
+
+    public IncidentCommentsController(IIncidentCommentService service, ApplicationDbContext dbContext)
+    {
+        _service = service ?? throw new ArgumentNullException(nameof(service));
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
+    }
 
     [Authorize]
     [HttpGet("by-case/{caseNo}")]
@@ -38,9 +47,7 @@ public class IncidentCommentsController(IIncidentCommentService service) : Contr
         if (userId == null)
             return Unauthorized("User not found");
 
-        var email = UserClaimsHelper.GetEmail(User);
-        if (string.IsNullOrWhiteSpace(email))
-            return Unauthorized("Email not found");
+
 
         // server sets author and audit fields
         dto.AuthorUserId = userId;
@@ -51,12 +58,24 @@ public class IncidentCommentsController(IIncidentCommentService service) : Contr
         var created = await _service.CreateAsync(dto, ct);
         return CreatedAtAction(nameof(GetByIncident), new { incidentId = created.IncidentReportId }, created);
     }
+
     [Authorize]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken ct = default)
     {
+        var userData = UserClaimsHelper.GetUser(User, _dbContext);
+        if (userData is null)
+            return Unauthorized("User not found");
+
+        var comment = await _service.GetByIdAsync(id, ct);
+        if (comment is null)
+            return NotFound();
+
+        if (userData.Role == "User" && comment.AuthorUserId != userData.Id)
+            return Forbid("No Permission");
+
         var ok = await _service.DeleteAsync(id, ct);
         return ok ? NoContent() : NotFound();
     }

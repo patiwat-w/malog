@@ -59,10 +59,19 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
         return _mapper.Map<IncidentReportDto>(entity);
     }
 
-    public async Task<IEnumerable<IncidentReportDto>> GetAllAsync(CancellationToken ct = default)
+    public async Task<IEnumerable<IncidentReportDto>> GetAllAsync(CancellationToken ct = default, int? userId = null)
     {
-        var list = await _repo.GetAllAsync(ct);
-        return list.Select(_mapper.Map<IncidentReportDto>);
+        if (userId.HasValue)
+        {
+            var list = await _repo.GetAllAsync(ct);
+            return list
+                .Where(r => r.CreatedUserId == userId)
+                .Select(_mapper.Map<IncidentReportDto>);
+        }
+
+        // ถ้าไม่มี userId ให้ดึงทั้งหมด
+        var allList = await _repo.GetAllAsync(ct);
+        return allList.Select(_mapper.Map<IncidentReportDto>);
     }
 
     public async Task<IncidentReportDto?> GetByIdAsync(int id, CancellationToken ct = default)

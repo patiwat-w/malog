@@ -8,4 +8,5 @@ public interface IIncidentCommentService
     Task<List<IncidentCommentDto>> GetByIncidentIdAsync(int incidentId, CancellationToken ct = default);
     Task<IncidentCommentDto> CreateAsync(IncidentCommentDto dto, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+    Task<IncidentCommentDto?> GetByIdAsync(int id, CancellationToken ct = default);
 }
