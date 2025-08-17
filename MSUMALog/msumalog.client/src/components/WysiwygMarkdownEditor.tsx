@@ -5,6 +5,7 @@ import ImageIcon from '@mui/icons-material/Image';
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import ListIcon from '@mui/icons-material/FormatListBulleted';
+import { marked } from 'marked'; // เพิ่มบรรทัดนี้ (ติดตั้งด้วย: npm install marked)
 
 interface Props {
   value: string;
@@ -141,23 +142,25 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
 
   // Set editor html from value (markdown) when value changes
   useEffect(() => {
-    if (!editorRef.current) return;
-    // If the change originated from this editor, and the parent echoed the same value,
-    // consume the flag and avoid writing back to the DOM (prevents caret reset).
-    if (isLocalChangeRef.current) {
-      if (value === lastLocalValueRef.current) {
-        isLocalChangeRef.current = false;
-        return;
-      }
-      // If different, treat as external override: clear the flag and continue to update.
-      isLocalChangeRef.current = false;
-    }
-    // Only update when the visible text differs to avoid unnecessary DOM writes.
-    if (editorRef.current.innerText !== value) {
-      // You may want to use a markdown-to-html converter here for richer display.
-      editorRef.current.innerText = value;
-    }
-  }, [value]);
+      const updateEditorHtml = async () => {
+        if (!editorRef.current) return;
+        if (isLocalChangeRef.current) {
+          if (value === lastLocalValueRef.current) {
+            isLocalChangeRef.current = false;
+            return;
+          }
+          isLocalChangeRef.current = false;
+        }
+        // Only update when the visible text differs to avoid unnecessary DOM writes.
+        // เปลี่ยนจาก innerText เป็น innerHTML โดยแปลง markdown เป็น html
+        const html = await marked(value || ''); // ใช้ marked() แทน marked.parse()
+        if (editorRef.current.innerHTML !== html) {
+          editorRef.current.innerHTML = html;
+        }
+      };
+  
+      updateEditorHtml();
+    }, [value]);
   
   return (
     <Box>
