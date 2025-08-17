@@ -10,10 +10,12 @@ import './IncidentReportForm.css'; // เพิ่ม (ถ้ายังไม�
 import { createIncident as apiCreateIncident, getIncidentByCase, updateIncidentFull, getCurrentUser } from '../api/client'; // เพิ่ม import
 import type { IncidentReportDto } from '../api/client';
 import { domainOptions, severityOptions, incidentStatusOptions } from '../constants/incidentOptions'; // <-- refactored import
-import AlertDialog from "../components/AlertDialog";
+
 import ConfirmDialog from "../components/ConfirmDialog";
-import SnackbarAlert from "../components/SnackbarAlert";
+
 import PageLoading from "../components/PageLoading"; // <-- added
+import SnackbarAlert from "../components/SnackbarAlert"; // <-- added
+import AlertDialog from "../components/AlertDialog"; // <-- added
 
 interface IFormData {
     id?: number;                 // <-- เพิ่ม id
@@ -79,13 +81,6 @@ const IncidentReportForm: React.FC = () => {
         responsiblePhone: ''
     });
 
-    const [confirmOpen, setConfirmOpen] = useState(false);
-    const [alertOpen, setAlertOpen] = useState(false);
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
-    const [alertMsg, setAlertMsg] = useState("");
-    const [snackbarMsg, setSnackbarMsg] = useState("");
-    const [snackbarSeverity, setSnackbarSeverity] = useState<"success" | "info" | "warning" | "error">("info");
-
     useEffect(() => {
         // ดึงข้อมูล user มาเติม default
         getCurrentUser()
@@ -113,6 +108,13 @@ const IncidentReportForm: React.FC = () => {
     // NEW: state สำหรับยืนยันการส่งแทน window.confirm
     const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
     const [pendingDto, setPendingDto] = useState<Partial<IncidentReportDto> | null>(null);
+
+    // NEW: Snackbar / AlertDialog states
+    const [snackOpen, setSnackOpen] = useState(false);
+    const [snackMessage, setSnackMessage] = useState('');
+    const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+    const [errorDialogTitle, setErrorDialogTitle] = useState('');
+    const [errorDialogMessage, setErrorDialogMessage] = useState('');
 
     useEffect(() => {
         let ignore = false;
@@ -249,7 +251,10 @@ const IncidentReportForm: React.FC = () => {
         { key: 'center', label: 'Center' },
         // incidentDate removed from here
         { key: 'symptoms', label: 'Symptoms' },
-        { key: 'severity', label: 'Severity' }
+        { key: 'severity', label: 'Severity' },
+        { key: 'domain', label: 'Problem Domain' },            // <-- added required
+        { key: 'responsibleName', label: 'Responsible Name' },// <-- added required
+        { key: 'responsiblePhone', label: 'Responsible Phone' } // <-- added required
     ];
     
     // Change: safely read values from formData using typed keys and detect missingness
@@ -338,36 +343,30 @@ const IncidentReportForm: React.FC = () => {
             if (isEdit) {
                 if (!formData.id) throw new Error('Missing id for update');
                 await updateIncidentFull(pendingDto as Partial<IncidentReportDto> & { id: number });
+                // For edit: do NOT redirect. Show success Snackbar
+                setSnackMessage('Saved successfully');
+                setSnackOpen(true);
             } else {
                 const created = await apiCreateIncident(pendingDto as Partial<IncidentReportDto>);
                 finalCaseNo = created.caseNo || finalCaseNo;
+                navigate(`/issues/${finalCaseNo}`);
             }
-            navigate(`/issues/${finalCaseNo}`);
         } catch (err: any) {
             console.error(err);
-            setApiError(err?.response?.data?.message || err?.message || 'เกิดข้อผิดพลาดในการบันทึก');
+            const msg = err?.response?.data?.message || err?.message || 'Error occurred while saving';
+            // Show AlertDialog on error instead of inline apiError
+            setErrorDialogTitle('Error');
+            setErrorDialogMessage(msg);
+            setErrorDialogOpen(true);
         } finally {
             setSaving(false);
             setPendingDto(null);
         }
     };
 
-    const handleStatusChange = async () => {
-        setConfirmOpen(true);
-    };
 
-    const handleConfirm = async () => {
-        setConfirmOpen(false);
-        try {
-            // ...call API เปลี่ยนสถานะ...
-            setSnackbarMsg("เปลี่ยนสถานะสำเร็จ");
-            setSnackbarSeverity("success");
-            setSnackbarOpen(true);
-        } catch (err: any) {
-            setAlertMsg(err?.message || "เกิดข้อผิดพลาด");
-            setAlertOpen(true);
-        }
-    };
+
+ 
 
     return (
         <>
@@ -433,7 +432,7 @@ const IncidentReportForm: React.FC = () => {
                                         onChange={handleChange}
                                         required
                                         error={!formData.title.trim()}
-                                        helperText={!formData.title.trim() ? 'ต้องกรอก Title' : ' '}
+                                        helperText={!formData.title.trim() ? 'Title is required' : ' '}
                                         sx={getSxFor('title')}
                                         inputProps={{ className: getClassFor('title') }}
                                     />
@@ -450,7 +449,7 @@ const IncidentReportForm: React.FC = () => {
                                         onChange={handleChange}
                                         required
                                         error={!formData.asset.trim()}
-                                        helperText={!formData.asset.trim() ? 'ต้องกรอก Asset' : ' '}
+                                        helperText={!formData.asset.trim() ? 'Asset is required' : ' '}
                                         sx={getSxFor('asset')}
                                         inputProps={{ className: getClassFor('asset') }}
                                     />
@@ -467,7 +466,7 @@ const IncidentReportForm: React.FC = () => {
                                         onChange={handleChange}
                                         required
                                         error={!formData.center.trim()}
-                                        helperText={!formData.center.trim() ? 'ต้องกรอก Center' : ' '}
+                                        helperText={!formData.center.trim() ? 'Center is required' : ' '}
                                         sx={getSxFor('center')}
                                         inputProps={{ className: getClassFor('center') }}
                                     />
@@ -490,7 +489,7 @@ const IncidentReportForm: React.FC = () => {
                                                         name: 'incidentDate',
                                                         required: true,
                                                         error: !incidentDateOnly,
-                                                        helperText: !incidentDateOnly ? 'ต้องกรอก Incident Date' : ' ',
+                                                        helperText: !incidentDateOnly ? 'Incident Date is required' : ' ',
                                                         sx: getSxFor('incidentDate' as keyof IFormData),
                                                         inputProps: { className: getClassFor('incidentDate' as keyof IFormData) }
                                                     }
@@ -553,7 +552,7 @@ const IncidentReportForm: React.FC = () => {
                                         placeholder="Symptoms"
                                     />
                                     {!formData.symptoms.trim() && (
-                                        <Typography color="error" variant="caption">ต้องกรอก Symptoms</Typography>
+                                        <Typography color="error" variant="caption">Symptoms are required</Typography>
                                     )}
                                 </Box>
                                 <Box>
@@ -569,7 +568,7 @@ const IncidentReportForm: React.FC = () => {
                                         onChange={handleChange}
                                         required
                                         error={!(formData.severity ?? '').toString().trim()}
-                                        helperText={!formData.severity.trim() ? 'ต้องกรอก Severity' : 'เลือกระดับความรุนแรง 1 (ต่ำ) - 5 (สูงมาก)'}
+                                        helperText={!formData.severity.trim() ? 'Severity is required' : 'เลือกระดับความรุนแรง 1 (ต่ำ) - 5 (สูงมาก)'}
                                         sx={getSxFor('severity' as keyof IFormData)}
                                         inputProps={{ className: getClassFor('severity' as keyof IFormData) }}
                                     >
@@ -592,20 +591,57 @@ const IncidentReportForm: React.FC = () => {
                                 Responsible/Coordinator (ผู้ประสานงาน)
                                 </Typography>
                                 <Box>
-                                    <TextField fullWidth size="small" margin="dense" id="responsibleName" name="responsibleName" label="Responsible Name" value={formData.responsibleName} onChange={handleChange}
-                                    sx={getSxFor('responsibleName')} inputProps={{ className: getClassFor('responsibleName') }} />
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        margin="dense"
+                                        id="responsibleName"
+                                        name="responsibleName"
+                                        label="Responsible Name"
+                                        value={formData.responsibleName}
+                                        onChange={handleChange}
+                                        required
+                                        error={!formData.responsibleName.trim()}
+                                        helperText={!formData.responsibleName.trim() ? 'Responsible Name is required' : ' '}
+                                        sx={getSxFor('responsibleName')}
+                                        inputProps={{ className: getClassFor('responsibleName') }}
+                                    />
+                                 </Box>
+                                 <Box>
+                                     <TextField fullWidth size="small" margin="dense" id="responsibleLineId" name="responsibleLineId" label="Line ID" value={formData.responsibleLineId} onChange={handleChange}
+                                     sx={getSxFor('responsibleLineId')} inputProps={{ className: getClassFor('responsibleLineId') }} />
+                                 </Box>
+                                <Box>
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        margin="dense"
+                                        id="responsibleEmail"
+                                        name="responsibleEmail"
+                                        label="Email"
+                                        type="email"
+                                        value={formData.responsibleEmail}
+                                        onChange={handleChange}
+                                        sx={getSxFor('responsibleEmail')}
+                                        inputProps={{ className: getClassFor('responsibleEmail') }}
+                                    />
                                 </Box>
                                 <Box>
-                                    <TextField fullWidth size="small" margin="dense" id="responsibleLineId" name="responsibleLineId" label="Line ID" value={formData.responsibleLineId} onChange={handleChange}
-                                    sx={getSxFor('responsibleLineId')} inputProps={{ className: getClassFor('responsibleLineId') }} />
-                                </Box>
-                                <Box>
-                                    <TextField fullWidth size="small" margin="dense" id="responsibleEmail" name="responsibleEmail" label="Email" type="email" value={formData.responsibleEmail} onChange={handleChange}
-                                    sx={getSxFor('responsibleEmail')} inputProps={{ className: getClassFor('responsibleEmail') }} />
-                                </Box>
-                                <Box>
-                                    <TextField fullWidth size="small" margin="dense" id="responsiblePhone" name="responsiblePhone" label="Contact Phone" value={formData.responsiblePhone} onChange={handleChange}
-                                    sx={getSxFor('responsiblePhone')} inputProps={{ className: getClassFor('responsiblePhone') }} />
+                                    <TextField
+                                        fullWidth
+                                        size="small"
+                                        margin="dense"
+                                        id="responsiblePhone"
+                                        name="responsiblePhone"
+                                        label="Contact Phone"
+                                        value={formData.responsiblePhone}
+                                        onChange={handleChange}
+                                        required
+                                        error={!formData.responsiblePhone.trim()}
+                                        helperText={!formData.responsiblePhone.trim() ? 'Contact Phone is required' : ' '}
+                                        sx={getSxFor('responsiblePhone')}
+                                        inputProps={{ className: getClassFor('responsiblePhone') }}
+                                    />
                                 </Box>
                             </Box>
 
@@ -615,8 +651,22 @@ const IncidentReportForm: React.FC = () => {
                                 Asset & Vendor (ข้อมูลสินทรัพย์และผู้จัดจำหน่าย)
                                 </Typography>
                                 <Box>
-                                    <TextField select fullWidth size="small" margin="dense" id="domain" name="domain" label="Problem Domain" value={formData.domain} onChange={handleChange}
-                                    sx={getSxFor('domain')} inputProps={{ className: getClassFor('domain') }}>
+                                    <TextField
+                                        select
+                                        fullWidth
+                                        size="small"
+                                        margin="dense"
+                                        id="domain"
+                                        name="domain"
+                                        label="Problem Domain"
+                                        value={formData.domain}
+                                        onChange={handleChange}
+                                        required
+                                        error={!formData.domain.trim()}
+                                        helperText={!formData.domain.trim() ? 'Problem Domain is required' : ' '}
+                                        sx={getSxFor('domain')}
+                                        inputProps={{ className: getClassFor('domain') }}
+                                    >
                                         {domainOptions.map(opt => (<MenuItem key={opt.code} value={opt.code}>{opt.label}</MenuItem>))}
                                     </TextField>
                                 </Box>
@@ -731,43 +781,30 @@ const IncidentReportForm: React.FC = () => {
                 </Paper>
             </Container>
 
-            {/* ตัวอย่างปุ่มเปลี่ยนสถานะ */}
-            <Button variant="outlined" onClick={handleStatusChange}>
-                Change Status
-            </Button>
-
-            {/* Confirm Dialog for status change (existing) */}
-            <ConfirmDialog
-                open={confirmOpen}
-                title="ยืนยันการเปลี่ยนสถานะ"
-                message="คุณต้องการเปลี่ยนสถานะหรือไม่?"
-                onClose={() => setConfirmOpen(false)}
-                onConfirm={handleConfirm}
-            />
 
             {/* Confirm Dialog for form submit (replaces window.confirm) */}
             <ConfirmDialog
                 open={submitConfirmOpen}
-                title={isEdit ? "ยืนยันการบันทึกการแก้ไข?" : "ยืนยันการสร้างรายการ?"}
-                message={isEdit ? "ยืนยันการบันทึกการแก้ไข?" : "ยืนยันการสร้างรายการ?"}
+                title={isEdit ? "Confirm Save" : "Confirm Create"}
+                message={isEdit ? "Are you sure you want to save change?" : "Are you sure you want to submit this issue?"}
                 onClose={() => { setSubmitConfirmOpen(false); setPendingDto(null); }}
                 onConfirm={submitConfirmed}
             />
 
-            {/* Alert Dialog */}
-            <AlertDialog
-                open={alertOpen}
-                title="เกิดข้อผิดพลาด"
-                message={alertMsg}
-                onClose={() => setAlertOpen(false)}
+            {/* Snackbar for success (edit) */}
+            <SnackbarAlert
+                open={snackOpen}
+                message={snackMessage}
+                severity="success"
+                onClose={() => setSnackOpen(false)}
             />
 
-            {/* Snackbar Alert */}
-            <SnackbarAlert
-                open={snackbarOpen}
-                message={snackbarMsg}
-                severity={snackbarSeverity}
-                onClose={() => setSnackbarOpen(false)}
+            {/* AlertDialog for errors */}
+            <AlertDialog
+                open={errorDialogOpen}
+                title={errorDialogTitle}
+                message={errorDialogMessage}
+                onClose={() => setErrorDialogOpen(false)}
             />
 
             {/* Page loading overlay when any API call is running */}
