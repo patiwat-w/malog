@@ -57,8 +57,7 @@ public class IncidentReportsController(
         if (dto is null)
             return NotFound();
 
-            return Forbid(NoPermissionMessage);
-            return Forbid("No Permission");
+  
 
         return Ok(dto);
     }
@@ -149,14 +148,7 @@ public class IncidentReportsController(
         if (userData.Role == _userRole && existing.CreatedUserId != userData.Id)
             return Forbid(NoPermissionMessage);
 
-        var now = DateTime.UtcNow;
-        var metaDto = new IncidentReportDto
-        {
-            Id = id,
-            UpdatedUserId = userData.Id,
-            UpdatedUtc = now
-        };
-        await _service.UpdateAsync(id, metaDto, ct);
+
 
         var ok = await _service.DeleteAsync(id, ct);
         return ok ? NoContent() : NotFound();

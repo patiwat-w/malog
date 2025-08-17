@@ -47,6 +47,9 @@ public static class UserClaimsHelper
         if (userId == null)
             return null;
 
-        return db.Users.FirstOrDefault(u => u.Id == userId.Value);
+        var userEntity = db.Users.FirstOrDefault(u => u.Id == userId.Value);
+        if (userEntity != null)
+            db.Entry(userEntity).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+        return userEntity;
     }
 }
