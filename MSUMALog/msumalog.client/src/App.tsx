@@ -45,7 +45,11 @@ function App() {
             <LineBrowserGuard />
             {showNav && (
                 <>
-                    <AppBar position="sticky" elevation={3}>
+                    <AppBar 
+                        position="sticky" 
+                        elevation={3}
+                        sx={{ m: 0, p: 0, left: 0, right: 0, top: 0, width: '100%' }}
+                    >
                         <Toolbar variant="dense" sx={{ gap: 2 }}>
                             <IconButton
                                 edge="start"

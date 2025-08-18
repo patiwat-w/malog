@@ -36,7 +36,8 @@ import {
     severityOptions,
     getSeverityLabelEn,
     domainOptions,
-    getDomainLabel
+    getDomainLabel,
+    getSeverityLetter
 } from '../constants/incidentOptions';
 
 
@@ -492,58 +493,84 @@ function HomePage() {
                                 <ListItem disablePadding>
                                     <ListItemButton onClick={() => handleRowClick(caseNo)}>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
-                                            <Box sx={{ minWidth: 100, display: 'flex', justifyContent: 'flex-start' }}>
+                                            <Box
+                                                sx={{
+                                                    minWidth: isMobile ? 40 : 100, // Adjust width for mobile
+                                                    display: 'flex',
+                                                    justifyContent: 'center', // Center the icon
+                                                }}
+                                            >
                                                 <Tooltip title={statusOption?.label ?? status}>
-                                                    <Box sx={{
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        minWidth: 80,
-                                                    }}>
-                                                        <Box sx={{ mb: 0.5, color: iconColor }}>
+                                                    <Box
+                                                        sx={{
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            minWidth: isMobile ? 40 : 80, // Adjust width for mobile
+                                                        }}
+                                                    >
+                                                        <Box sx={{ mb: isMobile ? 0 : 0.5, color: iconColor }}>
                                                             {statusOption?.icon}
                                                         </Box>
-                                                        <Typography variant="caption" sx={{ textAlign: 'center', fontWeight: 500 }}>
-                                                            {statusOption?.label}
-                                                        </Typography>
+                                                        {!isMobile && ( // Hide label on mobile
+                                                            <Typography
+                                                                variant="caption"
+                                                                sx={{ textAlign: 'center', fontWeight: 500 }}
+                                                            >
+                                                                {statusOption?.label}
+                                                            </Typography>
+                                                        )}
                                                     </Box>
                                                 </Tooltip>
                                             </Box>
                                             <ListItemText
-                                              primary={
-                                                <>
-                                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, display: 'inline' }}>
-                                                    {caseNo}
-                                                  </Typography>
-                                                  {`: ${issue.title ?? ''}`}
-                                                </>
-                                              }
-                                              secondary={
-                                                <>
-                                                  <Typography variant="body2" color="text.secondary" component="span">
-                                                    Opened By{issue.createdUtc ? `: ${issue.createdUserName}` : ''} {formattedDate ? `| ${formattedDate} ` : ' '}
-
-                                                    {!isMobile && ( // Hide icon and domain label on mobile devices
-                                                        <Typography variant="body2" color="text.secondary" component="span" sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                                                            <LocalOfferIcon fontSize="small" sx={{ mr: 0.5 }} /> {/* Tag icon */}
-                                                            {getDomainLabel(issue.domain)}
+                                                primary={
+                                                    <>
+                                                        <Typography
+                                                            variant="subtitle1"
+                                                            sx={{ fontWeight: 600, display: 'inline' }}
+                                                        >
+                                                            {caseNo}
                                                         </Typography>
-                                                    )}
-
-                                                  </Typography>
-
-                                                 
-                                                   
-                                                </>
-                                              }
+                                                        {`: ${issue.title ?? ''}`}
+                                                    </>
+                                                }
+                                                secondary={
+                                                    <>
+                                                        <Typography
+                                                            variant="body2"
+                                                            color="text.secondary"
+                                                            component="span"
+                                                        >
+                                                            Opened By{issue.createdUtc ? `: ${issue.createdUserName}` : ''}{' '}
+                                                            {formattedDate ? `| ${formattedDate} ` : ' '}
+                                                            {!isMobile && (
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    color="text.secondary"
+                                                                    component="span"
+                                                                    sx={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        mt: 0.5,
+                                                                    }}
+                                                                >
+                                                                    <LocalOfferIcon
+                                                                        fontSize="small"
+                                                                        sx={{ mr: 0.5 }}
+                                                                    />{' '}
+                                                                    {getDomainLabel(issue.domain)}
+                                                                </Typography>
+                                                            )}
+                                                        </Typography>
+                                                    </>
+                                                }
                                             />
                                         </Box>
                                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', pr: 2 }}>
-
-
                                             <Chip
-                                                label={getSeverityLabelEn(issue.severity) || '-'}
+                                                label={isMobile ? getSeverityLetter(issue.severity) : getSeverityLabelEn(issue.severity) || '-'}
                                                 color={getSeverityColor(issue.severity)}
                                                 size="small"
                                                 sx={{ fontWeight: 700 }}

@@ -15,6 +15,7 @@ export interface SeverityOption {
   label: string;
   labelInTh: string;
   labelInEn: string;
+  letter?: string; // optional, used for mobile display
 
   color?: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning';
 }
@@ -41,11 +42,11 @@ export const domainOptions: DomainOption[] = [
 ];
 
 export const severityOptions: SeverityOption[] = [
-  { value: '1', label: 'ต่ำมาก (Very Low)', labelInTh: 'ต่ำมาก', labelInEn: 'Very Low',  color: 'primary' },    // น้ำเงิน
-  { value: '2', label: 'ต่ำ (Low)', labelInTh: 'ต่ำ', labelInEn: 'Low', color: 'success' },                // ฟ้า
-  { value: '3', label: 'ปานกลาง (Medium)', labelInTh: 'ปานกลาง', labelInEn: 'Medium', color: 'info' },     // เขียว
-  { value: '4', label: 'สูง (High)', labelInTh: 'สูง', labelInEn: 'High', color: 'warning' },            // ส้ม
-  { value: '5', label: 'สูงมาก (Critical)', labelInTh: 'สูงมาก', labelInEn: 'Critical', color: 'error' }        // แดง
+  { value: '1', label: 'ต่ำมาก (Very Low)', labelInTh: 'ต่ำมาก', labelInEn: 'Very Low', letter: 'V', color: 'default' },    // น้ำเงิน
+  { value: '2', label: 'ต่ำ (Low)', labelInTh: 'ต่ำ', labelInEn: 'Low', letter: 'L', color: 'success' },                // ฟ้า
+  { value: '3', label: 'ปานกลาง (Medium)', labelInTh: 'ปานกลาง', labelInEn: 'Medium', letter: 'M', color: 'info' },     // เขียว
+  { value: '4', label: 'สูง (High)', labelInTh: 'สูง', labelInEn: 'High', letter: 'H', color: 'warning' },            // ส้ม
+  { value: '5', label: 'สูงมาก (Critical)', labelInTh: 'สูงมาก', labelInEn: 'Critical', letter: 'C', color: 'error' }        // แดง
 ];
 
 export const incidentStatusOptions: IncidentStatusOption[] = [
@@ -64,6 +65,9 @@ export const getSeverityLabel = (val: number | null | undefined) =>
 
 export const getSeverityLabelEn = (val: number | null | undefined) =>
   severityOptions.find(s => s.value == (val ?? ''))?.labelInEn || (val ?? '');
+
+export const getSeverityLetter = (val: number | null | undefined) =>
+  severityOptions.find(s => s.value == (val ?? ''))?.letter || (val ?? '');
 
 export const getSeverityColor = (val: number | null | undefined) =>
   severityOptions.find(s => s.value == (val ?? ''))?.color || 'default';
