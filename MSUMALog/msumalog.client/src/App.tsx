@@ -122,7 +122,7 @@ function App() {
                 </>
             )}
 
-            <Container maxWidth="xl" sx={{ py: showNav ? 2 : 0 }}>
+            <Container maxWidth={false} sx={{ py: showNav ? 2 : 0 }}>
                 {showNav && <AppBreadcrumbs />}
                 <Box>
                     <Routes>

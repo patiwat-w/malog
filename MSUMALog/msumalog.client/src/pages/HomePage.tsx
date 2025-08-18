@@ -18,12 +18,14 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions,
-    useMediaQuery
+    DialogActions
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer'; // Import the tag icon
+
 import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close'; // เพิ่มการ import CloseIcon
 import { getIncidentReports } from '../api/client';
 import type { IncidentReportDto } from '../api/client';
 import {
@@ -32,9 +34,14 @@ import {
     incidentStatusOptions,
     getIncidentStatusPaletteColor,
     severityOptions,
-    getSeverityLabelEn
+    getSeverityLabelEn,
+    domainOptions,
+    getDomainLabel
 } from '../constants/incidentOptions';
+
+
 import Tooltip from '@mui/material/Tooltip';
+import { useMediaQuery } from '@mui/material'; // Import useMediaQuery
 
 // Add raw incident shape
 type RawIncident = {
@@ -86,16 +93,49 @@ function toRawIncidentArray(arr: unknown[]): RawIncident[] {
 }
 
 function HomePage() {
+    
     const [issues, setIssues] = useState<IncidentReportDto[]>([]);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
-    const [search, setSearch] = useState('');
-    const [filterStatus, setFilterStatus] = useState('');
-    const [filterSeverity, setFilterSeverity] = useState('');
+    const [search, setSearch] = useState(localStorage.getItem('filterSearch') || '');
+    const [filterStatus, setFilterStatus] = useState(localStorage.getItem('filterStatus') || '');
+    const [filterSeverity, setFilterSeverity] = useState(localStorage.getItem('filterSeverity') || '');
+    const [filterDomain, setFilterDomain] = useState(localStorage.getItem('filterDomain') || ''); // Add state for domain filter
     const [filterDialogOpen, setFilterDialogOpen] = useState(false);
     const navigate = useNavigate();
     const theme = useTheme();
-    const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // Check if screen size is small
+  
+    const isFilterActive = !!search || !!filterStatus || !!filterSeverity; // ตรวจสอบว่ามีการใช้งาน Filter หรือไม่
+
+    const handleClearFilter = () => {
+        setSearch('');
+        setFilterStatus('');
+        setFilterSeverity('');
+        setFilterDomain(''); // Clear domain filter
+        localStorage.removeItem('filterSearch');
+        localStorage.removeItem('filterStatus');
+        localStorage.removeItem('filterSeverity');
+        localStorage.removeItem('filterDomain'); // Remove domain filter from localStorage
+    };
+
+    // บันทึกค่าลงใน localStorage เมื่อ Filter เปลี่ยนแปลง
+    useEffect(() => {
+        localStorage.setItem('filterSearch', search);
+    }, [search]);
+
+    useEffect(() => {
+        localStorage.setItem('filterStatus', filterStatus);
+    }, [filterStatus]);
+
+    useEffect(() => {
+        localStorage.setItem('filterSeverity', filterSeverity);
+    }, [filterSeverity]);
+
+    // Save domain filter to localStorage
+    useEffect(() => {
+        localStorage.setItem('filterDomain', filterDomain);
+    }, [filterDomain]);
 
     // --- new: date parse + formatter (return human-readable Gregorian with AD/era) ---
     const parseToDate = (value: unknown): Date | null => {
@@ -298,11 +338,12 @@ function HomePage() {
         const titleMatch = !search || (issue.title ?? '').toLowerCase().includes(search.toLowerCase());
         const statusMatch = !filterStatus || String(issue.status ?? '') === filterStatus;
         const severityMatch = !filterSeverity || String(issue.severity ?? '') === filterSeverity;
-        return titleMatch && statusMatch && severityMatch;
+        const domainMatch = !filterDomain || String(issue.domain ?? '').toLowerCase() === filterDomain.toLowerCase(); // Add domain filter logic
+        return titleMatch && statusMatch && severityMatch && domainMatch;
     });
 
     return (
-        <Container maxWidth="lg">
+        <Container maxWidth={false} disableGutters>
             <Box sx={{ my: 4 }}>
                 
                 <Box
@@ -337,10 +378,10 @@ function HomePage() {
                         <Button
                             variant="outlined"
                             size="small"
-                            onClick={() => setFilterDialogOpen(true)}
+                            onClick={isFilterActive ? handleClearFilter : () => setFilterDialogOpen(true)}
                             sx={{ minWidth: 0, p: 1, height: 40 }}
                         >
-                            <FilterListIcon />
+                            {isFilterActive ? <CloseIcon /> : <FilterListIcon />}
                         </Button>
                         <Button
                             component={Link}
@@ -356,6 +397,13 @@ function HomePage() {
                             onClose={() => setFilterDialogOpen(false)}
                             fullWidth
                             maxWidth="xs"
+                            PaperProps={{
+                                sx: {
+                                    position: 'absolute', // หรือ 'fixed' หากต้องการให้มันคงที่
+                                    top: 0, // ชิดขอบด้านบน
+                                    margin: 0 // ลบ margin เพื่อให้ชิดขอบมากขึ้น
+                                }
+                            }}
                         >
                             <DialogTitle>Filters</DialogTitle>
                             <DialogContent dividers>
@@ -380,10 +428,24 @@ function HomePage() {
                                     value={filterSeverity}
                                     onChange={e => setFilterSeverity(e.target.value)}
                                     fullWidth
+                                    sx={{ mb: 2 }}
                                 >
                                     <MenuItem value="">All Severity</MenuItem>
                                     {severityOptions.map(opt => (
                                         <MenuItem key={opt.value} value={opt.value}>{opt.labelInEn}</MenuItem>
+                                    ))}
+                                </TextField>
+                                <TextField
+                                    select
+                                    label="Domain" // Add domain filter
+                                    size="small"
+                                    value={filterDomain}
+                                    onChange={e => setFilterDomain(e.target.value)}
+                                    fullWidth
+                                >
+                                    <MenuItem value="">All Domains</MenuItem>
+                                    {domainOptions.map(opt => (
+                                        <MenuItem key={opt.code} value={opt.code}>{opt.label}</MenuItem>
                                     ))}
                                 </TextField>
                             </DialogContent>
@@ -391,9 +453,7 @@ function HomePage() {
                                 <Button
                                     color="secondary"
                                     onClick={() => {
-                                        setSearch('');
-                                        setFilterStatus('');
-                                        setFilterSeverity('');
+                                        handleClearFilter();
                                         setFilterDialogOpen(false);
                                     }}
                                 >
@@ -462,13 +522,26 @@ function HomePage() {
                                               secondary={
                                                 <>
                                                   <Typography variant="body2" color="text.secondary" component="span">
-                                                    Opened By{issue.createdUtc ? `: ${issue.createdUserName}` : ''} {formattedDate ? `| ${formattedDate}` : ''}
+                                                    Opened By{issue.createdUtc ? `: ${issue.createdUserName}` : ''} {formattedDate ? `| ${formattedDate} ` : ' '}
+
+                                                    {!isMobile && ( // Hide icon and domain label on mobile devices
+                                                        <Typography variant="body2" color="text.secondary" component="span" sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                                                            <LocalOfferIcon fontSize="small" sx={{ mr: 0.5 }} /> {/* Tag icon */}
+                                                            {getDomainLabel(issue.domain)}
+                                                        </Typography>
+                                                    )}
+
                                                   </Typography>
+
+                                                 
+                                                   
                                                 </>
                                               }
                                             />
                                         </Box>
                                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', pr: 2 }}>
+
+
                                             <Chip
                                                 label={getSeverityLabelEn(issue.severity) || '-'}
                                                 color={getSeverityColor(issue.severity)}
