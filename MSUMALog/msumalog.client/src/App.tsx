@@ -86,9 +86,16 @@ function App() {
                                     component={Link}
                                     to="/profile"
                                     startIcon={<AccountCircleIcon />}
-                                    sx={{ textTransform: 'none', fontWeight: 500 }}
+                                    sx={{
+                                        textTransform: 'none',
+                                        fontWeight: 500,
+                                        maxWidth: 150, // Limit the width of the button
+                                        overflow: 'hidden',
+                                        whiteSpace: 'nowrap',
+                                        textOverflow: 'ellipsis', // Add ellipsis for overflow
+                                    }}
                                 >
-                                    {currentUser?.firstName ?? ''} {currentUser?.lastName ?? ''}
+                                    {`${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`}
                                 </Button>
                             )}
                             <Button color="inherit" component={Link} to="/logout">Logout</Button>
@@ -115,8 +122,18 @@ function App() {
                             ))}
                         </List>
                         <Divider />
-                        <ListItemButton component={Link} to="/logout" onClick={() => setMobileOpen(false)}>
-                            <ListItemText primary="Logout" />
+                        <ListItemButton
+                            component={Link}
+                            to="/logout"
+                            onClick={() => setMobileOpen(false)}
+                            sx={{
+                                display: 'flex',
+                                justifyContent: 'center', // Center the icon
+                            }}
+                        >
+                            <IconButton color="inherit">
+                                <AccountCircleIcon />
+                            </IconButton>
                         </ListItemButton>
                     </Drawer>
                 </>

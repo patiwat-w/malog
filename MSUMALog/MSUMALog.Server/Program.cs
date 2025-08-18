@@ -11,9 +11,14 @@ using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.DataProtection;
 using System.Security.Claims;
 using MSUMALog.Server.Mapping;
-using MSUMALog.Server.Models; 
+using MSUMALog.Server.Models;
+using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ตั้งค่า CultureInfo เป็น InvariantCulture
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 // make IHttpContextAccessor available for services
 builder.Services.AddHttpContextAccessor();

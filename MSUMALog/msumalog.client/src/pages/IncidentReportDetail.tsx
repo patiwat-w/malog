@@ -11,6 +11,7 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
 import { getIncidentByCase, updateIncidentFull, getCurrentUser, type IncidentReportDto, type User } from '../api/client';
 import IncidentConversation from '../components/IncidentConversation';
@@ -379,9 +380,36 @@ const IncidentReportDetail: React.FC = () => {
         </Tooltip>
       </Box>
 
-      <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-        Created by <strong>{incident.createdUserName}</strong> &nbsp;|&nbsp; <AccessTimeIcon sx={{ fontSize: '0.8rem' }}/> {formattedCreatedUtc}
-      </Typography>
+      <Box
+  sx={{
+    display: 'flex',
+    flexDirection: { xs: 'column', sm: 'row' }, // เปลี่ยนเป็น column ในหน้าจอเล็ก
+    gap: 1, // ระยะห่างระหว่างองค์ประกอบ
+    mt: 6,
+    mb: 3,
+  }}
+>
+  <Typography
+    variant="body2"
+    sx={{
+      color: 'text.secondary',
+      wordBreak: 'break-word', // ตัดคำเมื่อคำยาวเกิน
+      whiteSpace: 'normal', // อนุญาตให้ข้อความตัดบรรทัด
+    }}
+  >
+    <AccountCircleIcon sx={{ fontSize: '0.8rem' }} /> <strong>{incident.createdUserName}</strong>
+  </Typography>
+  <Typography
+    variant="body2"
+    sx={{
+      color: 'text.secondary',
+      wordBreak: 'break-word',
+      whiteSpace: 'normal',
+    }}
+  >
+    <AccessTimeIcon sx={{ fontSize: '0.8rem' }} /> {formattedCreatedUtc}
+  </Typography>
+</Box>
 
       <Divider sx={{ my: 3 }} />
 

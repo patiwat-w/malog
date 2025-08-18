@@ -82,7 +82,7 @@ const IncidentReportForm: React.FC = () => {
         responsiblePhone: ''
     });
 
-    const [originalFormData, setOriginalFormData] = useState<IFormData | null>(null);
+    //const [originalFormData, setOriginalFormData] = useState<IFormData | null>(null);
 
     useEffect(() => {
         // ดึงข้อมูล user มาเติม default
@@ -208,16 +208,16 @@ const IncidentReportForm: React.FC = () => {
         }
     }, [isEdit]);
 
-    useEffect(() => {
-        if (isEdit && formData.id) {
-            setOriginalFormData(formData);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [formData.id]);
+    // useEffect(() => {
+    //     if (isEdit && formData.id) {
+    //         setOriginalFormData(formData);
+    //     }
+    //     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // }, [formData.id]);
 
-    const isFormChanged = isEdit && originalFormData
-        ? JSON.stringify({ ...formData, incidentDate: undefined }) !== JSON.stringify({ ...originalFormData, incidentDate: undefined })
-        : true;
+    // const isFormChanged = isEdit && originalFormData
+    //     ? JSON.stringify({ ...formData, incidentDate: undefined }) !== JSON.stringify({ ...originalFormData, incidentDate: undefined })
+    //     : true;
 
     // keep separate date & time pickers in sync with formData.incidentDate (parse ISO/date-only)
     // remove the effect that synced formData.incidentDate -> pickers
@@ -768,7 +768,7 @@ const IncidentReportForm: React.FC = () => {
                             type="submit"
                             fullWidth
                             variant="contained"
-                            disabled={saving || isFormInvalid || (isEdit && !isFormChanged)}
+                            disabled={saving || isFormInvalid }
                             sx={{ mt: 3, mb: 2, py: 2, fontSize: '1.05rem' }}
                         >
                             {saving ? 'Saving...' : (isEdit ? 'Save Changes' : 'Submit')}

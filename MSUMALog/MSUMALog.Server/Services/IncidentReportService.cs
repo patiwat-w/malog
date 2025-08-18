@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using MSUMALog.Server.Data;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
+using MSUMALog.Server.Helpers;
 
 namespace MSUMALog.Server.Services;
 
@@ -49,11 +50,11 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
         if (string.IsNullOrWhiteSpace(entity.CaseNo))
             entity.CaseNo = await GenerateCaseNoAsync(ct);
 
-        // record creator and created time (from logged-in user)
+        // record creator and created time (from logged-in user)  
         entity.CreatedUtc = DateTime.UtcNow;
-        var userIdClaim = _httpAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (int.TryParse(userIdClaim, out var uid))
-            entity.CreatedUserId = uid;
+        var user = _httpAccessor.HttpContext?.User;
+        var uid = user is not null ? UserClaimsHelper.GetUserId(user) : null;
+        entity.CreatedUserId = uid;
 
         await _repo.AddAsync(entity, ct);
         return _mapper.Map<IncidentReportDto>(entity);
@@ -96,9 +97,9 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
         updated.Id = id;
         // record updater and updated time (from logged-in user)
         updated.UpdatedUtc = DateTime.UtcNow;
-        var userIdClaim = _httpAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (int.TryParse(userIdClaim, out var uid))
-            updated.UpdatedUserId = uid;
+        var user = _httpAccessor.HttpContext?.User;
+        var uid = user is not null ? UserClaimsHelper.GetUserId(user) : null;
+        updated.UpdatedUserId = uid;
 
         await _repo.UpdateAsync(updated, ct);
         return true;
