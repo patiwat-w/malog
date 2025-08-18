@@ -414,35 +414,12 @@ const IncidentReportDetail: React.FC = () => {
       <Divider sx={{ my: 3 }} />
 
       {/* Symptoms */}
-      <Box
-        sx={{
-          mb: 3,
-          p: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 2,
-          position: 'relative',
-          bgcolor: 'background.default',
-          '&:before': {
-            content: '""',
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 6,
-            borderTopLeftRadius: 8,
-            borderBottomLeftRadius: 8,
-            bgcolor: 'primary.main',
-            opacity: 0.18
-          }
-        }}
-      >
-        <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '.6px' }}>
+      <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '.6px' }}>
           Symptoms (อาการที่พบ)
         </Typography>
         <WysiwygMarkdownEditor value={incident.symptoms} readOnly minHeight={100} />
-      </Box>
-
+        
+        <Divider sx={{ my: 3 }} />
       {/* Meta Fields */}
       <Box
         sx={{
@@ -574,9 +551,8 @@ const IncidentReportDetail: React.FC = () => {
           />
         </Box>
       </Box>
-
-      {/* Actions */}
-      <Box
+      <Divider sx={{ my: 3 }} />
+      {/* Actions <Box
         sx={{
           mb: 3,
           p: 2,
@@ -586,26 +562,36 @@ const IncidentReportDetail: React.FC = () => {
           bgcolor: 'background.paper',
           boxShadow: 1
         }}
-      >
+      >*/}
+      
         <Typography variant="overline" sx={{ fontWeight: 600 }}>
           Actions
         </Typography>
 
-        <Grid container direction="column" spacing={2} sx={{ mt: 1 }}>
-        <Box>
-          <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Interim Action</Typography>
+        <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Interim Action</Typography>
         <WysiwygMarkdownEditor value={incident.interimAction} readOnly minHeight={100} />
-        </Box>
-        <Box>
-          <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Intermediate Action</Typography>
+
+
+        <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Intermediate Action</Typography>
         <WysiwygMarkdownEditor value={incident.intermediateAction} readOnly minHeight={100} />
+
+
+        <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Long-term Action</Typography>
+        <WysiwygMarkdownEditor value={incident.longTermAction} readOnly minHeight={100} />
+
+
+        {/* <Grid container direction="column" spacing={2} sx={{ mt: 1 }}>
+        <Box>
+         
         </Box>
         <Box>
-          <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Long-term Action</Typography>
-        <WysiwygMarkdownEditor value={incident.longTermAction} readOnly minHeight={100} />
+          
         </Box>
-      </Grid>
-      </Box>
+        <Box>
+         
+        </Box>
+      </Grid> </Box>*/}
+      
 
       <Divider sx={{ my: 3 }} />
 
