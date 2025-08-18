@@ -345,7 +345,7 @@ function HomePage() {
 
     return (
         <Container maxWidth={false} disableGutters>
-            <Box sx={{ my: 4 }}>
+            {/* <Box sx={{ my: 0, p: 0}}> */}
                 
                 <Box
                     sx={{
@@ -496,7 +496,9 @@ function HomePage() {
                                             {/* Status ซ้ายสุด */}
                                             <Box
                                                 sx={{
-                                                    minWidth: 16, // ปรับให้เล็กลง
+                                                    m: 0,
+                                                    P: 0,
+                                                    minWidth: { xs: 20, sm: 64 }, // xs=32, smขึ้นไป=64
                                                     display: 'flex',
                                                     justifyContent: 'flex-start',
                                                 }}
@@ -508,7 +510,8 @@ function HomePage() {
                                                             flexDirection: 'column',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            minWidth: 32, // ปรับให้เล็กลง
+                                                            minWidth: 32 // ปรับให้เล็กลง
+                                                           
                                                         }}
                                                     >
                                                         <Box sx={{ mb: isMobile ? 0 : 0.5, color: iconColor }}>
@@ -587,7 +590,7 @@ function HomePage() {
                         );
                     })}
                 </List>
-            </Box>
+            {/* </Box> */}
         </Container>
     );
 }
