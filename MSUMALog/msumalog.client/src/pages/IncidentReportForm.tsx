@@ -558,7 +558,7 @@ const IncidentReportForm: React.FC = () => {
                                         placeholder="Symptoms"
                                     />
                                     {!formData.symptoms.trim() && (
-                                        <Typography color="error">Symptoms are required</Typography>
+                                        <Typography color="error" sx={{ color: '#f44336', fontSize: '0.75rem' }}>Symptoms are required</Typography>
                                     )}
                                 </Box>
                                 <Box>

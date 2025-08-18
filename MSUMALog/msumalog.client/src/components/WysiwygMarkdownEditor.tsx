@@ -11,6 +11,8 @@ import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
+import { Delete } from '@mui/icons-material';
+import ConfirmDialog from './ConfirmDialog'; // Import the ConfirmDialog component
 
 interface Props {
   value?: string | null;
@@ -70,6 +72,7 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
   const [imgWidthPercent, setImgWidthPercent] = useState<number>(100);
   const [zoomImageSrc, setZoomImageSrc] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1); // เพิ่ม state สำหรับ zoom
+  const [confirmOpen, setConfirmOpen] = useState(false); // State for dialog visibility
 
   useEffect(() => {
     if (!zoomImageSrc) setZoomLevel(1); // reset zoom เมื่อปิด Dialog
@@ -196,6 +199,22 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
     }
   };
 
+  const handleClearInput = () => {
+    if (editorRef.current) {
+      editorRef.current.innerHTML = ''; // Clear the editor content
+      lastLocalValueRef.current = ''; // Reset the local value reference
+      isLocalChangeRef.current = true; // Mark as local change
+      if (onChange) {
+        onChange(''); // Notify parent component with empty markdown
+      }
+    }
+  };
+
+  const handleConfirmClear = () => {
+    setConfirmOpen(false); // Close the dialog
+    handleClearInput(); // Proceed with clearing the input
+  };
+
   const applyImageWidth = (pct: number) => {
     if (!selectedImage) return;
     const clamped = Math.min(100, Math.max(5, pct));
@@ -240,10 +259,20 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
       <Box sx={{ mb: 1, flexWrap: 'wrap', display: 'flex', gap: 1 }}>
         {!readOnly && (
           <>
-            <Button size="small" variant="outlined" onClick={() => format('bold')} startIcon={<FormatBoldIcon />}>Bold</Button>
-            <Button size="small" variant="outlined" onClick={() => format('italic')} startIcon={<FormatItalicIcon />}>Italic</Button>
-            <Button size="small" variant="outlined" onClick={() => format('insertUnorderedList')} startIcon={<ListIcon />}>List</Button>
-            <Button size="small" variant="outlined" onClick={handlePickImage} startIcon={<ImageIcon />}>Image</Button>
+            <Button size="small" variant="outlined" onClick={() => format('bold')} startIcon={<FormatBoldIcon />}></Button>
+            <Button size="small" variant="outlined" onClick={() => format('italic')} startIcon={<FormatItalicIcon />}></Button>
+            <Button size="small" variant="outlined" onClick={() => format('insertUnorderedList')} startIcon={<ListIcon />}></Button>
+            <Button size="small" variant="outlined" onClick={handlePickImage} startIcon={<ImageIcon />}></Button>
+            <Button
+              disabled={!value || value.trim() === ''} // Disable if value is empty or null
+              size="small"
+              variant="outlined"
+              color="error"
+              onClick={() => setConfirmOpen(true)} // Open the confirmation dialog
+              startIcon={<Delete />}
+            >
+              Clear
+            </Button>
             <input
               ref={fileInputRef}
               hidden
@@ -382,8 +411,20 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
           )}
         </Box>
       </Dialog>
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Clear Input"
+        message="Are you sure you want to clear the input? This action cannot be undone."
+        onClose={() => setConfirmOpen(false)} // Close the dialog
+        onConfirm={handleConfirmClear} // Confirm and clear the input
+      />
     </Box>
+
+    
   );
 };
+
+
 
 export default WysiwygMarkdownEditor;
