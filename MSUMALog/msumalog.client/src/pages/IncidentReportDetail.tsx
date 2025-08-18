@@ -329,7 +329,7 @@ const IncidentReportDetail: React.FC = () => {
         }}
       >
         <Stack direction="row" spacing={2} alignItems="center" sx={{ flexWrap: 'wrap', minWidth: 0 }}>
-          <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40, fontSize: '0.95rem' }}>
+          <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40, fontSize: '0.95rem',display: { xs: 'none', sm: 'block' } }}>
             {String(incident.caseNo || '').slice(-2)}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
