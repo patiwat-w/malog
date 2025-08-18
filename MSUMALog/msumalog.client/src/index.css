@@ -1,0 +1,7 @@
+/* index.css หรือ App.css */
+
+  html, body, #root {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }

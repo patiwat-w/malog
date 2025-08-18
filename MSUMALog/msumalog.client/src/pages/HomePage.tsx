@@ -492,12 +492,13 @@ function HomePage() {
                             <React.Fragment key={caseNo}>
                                 <ListItem disablePadding>
                                     <ListItemButton onClick={() => handleRowClick(caseNo)}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                                            {/* Status ซ้ายสุด */}
                                             <Box
                                                 sx={{
-                                                    minWidth: isMobile ? 40 : 100, // Adjust width for mobile
+                                                    minWidth: 16, // ปรับให้เล็กลง
                                                     display: 'flex',
-                                                    justifyContent: 'center', // Center the icon
+                                                    justifyContent: 'flex-start',
                                                 }}
                                             >
                                                 <Tooltip title={statusOption?.label ?? status}>
@@ -507,13 +508,13 @@ function HomePage() {
                                                             flexDirection: 'column',
                                                             alignItems: 'center',
                                                             justifyContent: 'center',
-                                                            minWidth: isMobile ? 40 : 80, // Adjust width for mobile
+                                                            minWidth: 32, // ปรับให้เล็กลง
                                                         }}
                                                     >
                                                         <Box sx={{ mb: isMobile ? 0 : 0.5, color: iconColor }}>
                                                             {statusOption?.icon}
                                                         </Box>
-                                                        {!isMobile && ( // Hide label on mobile
+                                                        {!isMobile && (
                                                             <Typography
                                                                 variant="caption"
                                                                 sx={{ textAlign: 'center', fontWeight: 500 }}
@@ -524,7 +525,9 @@ function HomePage() {
                                                     </Box>
                                                 </Tooltip>
                                             </Box>
+                                            {/* Title & Secondary (อยู่ตรงกลาง) */}
                                             <ListItemText
+                                                sx={{ mx: 2, minWidth: 0 }} // เพิ่ม minWidth: 0 เพื่อให้ Title ยืดได้
                                                 primary={
                                                     <>
                                                         <Typography
@@ -567,14 +570,15 @@ function HomePage() {
                                                     </>
                                                 }
                                             />
-                                        </Box>
-                                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', pr: 2 }}>
-                                            <Chip
-                                                label={isMobile ? getSeverityLetter(issue.severity) : getSeverityLabelEn(issue.severity) || '-'}
-                                                color={getSeverityColor(issue.severity)}
-                                                size="small"
-                                                sx={{ fontWeight: 700 }}
-                                            />
+                                            {/* Severity ขวาสุด */}
+                                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', pr: 0 }}>
+                                                <Chip
+                                                    label={isMobile ? getSeverityLetter(issue.severity) : getSeverityLabelEn(issue.severity) || '-'}
+                                                    color={getSeverityColor(issue.severity)}
+                                                    size="small"
+                                                    sx={{ fontWeight: 700 }}
+                                                />
+                                            </Box>
                                         </Box>
                                     </ListItemButton>
                                 </ListItem>
