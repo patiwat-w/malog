@@ -19,6 +19,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import { getCurrentUser } from './api/client';
 import UserProfilePage from './pages/UserProfilePage';
 import type { User } from './api/client';
+import LineBrowserGuard from "./components/LineBrowserGuard";
 
 function App() {
     const location = useLocation();
@@ -41,6 +42,7 @@ function App() {
 
     return (
         <>
+            <LineBrowserGuard />
             {showNav && (
                 <>
                     <AppBar position="sticky" elevation={3}>
