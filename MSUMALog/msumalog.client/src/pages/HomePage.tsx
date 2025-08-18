@@ -14,9 +14,16 @@ import {
     CircularProgress,
     Alert,
     TextField,
-    MenuItem
+    MenuItem,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    useMediaQuery
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import AddIcon from '@mui/icons-material/Add';
 import { getIncidentReports } from '../api/client';
 import type { IncidentReportDto } from '../api/client';
 import {
@@ -85,8 +92,10 @@ function HomePage() {
     const [search, setSearch] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [filterSeverity, setFilterSeverity] = useState('');
+    const [filterDialogOpen, setFilterDialogOpen] = useState(false);
     const navigate = useNavigate();
     const theme = useTheme();
+    const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
     // --- new: date parse + formatter (return human-readable Gregorian with AD/era) ---
     const parseToDate = (value: unknown): Date | null => {
@@ -303,11 +312,20 @@ function HomePage() {
                         mb: 2,
                         flexWrap: 'wrap',
                         alignItems: 'center',
-                        flexDirection: { xs: 'column', sm: 'row' },
+                        flexDirection: { xs: 'row', sm: 'row' },
                         justifyContent: 'space-between'
                     }}
                 >
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            gap: 1,
+                            alignItems: 'center',
+                            flex: 1,
+                            minWidth: 0,
+                            width: '100%',
+                        }}
+                    >
                         <TextField
                             label="Search Title"
                             size="small"
@@ -315,55 +333,75 @@ function HomePage() {
                             onChange={e => setSearch(e.target.value)}
                             sx={{ width: { xs: '100%', sm: 300 }, minWidth: 0 }}
                         />
-                        <TextField
-                            select
-                            label="Status"
-                            size="small"
-                            value={filterStatus}
-                            onChange={e => setFilterStatus(e.target.value)}
-                            sx={{ width: { xs: '48%', sm: 160 } }}
-                        >
-                            <MenuItem value="">All Status</MenuItem>
-                            {incidentStatusOptions.map(opt => (
-                                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-                            ))}
-                        </TextField>
-                        <TextField
-                            select
-                            label="Severity"
-                            size="small"
-                            value={filterSeverity}
-                            onChange={e => setFilterSeverity(e.target.value)}
-                            sx={{ width: { xs: '48%', sm: 140 } }}
-                        >
-                            <MenuItem value="">All Severity</MenuItem>
-                            {severityOptions.map(opt => (
-                                <MenuItem key={opt.value} value={opt.value}>{opt.labelInEn}</MenuItem>
-                            ))}
-                        </TextField>
+                        {/* ปรับให้ปุ่มเป็นไอคอนทุกขนาดหน้าจอ */}
                         <Button
                             variant="outlined"
-                            color="secondary"
-                            sx={{ height: 40, width: { xs: '100%', sm: 'auto' } }}
-                            onClick={() => {
-                                setSearch('');
-                                setFilterStatus('');
-                                setFilterSeverity('');
-                            }}
+                            size="small"
+                            onClick={() => setFilterDialogOpen(true)}
+                            sx={{ minWidth: 0, p: 1, height: 40 }}
                         >
-                            Clear Filter
+                            <FilterListIcon />
                         </Button>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', width: 'auto', alignSelf: 'flex-end', mt: { xs: 1, sm: 0 } }}>
                         <Button
                             component={Link}
                             to="/issues/new"
                             variant="contained"
                             color="primary"
-                            sx={{ width: 'auto' }}
+                            sx={{ minWidth: 0, p: 1, height: 40 }}
                         >
-                            New issue
+                            <AddIcon />
                         </Button>
+                        <Dialog
+                            open={filterDialogOpen}
+                            onClose={() => setFilterDialogOpen(false)}
+                            fullWidth
+                            maxWidth="xs"
+                        >
+                            <DialogTitle>Filters</DialogTitle>
+                            <DialogContent dividers>
+                                <TextField
+                                    select
+                                    label="Status"
+                                    size="small"
+                                    value={filterStatus}
+                                    onChange={e => setFilterStatus(e.target.value)}
+                                    fullWidth
+                                    sx={{ mb: 2 }}
+                                >
+                                    <MenuItem value="">All Status</MenuItem>
+                                    {incidentStatusOptions.map(opt => (
+                                        <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                                    ))}
+                                </TextField>
+                                <TextField
+                                    select
+                                    label="Severity"
+                                    size="small"
+                                    value={filterSeverity}
+                                    onChange={e => setFilterSeverity(e.target.value)}
+                                    fullWidth
+                                >
+                                    <MenuItem value="">All Severity</MenuItem>
+                                    {severityOptions.map(opt => (
+                                        <MenuItem key={opt.value} value={opt.value}>{opt.labelInEn}</MenuItem>
+                                    ))}
+                                </TextField>
+                            </DialogContent>
+                            <DialogActions>
+                                <Button
+                                    color="secondary"
+                                    onClick={() => {
+                                        setSearch('');
+                                        setFilterStatus('');
+                                        setFilterSeverity('');
+                                        setFilterDialogOpen(false);
+                                    }}
+                                >
+                                    Clear Filter
+                                </Button>
+                                <Button onClick={() => setFilterDialogOpen(false)}>Apply</Button>
+                            </DialogActions>
+                        </Dialog>
                     </Box>
                 </Box>
                 {loading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}><CircularProgress /></Box>}
