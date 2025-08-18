@@ -541,7 +541,13 @@ const IncidentReportForm: React.FC = () => {
                                 รายละเอียดเหตุการณ์ (Incident Details)
                                 </Typography>
                                 
-                                <Box>
+                                <Box
+                                    sx={{
+                                        border: !formData.symptoms.trim() ? '2px solid #f44336' : '1px solid rgba(0,0,0,0.23)',
+                                        borderRadius: 4,
+                                        padding: '12px 14px',
+                                    }}
+                                >
                                     <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>
                                         Symptoms (อาการ)
                                     </Typography>
@@ -552,7 +558,7 @@ const IncidentReportForm: React.FC = () => {
                                         placeholder="Symptoms"
                                     />
                                     {!formData.symptoms.trim() && (
-                                        <Typography color="error" variant="caption">Symptoms are required</Typography>
+                                        <Typography color="error">Symptoms are required</Typography>
                                     )}
                                 </Box>
                                 <Box>

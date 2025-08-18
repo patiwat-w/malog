@@ -18,6 +18,12 @@ let theme = createTheme({
     secondary: {
       main: '#1565c0'
     },
+    error: {
+      main: '#f44336', // สีแดงสำหรับ error
+      light: '#e57373',
+      dark: '#d32f2f',
+      contrastText: '#fff'
+    },
     background: {
       default: grayBg,
       paper: grayPaper
