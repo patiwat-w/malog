@@ -13,6 +13,7 @@ import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import { Delete } from '@mui/icons-material';
 import ConfirmDialog from './ConfirmDialog'; // Import the ConfirmDialog component
+import { debounce } from 'lodash';
 
 interface Props {
   value?: string | null;
@@ -100,23 +101,34 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
     });
   }, []);
 
-  const syncFromEditor = () => {
-    const html = editorRef.current?.innerHTML || '';
-    const td = turndownRef.current;
-    if (td) {
-      const md = td.turndown(
-        html
-          .replace(/<div><br><\/div>/g, '<br>')
-          .replace(/<div>/g, '\n')
-          .replace(/<\/div>/g, '')
-      ).trim();
-      // mark this as a local change so the prop update echo does not reset caret
-      lastLocalValueRef.current = md;
-      isLocalChangeRef.current = true;
-      if (onChange) {
-        onChange(md);
+  const debouncedSyncFromEditor = useRef(
+    debounce(() => {
+      const html = editorRef.current?.innerHTML || '';
+      const td = turndownRef.current;
+      if (td) {
+        const md = td.turndown(
+          html
+            .replace(/<div><br><\/div>/g, '<br>')
+            .replace(/<div>/g, '\n')
+            .replace(/<\/div>/g, '')
+        ).trim();
+        lastLocalValueRef.current = md;
+        isLocalChangeRef.current = true;
+        if (onChange) {
+          onChange(md);
+        }
       }
-    }
+    }, 300) // Delay 300ms
+  ).current;
+
+  useEffect(() => {
+    return () => {
+      debouncedSyncFromEditor.cancel(); // Cleanup debounce
+    };
+  }, []);
+
+  const syncFromEditor = () => {
+    debouncedSyncFromEditor();
   };
   
   const format = (cmd: string, value?: string) => {

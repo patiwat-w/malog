@@ -10,6 +10,7 @@ import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 import { getIncidentByCase, updateIncidentFull, getCurrentUser, type IncidentReportDto, type User } from '../api/client';
 import IncidentConversation from '../components/IncidentConversation';
@@ -27,6 +28,7 @@ import DialogActions from '@mui/material/DialogActions';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 
+
 const parseToDate = (value: unknown): Date | null => {
   if (!value && value !== 0) return null;
   if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
@@ -37,37 +39,20 @@ const parseToDate = (value: unknown): Date | null => {
     return isNaN(d.getTime()) ? null : d;
   }
   if (typeof value === 'string') {
-    // if lasst character != 'Z', include 'Z' to treat as UTC
-    if (value.length > 0 && !value.endsWith('Z')) {
-      value += 'Z';
-    }
-   
-
-    const s = value.trim();
+    let s = value.trim();
     if (!s) return null;
-    // /Date(1234567890)/
-    const msMatch = /\/Date\((\\-?\d+)\)\//.exec(s);
-    if (msMatch) {
-      const n = parseInt(msMatch[1], 10);
-      const d = new Date(n);
-      return isNaN(d.getTime()) ? null : d;
+
+    // ตรวจสอบและแปลงปี พ.ศ. เป็น ค.ศ.
+    const thaiYearMatch = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})Z$/.exec(s);
+    if (thaiYearMatch) {
+      const year = parseInt(thaiYearMatch[1], 10);
+      if (year > 2400) {
+        // แปลงปี พ.ศ. เป็น ค.ศ.
+        const convertedYear = year - 543;
+        s = s.replace(String(year), String(convertedYear));
+      }
     }
-    // pure number string
-    if (/^\\-?\d+$/.test(s)) {
-      let n = parseInt(s, 10);
-      if (n < 1e12) n = n * 1000;
-      const d = new Date(n);
-      if (!isNaN(d.getTime())) return d;
-    }
-    // ถ้าเป็นรูปแบบ yyyy-MM-dd HH:mm:ss (ไม่มี Z หรือ offset)
-    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s)) {
-      // ตีความเป็น UTC
-      const [datePart, timePart] = s.split(' ');
-      const [year, month, day] = datePart.split('-').map(Number);
-      const [hour, minute, second] = timePart.split(':').map(Number);
-      const d = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
-      return isNaN(d.getTime()) ? null : d;
-    }
+
     // default: let JS parse (ISO string with Z/offset)
     const d = new Date(s);
     return isNaN(d.getTime()) ? null : d;
@@ -395,7 +380,7 @@ const IncidentReportDetail: React.FC = () => {
       </Box>
 
       <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-        Created by <strong>{incident.createdUserName}</strong> &nbsp;|&nbsp; Report Date: {formattedCreatedUtc}
+        Created by <strong>{incident.createdUserName}</strong> &nbsp;|&nbsp; <AccessTimeIcon sx={{ fontSize: '0.8rem' }}/> {formattedCreatedUtc}
       </Typography>
 
       <Divider sx={{ my: 3 }} />
