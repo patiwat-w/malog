@@ -21,7 +21,7 @@ public class IncidentReport
 
     public DateTime? IncidentDate { get; set; } = DateTime.UtcNow;
 
-    [MaxLength(1000)]
+    [Column(TypeName = "nvarchar(max)")]
     public string? Symptoms { get; set; } = string.Empty;
 
     [MaxLength(50)]

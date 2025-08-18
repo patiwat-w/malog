@@ -545,23 +545,10 @@ const IncidentReportForm: React.FC = () => {
                                     <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>
                                         Symptoms (อาการ)
                                     </Typography>
-                                    <TextareaAutosize
-                                        id="symptoms"
-                                        name="symptoms"
+                                    <WysiwygMarkdownEditor
                                         value={formData.symptoms}
-                                        onChange={handleChange}
-                                        minRows={3}
-                                        required
-                                        className={getClassFor('symptoms')}
-                                        style={{
-                                            width: '100%',
-                                            fontSize: '1rem',
-                                            padding: '8px 12px',
-                                            boxSizing: 'border-box',
-                                            borderRadius: 4,
-                                            borderColor: '#c4c4c4',
-                                            border: !formData.symptoms.trim() ? '1px solid red' : undefined
-                                        }}
+                                        onChange={(md) => setFormData(prev => ({ ...prev, symptoms: md }))}
+                                        minHeight={140}
                                         placeholder="Symptoms"
                                     />
                                     {!formData.symptoms.trim() && (

@@ -427,9 +427,7 @@ const IncidentReportDetail: React.FC = () => {
         <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '.6px' }}>
           Symptoms (อาการที่พบ)
         </Typography>
-        <Typography sx={{ mt: .75, fontSize: '.96rem', color: 'text.primary' }}>
-          {incident.symptoms || '-'}
-        </Typography>
+        <WysiwygMarkdownEditor value={incident.symptoms} readOnly minHeight={100} />
       </Box>
 
       {/* Meta Fields */}
