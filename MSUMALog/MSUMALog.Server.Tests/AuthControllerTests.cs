@@ -50,7 +50,7 @@ public class AuthControllerTests
         };
     }
 
-    private User CreateTestUser(string email, string password = null)
+    private User CreateTestUser(string email, string? password = null)
     {
         var user = new User
         {
@@ -239,7 +239,7 @@ public class AuthControllerTests
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        ClaimsPrincipal capturedPrincipal = null;
+        ClaimsPrincipal? capturedPrincipal = null;
         
         // Mock authentication service to capture the claims principal
         _authenticationServiceMock.Setup(x => x.SignInAsync(
@@ -262,7 +262,8 @@ public class AuthControllerTests
         Assert.NotNull(capturedPrincipal);
         
         var claims = capturedPrincipal.Claims.ToList();
-        Assert.Contains(claims, c => c.Type == ClaimTypes.NameIdentifier && c.Value == user.Id.ToString());
+        Assert.NotNull(user);
+        Assert.Contains(claims, c => c.Type == ClaimTypes.NameIdentifier && c.Value == user!.Id.ToString());
         Assert.Contains(claims, c => c.Type == ClaimTypes.Email && c.Value == "test@email.com");
         Assert.Contains(claims, c => c.Type == ClaimTypes.Name && c.Value == "John");
         Assert.Contains(claims, c => c.Type == ClaimTypes.GivenName && c.Value == "John");
