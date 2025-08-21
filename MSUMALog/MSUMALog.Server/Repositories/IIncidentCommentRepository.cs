@@ -9,4 +9,6 @@ public interface IIncidentCommentRepository
     Task<IncidentComment?> GetAsync(int id, CancellationToken ct = default);
     Task<IncidentComment> AddAsync(IncidentComment entity, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+
+    Task<IncidentComment?> GetByIdAsync(int id, CancellationToken ct = default);
 }

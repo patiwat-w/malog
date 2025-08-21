@@ -4,14 +4,19 @@ using MSUMALog.Server.Models;
 
 namespace MSUMALog.Server.Repositories;
 
-public class IncidentCommentRepository(ApplicationDbContext db) : IIncidentCommentRepository
+public class IncidentCommentRepository : IIncidentCommentRepository
 {
-    private readonly ApplicationDbContext _db = db;
+    private readonly ApplicationDbContext _db;
+
+    public IncidentCommentRepository(ApplicationDbContext db)
+    {
+        _db = db;
+    }
 
     public Task<List<IncidentComment>> GetByIncidentIdAsync(int incidentId, CancellationToken ct = default) =>
         _db.IncidentComments
             .AsNoTracking()
-            .Include(c => c.AuthorUser) // เพิ่มตรงนี้
+            .Include(c => c.AuthorUser)
             .Where(c => c.IncidentReportId == incidentId)
             .OrderByDescending(c => c.CreatedUtc)
             .ToListAsync(ct);
@@ -19,7 +24,7 @@ public class IncidentCommentRepository(ApplicationDbContext db) : IIncidentComme
     public Task<List<IncidentComment>> GetByCaseNoAsync(string caseNo, CancellationToken ct = default) =>
         _db.IncidentComments
             .AsNoTracking()
-            .Include(c => c.AuthorUser) // เพิ่มตรงนี้
+            .Include(c => c.AuthorUser)
             .Where(c => c.IncidentReport!.CaseNo == caseNo)
             .OrderByDescending(c => c.CreatedUtc)
             .ToListAsync(ct);
@@ -33,6 +38,9 @@ public class IncidentCommentRepository(ApplicationDbContext db) : IIncidentComme
         await _db.SaveChangesAsync(ct);
         return entity;
     }
+
+    public Task<IncidentComment?> GetByIdAsync(int id, CancellationToken ct = default) =>
+        _db.IncidentComments.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
 
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
     {

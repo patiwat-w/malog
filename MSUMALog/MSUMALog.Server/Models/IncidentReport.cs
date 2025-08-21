@@ -85,4 +85,39 @@ public class IncidentReport
 
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedUtc { get; set; }
+
+    public IncidentReport Clone()
+    {
+        return new IncidentReport
+        {
+            Id = this.Id,
+            Title = this.Title,
+            CaseNo = this.CaseNo,
+            Asset = this.Asset,
+            Center = this.Center,
+            IncidentDate = this.IncidentDate,
+            Symptoms = this.Symptoms,
+            Severity = this.Severity,
+            Impact = this.Impact,
+            Domain = this.Domain,
+            SubDomain = this.SubDomain,
+            Vendor = this.Vendor,
+            Manufacturer = this.Manufacturer,
+            PartNumber = this.PartNumber,
+            AdditionalInfo = this.AdditionalInfo,
+            InterimAction = this.InterimAction,
+            IntermediateAction = this.IntermediateAction,
+            LongTermAction = this.LongTermAction,
+            Status = this.Status,
+            CreatedUserId = this.CreatedUserId,
+            UpdatedUserId = this.UpdatedUserId,
+            ResponsibleName = this.ResponsibleName,
+            ResponsibleLineId = this.ResponsibleLineId,
+            ResponsibleEmail = this.ResponsibleEmail,
+            ResponsiblePhone = this.ResponsiblePhone,
+            CreatedUtc = this.CreatedUtc,
+            UpdatedUtc = this.UpdatedUtc
+            // เพิ่ม field อื่น ๆ ตามที่มีในคลาส
+        };
+    }
 }

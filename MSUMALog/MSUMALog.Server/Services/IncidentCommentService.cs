@@ -5,6 +5,7 @@ using MSUMALog.Server.Data;
 using MSUMALog.Server.DTOs;
 using MSUMALog.Server.Models;
 using MSUMALog.Server.Repositories;
+using MSUMALog.Server.Services;
 
 namespace MSUMALog.Server.Services;
 
@@ -12,12 +13,15 @@ public class IncidentCommentService(
     ApplicationDbContext db,
     IIncidentCommentRepository repo,
     IIncidentReportRepository reportRepo,
-    IMapper mapper) : IIncidentCommentService
+    IMapper mapper,
+    IAuditService auditService
+) : IIncidentCommentService
 {
     private readonly ApplicationDbContext _db = db;
     private readonly IIncidentCommentRepository _repo = repo;
     private readonly IIncidentReportRepository _reportRepo = reportRepo;
     private readonly IMapper _mapper = mapper;
+    private readonly IAuditService _auditService = auditService;
 
     public async Task<List<IncidentCommentDto>> GetByCaseNoAsync(string caseNo, CancellationToken ct)
     {
@@ -75,6 +79,21 @@ public class IncidentCommentService(
 
         await _repo.AddAsync(entity, ct);
 
+        // Audit: บันทึกการสร้าง comment
+        await _auditService.LogEntityChangesAsync(
+            AuditEntityType.IncidentComment,
+            entity.Id,
+            null,
+            entity,
+            new[] { "Body" },
+            entity.CreatedUserId ?? entity.AuthorUserId ?? 0,
+            AuditActionType.Create,
+            ct,
+            Guid.NewGuid(),
+            entity.IncidentReportId,
+            nameof(AuditEntityType.IncidentReport) // Set the required ReferenceEntityName;
+          );
+
         // reload with navigation so mapping can populate CaseNo and user names
         var reloaded = await _db.IncidentComments
             .Include(c => c.IncidentReport)
@@ -86,5 +105,33 @@ public class IncidentCommentService(
         return _mapper.Map<IncidentCommentDto>(reloaded);
     }
 
-    public Task<bool> DeleteAsync(int id, CancellationToken ct) => _repo.DeleteAsync(id, ct);
+    public async Task<bool> DeleteAsync(int id, CancellationToken ct)
+    {
+        var existing = await _repo.GetByIdAsync(id, ct);
+        if (existing is null) return false;
+
+        var referenceId = existing.IncidentReportId;
+
+        // Audit: บันทึกสถานะการลบ ไม่ต้องเก็บรายละเอียด field
+        var userId = existing.CreatedUserId ?? existing.AuthorUserId ?? 0;
+        var log = new AuditLog
+        {
+            EntityType = AuditEntityType.IncidentComment,
+            EntityId = id,
+            FieldName = null,
+            OldValue = null,
+            NewValue = "Deleted",
+            ChangedUtc = DateTime.UtcNow,
+            ChangedByUserId = userId,
+            BatchId = Guid.NewGuid(),
+            ActionType = AuditActionType.Delete,
+            ReferenceId = referenceId, // Set the required ReferenceId
+            ReferenceEntityName = nameof(AuditEntityType.IncidentReport) // Set the required ReferenceEntityName
+        };
+        _db.AuditLogs.Add(log);
+        await _db.SaveChangesAsync(ct);
+
+        await _repo.DeleteAsync(id, ct); // ไม่ต้องใช้ var
+        return true;
+    }
 }

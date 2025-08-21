@@ -11,15 +11,18 @@ using MSUMALog.Server.Data;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using MSUMALog.Server.Helpers;
+using Microsoft.Extensions.Options;
 
 namespace MSUMALog.Server.Services;
 
-public class IncidentReportService(IIncidentReportRepository repo, IMapper mapper, ApplicationDbContext db, IHttpContextAccessor httpAccessor) : IIncidentReportService
+public class IncidentReportService(IIncidentReportRepository repo, IMapper mapper, ApplicationDbContext db, IHttpContextAccessor httpAccessor, IAuditService auditService, IOptions<AuditConfig> auditOptions) : IIncidentReportService
 {
     private readonly IIncidentReportRepository _repo = repo;
     private readonly IMapper _mapper = mapper;
     private readonly ApplicationDbContext _db = db;
     private readonly IHttpContextAccessor _httpAccessor = httpAccessor;
+    private readonly IAuditService _auditService = auditService;
+    private readonly AuditConfig _auditConfig = auditOptions.Value;
 
     private async Task<string> GenerateCaseNoAsync(CancellationToken ct)
     {
@@ -50,13 +53,27 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
         if (string.IsNullOrWhiteSpace(entity.CaseNo))
             entity.CaseNo = await GenerateCaseNoAsync(ct);
 
-        // record creator and created time (from logged-in user)  
         entity.CreatedUtc = DateTime.UtcNow;
         var user = _httpAccessor.HttpContext?.User;
         var uid = user is not null ? UserClaimsHelper.GetUserId(user) : null;
         entity.CreatedUserId = uid;
 
         await _repo.AddAsync(entity, ct);
+
+        // Audit สำหรับการสร้าง IncidentReport
+        await _auditService.LogEntityChangesAsync(
+            AuditEntityType.IncidentReport,
+            entity.Id,
+            null,
+            entity,
+            _auditConfig.IncidentReportFields,
+            uid ?? 0,
+            AuditActionType.Create, // ระบุ ActionType
+            ct,
+            Guid.NewGuid(),
+            entity.Id,
+            nameof(IncidentReport));
+
         return _mapper.Map<IncidentReportDto>(entity);
     }
 
@@ -86,29 +103,78 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
         var entity = await _repo.GetByCaseNoAsync(caseNo, ct);
         return entity is null ? null : _mapper.Map<IncidentReportDto>(entity);
     }
-
+    
     public async Task<bool> UpdateAsync(int id, IncidentReportDto dto, CancellationToken ct = default)
     {
-        var existing = await _repo.GetByIdAsync(id, ct);
-        if (existing is null) return false;
+        using var transaction = await _db.Database.BeginTransactionAsync(ct);
 
-        // Map incoming dto to existing (keep Id)
-        var updated = _mapper.Map(dto, existing);
-        updated.Id = id;
-        // record updater and updated time (from logged-in user)
-        updated.UpdatedUtc = DateTime.UtcNow;
-        var user = _httpAccessor.HttpContext?.User;
-        var uid = user is not null ? UserClaimsHelper.GetUserId(user) : null;
-        updated.UpdatedUserId = uid;
+        try
+        {
+            var batchId = Guid.NewGuid();
+            var incidentReport = await _repo.GetByIdAsync(id, ct);
+            if (incidentReport is null) return false;
 
-        await _repo.UpdateAsync(updated, ct);
-        return true;
+            var user = _httpAccessor.HttpContext?.User;
+            var userId = user is not null ? UserClaimsHelper.GetUserId(user) : null;
+            var beforeUpdate = incidentReport.Clone(); // Clone ก่อน map
+
+            // Apply updates
+            _mapper.Map(dto, incidentReport);
+            incidentReport.UpdatedUtc = DateTime.UtcNow;
+            incidentReport.UpdatedUserId = userId;
+
+            // Log audit
+            await _auditService.LogEntityChangesAsync(
+                AuditEntityType.IncidentReport,
+                id,
+                beforeUpdate,
+                incidentReport,
+                _auditConfig.IncidentReportFields,
+                userId ?? 0,
+                AuditActionType.Update,
+                ct,
+                batchId,
+                id,
+                nameof(IncidentReport)
+            );
+
+            await _repo.UpdateAsync(incidentReport, ct);
+            await transaction.CommitAsync(ct);
+            return true;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(ct);
+            throw;
+        }
     }
 
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
     {
         var existing = await _repo.GetByIdAsync(id, ct);
         if (existing is null) return false;
+
+        var user = _httpAccessor.HttpContext?.User;
+        var uid = user is not null ? UserClaimsHelper.GetUserId(user) : null;
+
+        // Audit: บันทึกสถานะการลบ ไม่ต้องเก็บรายละเอียด field
+        var log = new AuditLog
+        {
+            EntityType = AuditEntityType.IncidentReport,
+            EntityId = id,
+            FieldName = null,
+            OldValue = null,
+            NewValue = "Deleted",
+            ChangedUtc = DateTime.UtcNow,
+            ChangedByUserId = uid ?? 0,
+            BatchId = Guid.NewGuid(),
+            ActionType = AuditActionType.Delete,
+            ReferenceId = id, // Set the required ReferenceId
+            ReferenceEntityName = nameof(IncidentReport) // Set the required ReferenceEntityName
+        };
+        _db.AuditLogs.Add(log);
+        await _db.SaveChangesAsync(ct);
+
         await _repo.DeleteAsync(existing, ct);
         return true;
     }

@@ -10,6 +10,7 @@ namespace MSUMALog.Server.Data
         public DbSet<IncidentReport> IncidentReports => Set<IncidentReport>();
         public DbSet<IncidentComment> IncidentComments => Set<IncidentComment>();
         public DbSet<User> Users { get; set; }
+        public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

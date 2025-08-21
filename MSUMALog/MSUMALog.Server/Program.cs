@@ -49,6 +49,7 @@ builder.Services.AddScoped<IIncidentReportRepository, IncidentReportRepository>(
 builder.Services.AddScoped<IIncidentCommentRepository, IncidentCommentRepository>();
 builder.Services.AddScoped<IIncidentReportService, IncidentReportService>();
 builder.Services.AddScoped<IIncidentCommentService, IncidentCommentService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 // Data Protection สำหรับ Production (ย้ายขึ้นมา)
 if (!builder.Environment.IsDevelopment())
@@ -193,6 +194,9 @@ builder.Services.AddCors(options =>
         .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
     });
 });
+
+// ใน Program.cs หรือ Startup.cs
+builder.Services.Configure<AuditConfig>(builder.Configuration.GetSection("Audit"));
 
 var app = builder.Build();
 

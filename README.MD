@@ -62,3 +62,9 @@ Builds the app for production to the `build` folder. It correctly bundles React 
 
 - [React](https://reactjs.org/) - The web framework used.
 - [Create React App](https://github.com/facebook/create-react-app) - Project setup.
+
+## Contributing
+
+- Config in dotnet user-secrets list
+- dotnet ef database update
+$env:ConnectionStrings__SqlServer="Server=LAPTOP-RN2MUQRF;Database=MSUMALOG_DB;User Id=msu;Password=Patiwat9999;TrustServerCertificate=True;"

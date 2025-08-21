@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "msumalog.client\\msumalog.client.esproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "MSUMALog.Server\\MSUMALog.Server.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
