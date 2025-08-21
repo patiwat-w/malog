@@ -54,3 +54,4 @@ obj/
 # Ignore Visual Studio Code settings
 .vscode/
 .vs/
+remote-workspace-index/
