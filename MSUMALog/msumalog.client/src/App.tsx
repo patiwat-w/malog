@@ -20,6 +20,7 @@ import { getCurrentUser } from './api/client';
 import UserProfilePage from './pages/UserProfilePage';
 import type { User } from './api/client';
 import LineBrowserGuard from "./components/LineBrowserGuard";
+import AdminPage from './pages/AdminPage';
 
 function App() {
     const location = useLocation();
@@ -36,8 +37,9 @@ function App() {
 
     const navItems = [
         { label: 'Home', to: '/home' },
-        { label: 'Report Issue', to: '/report' },
-        { label: 'All Issues', to: '/issues' }
+        { label: 'New Issue', to: '/report' },
+      
+        { label: 'Admin', to: '/admin' } 
     ];
 
     return (
@@ -159,6 +161,7 @@ function App() {
                         <Route path="/" element={<Navigate to="/issues" />} />
                         <Route path="/login-fail" element={<LoginFailPage />} />
                         <Route path="/profile" element={<RequireAuth><UserProfilePage /></RequireAuth>} />
+                        <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
                         <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                 </Box>

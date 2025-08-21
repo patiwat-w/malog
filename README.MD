@@ -67,4 +67,9 @@ Builds the app for production to the `build` folder. It correctly bundles React 
 
 - Config in dotnet user-secrets list
 - dotnet ef database update
-$env:ConnectionStrings__SqlServer="Server=LAPTOP-RN2MUQRF;Database=MSUMALOG_DB;User Id=msu;Password=Patiwat9999;TrustServerCertificate=True;"
+- $env:ConnectionStrings__SqlServer="Server=LAPTOP-RN2MUQRF;Database=MSUMALOG_DB;- User Id=msu;Password=Patiwat9999;TrustServerCertificate=True;"
+
+## created type
+
+$env:NODE_TLS_REJECT_UNAUTHORIZED=0
+npx openapi-typescript <http://localhost:5293/swagger/v1/swagger.json> -o src/api/types.ts

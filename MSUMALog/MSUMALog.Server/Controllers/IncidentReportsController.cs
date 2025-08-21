@@ -153,4 +153,39 @@ public class IncidentReportsController(
         var ok = await _service.DeleteAsync(id, ct);
         return ok ? NoContent() : NotFound();
     }
+
+    [Authorize]
+    [HttpGet("paged")]
+    [ProducesResponseType(typeof(PagedResultDto<IDictionary<string, object?>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResultDto<IDictionary<string, object?>>>> GetPaged(
+        [FromQuery] int page = 1,
+        [FromQuery] int limit = 10,
+        [FromQuery] string? select = null, // เช่น "Id,Title,Severity"
+        [FromQuery] string? order = null,  // เช่น "Severity desc, Title asc"
+        [FromQuery] Dictionary<string, string>? filter = null, // filter หลาย field เช่น filter[Title]=*test*
+        CancellationToken ct = default)
+    {
+        if (!User.Identity?.IsAuthenticated ?? true)
+            return Unauthorized("User not authenticated");
+
+        var userData = UserClaimsHelper.GetUser(User, _db);
+        if (userData?.Id is null)
+            return Unauthorized(UserNotFoundMessage);
+
+        var userId = userData.Id;
+        
+        var selectFields = (select ?? "Id,Title,Severity,Status,CreatedUtc").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var result = await _service.SearchAsync(
+        page,
+        limit,
+        filter ?? new Dictionary<string, string>(),
+        order,
+        selectFields,
+        userId,
+        ct
+    );
+
+        return Ok(result);
+    }
 }

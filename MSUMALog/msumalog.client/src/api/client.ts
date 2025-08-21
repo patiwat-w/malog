@@ -6,6 +6,7 @@ const http = axios.create({ baseURL: '/api' });
 export type IncidentReportDto = components['schemas']['IncidentReportDto'];
 export type User = components['schemas']['User'];
 export type IncidentCommentDto = components['schemas']['IncidentCommentDto'];
+export type PagedResultDto<T extends Record<string, unknown> = Record<string, unknown>> = components['schemas']['StringObjectIDictionaryPagedResultDto'] & { items: T[] };
 
 // helper: convert UTC ISO string -> user's local display string (or undefined)
 function utcToLocal(utc?: string | null): string | undefined {
@@ -31,6 +32,34 @@ export async function getIncidentReports() {
     console.error('[api] GET /IncidentReports error', e);
     throw e;
   }
+}
+
+// ฟังก์ชันสำหรับเรียก IncidentReports/paged
+export async function getIncidentReportsPaged(params: {
+  page?: number;
+  limit?: number;
+  select?: string;
+  order?: string;
+  filter?: Record<string, string>;
+}) {
+  const res = await http.get<PagedResultDto<Record<string, unknown>>>('/IncidentReports/paged', {
+    params,
+  });
+  // แปลงวันที่ถ้ามี field createdUtc/updatedUtc ในแต่ละ item
+  interface PagedItem extends Record<string, unknown> {
+    createdUtc?: string;
+    updatedUtc?: string;
+  }
+
+  const items = res.data.items.map((item: PagedItem) => ({
+    ...item,
+    createdUtc: item.createdUtc ? utcToLocal(item.createdUtc) : item.createdUtc,
+    updatedUtc: item.updatedUtc ? utcToLocal(item.updatedUtc) : item.updatedUtc,
+  }));
+  return {
+    ...res.data,
+    items,
+  };
 }
 
 // Accept partial DTO (client should only send writable fields)
