@@ -20,10 +20,13 @@ jobs:
         dotnet-version: '9.0.x'
 
     - name: Restore dependencies
+      working-directory: MSUMALog
       run: dotnet restore MSUMALog.sln
 
     - name: Build
+      working-directory: MSUMALog
       run: dotnet build MSUMALog.sln --configuration Release --no-restore
 
     - name: Test
+      working-directory: MSUMALog
       run: dotnet test MSUMALog.Server.Tests/MSUMALog.Server.Tests.csproj --no-build --verbosity normal
