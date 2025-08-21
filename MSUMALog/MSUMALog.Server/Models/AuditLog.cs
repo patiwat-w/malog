@@ -32,10 +32,10 @@ public class AuditLog
     [MaxLength(100)]
     public string? FieldName { get; set; } // ชื่อ field ที่เปลี่ยนแปลง
 
-    [MaxLength(500)]
+    [Column(TypeName = "nvarchar(max)")]
     public string? OldValue { get; set; }
 
-    [MaxLength(500)]
+    [Column(TypeName = "nvarchar(max)")]
     public string? NewValue { get; set; }
 
     public DateTime ChangedUtc { get; set; }
