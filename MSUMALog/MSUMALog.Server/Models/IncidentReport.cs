@@ -48,7 +48,7 @@ public class IncidentReport
     [Column(TypeName = "nvarchar(max)")]
     public string? AdditionalInfo { get; set; } = string.Empty;
 
-  [Column(TypeName = "nvarchar(max)")]
+   [Column(TypeName = "nvarchar(max)")]
     public string? InterimAction { get; set; } = string.Empty;
 
     [Column(TypeName = "nvarchar(max)")]
