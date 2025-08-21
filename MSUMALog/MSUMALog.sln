@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35828.75 d17.13
+VisualStudioVersion = 17.13.35828.75
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "msumalog.client", "msumalog.client\msumalog.client.esproj", "{61E35348-6EE6-B6B6-6259-9EE593620FC1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MSUMALog.Server", "MSUMALog.Server\MSUMALog.Server.csproj", "{708CE314-E2CB-418E-ADCB-27447EC028DC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MSUMALog.Server.Tests", "MSUMALog.Server.Tests\MSUMALog.Server.Tests.csproj", "{6120B995-F6E5-D926-2E28-E28B94D11C11}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,6 +25,10 @@ Global
 		{708CE314-E2CB-418E-ADCB-27447EC028DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{708CE314-E2CB-418E-ADCB-27447EC028DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{708CE314-E2CB-418E-ADCB-27447EC028DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6120B995-F6E5-D926-2E28-E28B94D11C11}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6120B995-F6E5-D926-2E28-E28B94D11C11}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6120B995-F6E5-D926-2E28-E28B94D11C11}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6120B995-F6E5-D926-2E28-E28B94D11C11}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
