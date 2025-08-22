@@ -180,7 +180,7 @@ public class AuditService(ApplicationDbContext db) : IAuditService
             .OrderByDescending(x => x.ChangedUtc)
             .ToListAsync(ct);
 
-        var userDict = db.Users.ToDictionary(u => u.Id, u => u.Email ?? u.Id.ToString());
+        var userDict = db.Users.ToDictionary(u => u.Id, u => u.FirstName + " " + u.LastName ?? u.Id.ToString());
 
         // เช็คว่ามี record จริงใน DB ตาม entity
         bool entityExists = referenceEntityName switch

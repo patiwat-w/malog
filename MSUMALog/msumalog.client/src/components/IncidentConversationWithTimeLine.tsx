@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Typography, Paper, Divider, Button, ToggleButtonGroup, ToggleButton, Stack, IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Snackbar, Alert } from "@mui/material";
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { getAuditTimelineByReference, deleteComment } from "../api/client";
+import { getAuditTimelineByReference, deleteComment, getCommentsByCaseId } from "../api/client";
 import type { AuditTimelineDto } from "../api/client";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -17,20 +17,48 @@ interface Props {
 
 export default function IncidentConversationWithTimeLine({ referenceEntityName, referenceId, reloadKey, currentUser }: Props) {
   const [timeline, setTimeline] = React.useState<AuditTimelineDto[]>([]);
+  const [comments, setComments] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [detailBatchId, setDetailBatchId] = React.useState<string | null>(null);
   const [viewMode, setViewMode] = React.useState<'comment' | 'all'>('comment');
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmTargetId, setConfirmTargetId] = React.useState<number | null>(null);
-  const [deleting, setDeleting] = React.useState(false); // will be used to disable confirm button
+  const [deleting, setDeleting] = React.useState(false);
   const [snackbar, setSnackbar] = React.useState<{ open: boolean; message: string; severity: 'success' | 'info' | 'warning' | 'error' }>({ open: false, message: '', severity: 'info' });
+
+  // เพิ่ม state เพื่อ track ว่าโหลด comment แล้วหรือยัง
+  const [commentsLoaded, setCommentsLoaded] = React.useState(false);
+  const [timelineLoaded, setTimelineLoaded] = React.useState(false);
 
   React.useEffect(() => {
     setLoading(true);
-    getAuditTimelineByReference({ referenceEntityName, referenceId }).then((timelineRes) => {
-      setTimeline(timelineRes.items ?? []);
-      setLoading(false);
-    });
+    if (viewMode === "comment") {
+      if (!commentsLoaded) {
+        getCommentsByCaseId(referenceId).then((commentRes) => {
+          setComments(commentRes ?? []);
+          setCommentsLoaded(true);
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
+      }
+    } else {
+      if (!timelineLoaded) {
+        getAuditTimelineByReference({ referenceEntityName, referenceId }).then((timelineRes) => {
+          setTimeline(timelineRes.items ?? []);
+          setTimelineLoaded(true);
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
+      }
+    }
+  }, [referenceEntityName, referenceId, reloadKey, viewMode, commentsLoaded, timelineLoaded]);
+
+  // ถ้า reloadKey เปลี่ยน ให้ reset loaded state
+  React.useEffect(() => {
+    setCommentsLoaded(false);
+    setTimelineLoaded(false);
   }, [referenceEntityName, referenceId, reloadKey]);
 
   // accept possibly undefined id
@@ -50,7 +78,11 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
     setDeleting(true);
     try {
       await deleteComment(id);
-      setTimeline(prev => prev.filter(batch => batch.entityId !== id));
+      if (viewMode === "comment") {
+        setComments(prev => prev.filter(comment => comment.id !== id));
+      } else {
+        setTimeline(prev => prev.filter(batch => batch.entityId !== id));
+      }
       setSnackbar({ open: true, message: 'Comment deleted', severity: 'success' });
     } catch (e: any) {
       setSnackbar({ open: true, message: e?.response?.data?.message || e?.message || 'Delete failed', severity: 'error' });
@@ -82,31 +114,23 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
 
       {!loading && (
         <Box>
-          {timeline
-            .filter(batch => {
-              if (viewMode === "comment") {
-                return batch.entityType === 1 && batch.changes?.[0]?.fieldName === "Body";
-              }
-              return true;
-            })
-            .map((batch) => {
-              // Comment Box (เหมือน IncidentConversation)
-              if (batch.entityType === 1 && batch.changes?.[0]?.fieldName === "Body") {
-                const createdLocal = batch.changedUtc ? new Date(batch.changedUtc).toLocaleString() : 'Invalid date';
+          {viewMode === "comment"
+            ? comments.map((c) => {
+                const createdLocal = c.createdUtc ? new Date(c.createdUtc).toLocaleString() : 'Invalid date';
                 return (
-                  <Paper key={batch.batchId} variant="outlined" sx={{ p: 1.5, mb: 2 }}>
+                  <Paper key={c.id} variant="outlined" sx={{ p: 1.5, mb: 2 }}>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Typography variant="subtitle2">
-                        {batch.changedByUser ?? '-'}{' '}
+                        {c.authorUserName ?? '-'}{' '}
                         <Typography component="span" variant="caption" sx={{ color: 'text.secondary' }}>
-                          {createdLocal} {batch.changedByUserId ? `(${batch.changedByUserId})` : ''} {currentUser?.id}
+                          {createdLocal}
                         </Typography>
                       </Typography>
-                      {currentUser?.id == batch.changedByUserId && (
+                      {currentUser?.id === c.authorUserId && (
                         <Tooltip title="Delete comment">
                           <IconButton
                             size="small"
-                            onClick={() => handleDelete(batch.entityId)}
+                            onClick={() => handleDelete(c.id)}
                             sx={{ ml: 'auto' }}
                           >
                             <DeleteOutlineIcon fontSize="small" />
@@ -114,74 +138,67 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
                         </Tooltip>
                       )}
                     </Stack>
-                    <Box sx={{ mt: 0.5, fontSize: '.9rem' }}>
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeRaw]}
-                        components={{
-                          img: (props) => <img {...props} style={{ maxWidth: '100%', borderRadius: 4, ...(props.style || {}) }} />
-                        }}
-                      >
-                        {batch.changes?.[0]?.newValue ?? ''}
-                      </ReactMarkdown>
+                    <Box sx={{ mt: 0.5 }}>
+                      {/* เพิ่ม key เพื่อ force remount editor */}
+                      <WysiwygMarkdownEditor key={c.id} value={c.body ?? ''} readOnly minHeight={100} />
                     </Box>
                   </Paper>
                 );
-              }
+              })
+            : timeline.map((batch) => {
+                // Timeline/Audit Box
+                const importantChanges = batch.changes?.filter(chg => chg.isImportant) ?? [];
+                const otherChanges = batch.changes?.filter(chg => !chg.isImportant) ?? [];
 
-              // Timeline/Audit Box
-              const importantChanges = batch.changes?.filter(chg => chg.isImportant) ?? [];
-              const otherChanges = batch.changes?.filter(chg => !chg.isImportant) ?? [];
-
-              return (
-                <Box key={batch.batchId} sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {batch.changedUtc ? new Date(batch.changedUtc).toLocaleString() : 'Invalid date'} Update by {batch.changedByUser}
-                  </Typography>
-                  <ul>
-                    {importantChanges.map((chg, i) => (
-                      <li key={i}>
-                        <strong>{chg.fieldName}</strong>: {chg.oldValue} &rarr; {chg.newValue}
-                      </li>
-                    ))}
-                    {otherChanges.length > 0 && (
-                      <li>
-                        <span style={{ fontStyle: "italic", color: "#888" }}>
-                          {otherChanges.length} more field{otherChanges.length > 1 ? "s" : ""} updated
-                        </span>
-                        <Button
-                          size="small"
-                          sx={{ ml: 1 }}
-                          onClick={() =>
-                            // normalize batch.batchId to string | null
-                            setDetailBatchId(
-                              detailBatchId === (batch.batchId ? String(batch.batchId) : null)
-                                ? null
-                                : (batch.batchId ? String(batch.batchId) : null)
-                            )
-                          }
-                        >
-                          {detailBatchId === (batch.batchId ? String(batch.batchId) : null) ? "Show Less" : "Show More"}
-                        </Button>
-                      </li>
+                return (
+                  <Box key={batch.batchId} sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {batch.changedUtc ? new Date(batch.changedUtc).toLocaleString() : 'Invalid date'} Update by {batch.changedByUser}
+                    </Typography>
+                    <ul>
+                      {importantChanges.map((chg, i) => (
+                        <li key={i}>
+                          <strong>{chg.fieldName}</strong>: {chg.oldValue} &rarr; {chg.newValue}
+                        </li>
+                      ))}
+                      {otherChanges.length > 0 && (
+                        <li>
+                          <span style={{ fontStyle: "italic", color: "#888" }}>
+                            {otherChanges.length} more field{otherChanges.length > 1 ? "s" : ""} updated
+                          </span>
+                          <Button
+                            size="small"
+                            sx={{ ml: 1 }}
+                            onClick={() =>
+                              // normalize batch.batchId to string | null
+                              setDetailBatchId(
+                                detailBatchId === (batch.batchId ? String(batch.batchId) : null)
+                                  ? null
+                                  : (batch.batchId ? String(batch.batchId) : null)
+                              )
+                            }
+                          >
+                            {detailBatchId === (batch.batchId ? String(batch.batchId) : null) ? "Show Less" : "Show More"}
+                          </Button>
+                        </li>
+                      )}
+                    </ul>
+                    <Divider sx={{ my: 1 }} />
+                    {detailBatchId === (batch.batchId ? String(batch.batchId) : null) && (
+                      <Box sx={{ p: 2, bgcolor: "#f5f5f5", borderRadius: 1, mb: 1 }}>
+                        <Typography variant="subtitle2">Change Detail</Typography>
+                        <ul>
+                          {batch.changes?.map((chg, i) => (
+                            <li key={i}>
+                              <strong>{chg.fieldName}</strong>: {chg.oldValue} &rarr; {chg.newValue}
+                            </li>
+                          ))}
+                        </ul>
+                      </Box>
                     )}
-                  </ul>
-                  <Divider sx={{ my: 1 }} />
-                  {detailBatchId === (batch.batchId ? String(batch.batchId) : null) && (
-                    <Box sx={{ p: 2, bgcolor: "#f5f5f5", borderRadius: 1, mb: 1 }}>
-                      <Typography variant="subtitle2">Change Detail</Typography>
-                      <ul>
-                        {batch.changes?.map((chg, i) => (
-                          <li key={i}>
-                            <strong>{chg.fieldName}</strong>: {chg.oldValue} &rarr; {chg.newValue}
-                          </li>
-                        ))}
-                      </ul>
-                    </Box>
-                  )}
-                </Box>
-              );
-            })}
+                  </Box>
+                );
+              })}
         </Box>
       )}
 
