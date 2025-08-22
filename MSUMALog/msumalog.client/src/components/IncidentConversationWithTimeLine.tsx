@@ -84,8 +84,9 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
         setTimeline(prev => prev.filter(batch => batch.entityId !== id));
       }
       setSnackbar({ open: true, message: 'Comment deleted', severity: 'success' });
-    } catch (e: any) {
-      setSnackbar({ open: true, message: e?.response?.data?.message || e?.message || 'Delete failed', severity: 'error' });
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'Delete failed';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
     } finally {
       setDeleting(false);
       setConfirmTargetId(null);
@@ -140,7 +141,7 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
                     </Stack>
                     <Box sx={{ mt: 0.5 }}>
                       {/* เพิ่ม key เพื่อ force remount editor */}
-                      <WysiwygMarkdownEditor key={c.id} value={c.body ?? ''} readOnly minHeight={100} />
+                      <WysiwygMarkdownEditor key={c.id} value={c.body ?? ''} readOnly minHeight={100} maxHeight={200} />
                     </Box>
                   </Paper>
                 );

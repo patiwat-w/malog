@@ -19,6 +19,7 @@ interface Props {
   value?: string | null;
   onChange?: (md: string) => void;
   minHeight?: number;
+  maxHeight?: number; // เพิ่มตรงนี้
   placeholder?: string;
   readOnly?: boolean; // เพิ่มตรงนี้
 }
@@ -55,6 +56,7 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
   value,
   onChange,
   minHeight = 140,
+  maxHeight, // เพิ่มตรงนี้
   placeholder = 'พิมพ์คอมเมนต์ (WYSIWYG จะถูกแปลงเป็น Markdown อัตโนมัติ)',
   readOnly = false // เพิ่มตรงนี้
 }) => {
@@ -304,6 +306,8 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
           onClick={handleEditorClick}
           sx={{
             minHeight,
+            maxHeight: maxHeight ?? undefined,
+            overflowY: maxHeight ? 'auto' : undefined,
             padding: '12px 14px',
             border: '1px solid rgba(0,0,0,0.23)',
             borderRadius: 4,
@@ -312,13 +316,29 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
             outline: 'none',
             whiteSpace: 'pre-wrap',
             overflowWrap: 'anywhere',
-            background: readOnly ? '#f5f5f5' : '#fff',
+            background: readOnly ? 'linear-gradient(135deg, #f5f7fa 0%,rgba(195, 207, 226, 0.2) 100%)' : '#fff', // สีพื้นหลังแบบคลีลิค
             cursor: readOnly ? 'default' : 'text',
             '& img': {
               maxWidth: '100%',
               borderRadius: 1,
               outline: (theme) => selectedImage ? `2px solid ${theme.palette.primary.main}` : 'none'
-            }
+            },
+            /* Custom scrollbar style: ไม่มี background */
+            '&::-webkit-scrollbar': {
+              width: 8,
+              background: 'transparent', // ไม่มี background
+              borderRadius: 8,
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: '#bdbdbd',
+              borderRadius: 8,
+              minHeight: 24,
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              background: '#888',
+            },
+            scrollbarColor: '#bdbdbd transparent', // For Firefox: ไม่มี background
+            scrollbarWidth: 'thin', // For Firefox
           }}
           data-placeholder={placeholder}
         />
