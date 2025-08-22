@@ -155,6 +155,55 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
         }
     }
 
+    public async Task<IncidentReportDto?> UpdatePartialAsync(int id, IncidentReportPatchDto dto, int userId, CancellationToken ct = default)
+    {
+        using var transaction = await _db.Database.BeginTransactionAsync(ct);
+
+        try
+        {
+            var batchId = Guid.NewGuid();
+            var entity = await _repo.GetByIdAsync(id, ct);
+            if (entity == null) return null;
+
+            var beforeUpdate = entity.Clone();
+
+            // อัปเดตเฉพาะ field ที่ไม่เป็น null
+            if (dto.Status != null)
+                entity.Status = dto.Status;
+            if (dto.Title != null)
+                entity.Title = dto.Title;
+            // ... เพิ่ม field อื่น ๆ ตามต้องการ ...
+
+            entity.UpdatedUserId = userId;
+            entity.UpdatedUtc = DateTime.UtcNow;
+
+            // Log audit เฉพาะ fieldที่เปลี่ยน
+            await _auditService.LogEntityChangesAsync(
+                AuditEntityType.IncidentReport,
+                id,
+                beforeUpdate,
+                entity,
+                _auditConfig.IncidentReportFields,
+                userId,
+                AuditActionType.Update,
+                ct,
+                batchId,
+                id,
+                nameof(IncidentReport)
+            );
+
+            await _repo.UpdateAsync(entity, ct);
+            await transaction.CommitAsync(ct);
+
+            return _mapper.Map<IncidentReportDto>(entity);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(ct);
+            throw;
+        }
+    }
+
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
     {
         var existing = await _repo.GetByIdAsync(id, ct);
@@ -195,8 +244,7 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
     {
         var query = _db.IncidentReports.AsQueryable();
 
-        //if (userId.HasValue)
-        //    query = query.Where(x => x.CreatedUserId == userId.Value);
+
 
         foreach (var kv in filters)
         {

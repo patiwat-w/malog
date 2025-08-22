@@ -134,6 +134,29 @@ public class IncidentReportsController(
     }
 
     [Authorize]
+    [HttpPatch("{id:int}")]
+    [ProducesResponseType(typeof(IncidentReportDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IncidentReportDto>> PartialUpdate(int id, [FromBody] IncidentReportPatchDto dto, CancellationToken ct = default)
+    {
+        var userData = UserClaimsHelper.GetUser(User, _db);
+        if (userData is null)
+            return Unauthorized(UserNotFoundMessage);
+
+        var existing = await _service.GetByIdAsync(id, ct);
+        if (existing is null)
+            return NotFound();
+
+        if (userData.Role == _userRole && existing.CreatedUserId != userData.Id)
+            return Forbid(NoPermissionMessage);
+
+        // อัปเดตเฉพาะ field ที่ส่งมา
+        var updated = await _service.UpdatePartialAsync(id, dto, userData.Id, ct);
+
+        return Ok(updated);
+    }
+
+    [Authorize]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

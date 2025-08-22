@@ -112,7 +112,10 @@ public class AuditService(ApplicationDbContext db) : IAuditService
                 BatchId = g.Key,
                 ChangedUtc = g.Max(x => x.ChangedUtc),
                 ChangedByUser = userDict.GetValueOrDefault(g.First().ChangedByUserId, ""),
+                ChangedByUserId = g.First().ChangedByUserId.ToString(),
                 ActionType = g.First().ActionType,
+                EntityType = g.First().EntityType,
+                EntityId = g.First().EntityId,
                 Changes = g.Select(log => new AuditFieldChangeDto
                 {
                     FieldName = log.FieldName ?? "",
@@ -124,7 +127,7 @@ public class AuditService(ApplicationDbContext db) : IAuditService
             .OrderByDescending(x => x.ChangedUtc)
             .ToList();
 
-        var total = grouped.Count;
+        var total = grouped.Count(); // Explicitly call Count() to resolve CS8917
         var items = grouped.Skip((page - 1) * limit).Take(limit).ToList();
 
         return new PagedResultDto<AuditTimelineDto>
@@ -173,7 +176,10 @@ public class AuditService(ApplicationDbContext db) : IAuditService
                 BatchId = g.Key,
                 ChangedUtc = g.Max(x => x.ChangedUtc),
                 ChangedByUser = userDict.GetValueOrDefault(g.First().ChangedByUserId, ""),
+                ChangedByUserId = g.First().ChangedByUserId.ToString(),
                 ActionType = g.First().ActionType,
+                EntityType = g.First().EntityType, // Ensure EntityType is explicitly set
+                EntityId = g.First().EntityId,
                 Changes = g.Select(log => new AuditFieldChangeDto
                 {
                     FieldName = log.FieldName ?? "",

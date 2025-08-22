@@ -5,22 +5,51 @@ using System.Text.Json.Serialization;
 
 namespace MSUMALog.Server.DTOs
 {
-    public class IncidentReportDto
+    public class IncidentReportDtoBase
     {
-        public int Id { get; set; }
+        public int? Id { get; set; }
+        public string? Title { get; set; }
+        public string? Status { get; set; }
+        public string? Asset { get; set; }
+        public string? Center { get; set; }
+        public string? Domain { get; set; }
+        public string? SubDomain { get; set; }
+        public string? Vendor { get; set; }
+        public string? Manufacturer { get; set; }
+        public string? PartNumber { get; set; }
 
+        public string? AdditionalInfo { get; set; }
+        public string? InterimAction { get; set; }
+        public string? IntermediateAction { get; set; }
+        public string? LongTermAction { get; set; }
+
+        public int? Severity { get; set; }
+        public string? Symptoms { get; set; }
+        public string? Impact { get; set; }
+        public string? ResponsibleName { get; set; }
+        public string? ResponsibleLineId { get; set; }
+        public string? ResponsibleEmail { get; set; }
+        public string? ResponsiblePhone { get; set; }
+        public DateTime? IncidentDate { get; set; }
+        public string? Description { get; set; }
+        public DateTime? CreatedUtc { get; set; }
+        public DateTime? UpdatedUtc { get; set; }
+    }
+
+    public class IncidentReportDto : IncidentReportDtoBase
+    {
         [BindNever]          // ไม่ให้ client bind
         public string? CaseNo { get; internal set; } // UI cannot set CaseNo
 
         [Required, StringLength(200)]
-        public string Title { get; set; } = string.Empty;
+        public new string Title { get; set; } = string.Empty;
 
         [StringLength(4000)]
         public string? Description { get; set; }
 
         public DateTime? IncidentDate { get; set; }
 
-        [Range(0,5)]
+        [Range(0, 5)]
         public int Severity { get; set; }
 
         public string Asset { get; set; } = string.Empty;
@@ -36,7 +65,9 @@ namespace MSUMALog.Server.DTOs
         public string? InterimAction { get; set; }
         public string? IntermediateAction { get; set; }
         public string? LongTermAction { get; set; }
-        public string Status { get; set; } = string.Empty;
+
+        [Required]
+        public new string Status { get; set; } = string.Empty;
 
         // server-managed audit fields: do not accept from UI
         [BindNever]
@@ -68,5 +99,11 @@ namespace MSUMALog.Server.DTOs
 
         [BindNever]
         public DateTime? UpdatedUtc { get; internal set; }
+    }
+
+    public class IncidentReportPatchDto : IncidentReportDtoBase
+    {
+        [Required]
+         public  int Id { get; set; }
     }
 }

@@ -72,4 +72,4 @@ Builds the app for production to the `build` folder. It correctly bundles React 
 ## created type
 
 $env:NODE_TLS_REJECT_UNAUTHORIZED=0
-npx openapi-typescript <http://localhost:5293/swagger/v1/swagger.json> -o src/api/types.ts
+npx openapi-typescript <https://localhost/swagger/v1/swagger.json> -o src/api/types.ts

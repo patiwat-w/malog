@@ -819,7 +819,47 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["IncidentReportDto"];
+                    "text/json": components["schemas"]["IncidentReportDto"];
+                    "application/*+json": components["schemas"]["IncidentReportDto"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["IncidentReportDto"];
+                        "application/json": components["schemas"]["IncidentReportDto"];
+                        "text/json": components["schemas"]["IncidentReportDto"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/IncidentReports/by-case/{caseNo}": {
@@ -942,6 +982,11 @@ export interface components {
          * @enum {integer}
          */
         AuditActionType: 0 | 1 | 2;
+        /**
+         * Format: int32
+         * @enum {integer}
+         */
+        AuditEntityType: 0 | 1;
         AuditFieldChangeDto: {
             fieldName?: string | null;
             oldValue?: string | null;
@@ -951,9 +996,13 @@ export interface components {
         AuditTimelineDto: {
             /** Format: uuid */
             batchId?: string;
+            entityType: components["schemas"]["AuditEntityType"];
+            /** Format: int32 */
+            entityId?: number;
             /** Format: date-time */
             changedUtc?: string;
             changedByUser?: string | null;
+            changedByUserId?: string | null;
             actionType?: components["schemas"]["AuditActionType"];
             changes?: components["schemas"]["AuditFieldChangeDto"][] | null;
         };

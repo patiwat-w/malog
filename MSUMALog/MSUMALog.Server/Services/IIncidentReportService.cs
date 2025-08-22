@@ -11,13 +11,14 @@ public interface IIncidentReportService
     Task<bool> UpdateAsync(int id, IncidentReportDto dto, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
 
-Task<PagedResultDto<IncidentReportDto>> SearchAsync(
-         int page, int limit,
+    Task<IncidentReportDto?> UpdatePartialAsync(int id, IncidentReportPatchDto dto, int userId, CancellationToken ct = default);
+
+    Task<PagedResultDto<IncidentReportDto>> SearchAsync(
+        int page, int limit,
         IDictionary<string, string> filters,
         string? order,
         IEnumerable<string> selectFields,
         int? userId = null,
         CancellationToken ct = default
     );
-
 }

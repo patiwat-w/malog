@@ -84,6 +84,12 @@ export async function updateIncidentFull(dto: Partial<IncidentReportDto> & { id:
   return true;
 }
 
+// Update only partial fields (PATCH)
+export async function updateIncidentPartial(dto: Partial<IncidentReportDto> & { id: number }) {
+  await http.patch(`/IncidentReports/${dto.id}`, dto);
+  return true;
+}
+
 export async function getIncidentByCase(caseNo: string) {
   const res = await http.get<IncidentReportDto>(`/IncidentReports/by-case/${encodeURIComponent(caseNo)}`);
   const dto = {

@@ -1,26 +1,31 @@
 import { useEffect, useState } from "react";
-import { Box, Typography, Paper, Divider, Button } from "@mui/material";
+import { Box, Typography, Paper, Divider, Chip, Button } from "@mui/material";
 import { getAuditTimelineByReference } from "../api/client";
-import type { AuditTimelineDto } from "../api/client";
+import { getCommentsByCaseId } from "../api/client";
+import type { AuditTimelineDto, IncidentCommentDto } from "../api/client";
 
 interface Props {
   referenceEntityName: string;
   referenceId: number;
-  reloadKey?: number;
 }
 
-export default function IncidentConversationWithTimeLine({ referenceEntityName, referenceId, reloadKey }: Props) {
+export default function IncidentTimeLine({ referenceEntityName, referenceId }: Props) {
   const [timeline, setTimeline] = useState<AuditTimelineDto[]>([]);
+  const [comments, setComments] = useState<IncidentCommentDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailBatchId, setDetailBatchId] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    getAuditTimelineByReference({ referenceEntityName, referenceId }).then((timelineRes) => {
+    Promise.all([
+      getAuditTimelineByReference({ referenceEntityName, referenceId }),
+      getCommentsByCaseId(referenceId)
+    ]).then(([timelineRes, commentsRes]) => {
       setTimeline(timelineRes.items ?? []);
+      setComments(commentsRes ?? []);
       setLoading(false);
     });
-  }, [referenceEntityName, referenceId, reloadKey]);
+  }, [referenceEntityName, referenceId]);
 
   return (
     <Paper sx={{ p: 2 }}>
@@ -33,29 +38,15 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
 
       {!loading && (
         <Box>
+          {/* Audit Timeline */}
           {timeline.map((batch) => {
-            // ถ้าเป็น IncidentComment ให้แสดงเป็น Comment Box
-            if (batch.entityType === 1 && batch.changes?.[0]?.fieldName === "Body") {
-              // entityType === 1 คือ IncidentComment (ตรวจสอบจาก types.ts)
-              return (
-                <Box key={batch.batchId} sx={{ mb: 2, bgcolor: "#f9f9ff", borderRadius: 2, p: 2, border: "1px solid #e0e0e0" }}>
-                  <Typography variant="body2" color="primary">
-                    {batch.changedUtc && new Date(batch.changedUtc).toLocaleString()} by {batch.changedByUser}
-                  </Typography>
-                  <Typography variant="body1">{batch.changes?.[0]?.newValue}</Typography>
-                  <Divider sx={{ my: 1 }} />
-                </Box>
-              );
-            }
-
-            // Audit ปกติ
-            const importantChanges = batch.changes?.filter(chg => chg.isImportant) ?? [];
-            const otherChanges = batch.changes?.filter(chg => !chg.isImportant) ?? [];
+            const importantChanges = batch.changes.filter(chg => chg.isImportant);
+            const otherChanges = batch.changes.filter(chg => !chg.isImportant);
 
             return (
               <Box key={batch.batchId} sx={{ mb: 2 }}>
                 <Typography variant="body2" color="text.secondary">
-                  {batch.changedUtc && new Date(batch.changedUtc).toLocaleString()} Update by {batch.changedByUser}
+                  {new Date(batch.changedUtc).toLocaleString()} Update by {batch.changedByUser}
                 </Typography>
                 <ul>
                   {importantChanges.map((chg, i) => (
@@ -85,7 +76,7 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
                   <Box sx={{ p: 2, bgcolor: "#f5f5f5", borderRadius: 1, mb: 1 }}>
                     <Typography variant="subtitle2">Change Detail</Typography>
                     <ul>
-                      {batch.changes?.map((chg, i) => (
+                      {batch.changes.map((chg, i) => (
                         <li key={i}>
                           <strong>{chg.fieldName}</strong>: {chg.oldValue} &rarr; {chg.newValue}
                         </li>
@@ -96,6 +87,17 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
               </Box>
             );
           })}
+
+          {/* Comments */}
+          {comments.map((comment) => (
+            <Box key={comment.id} sx={{ mb: 2 }}>
+              <Typography variant="body2" color="primary">
+                {comment.createdUtc && new Date(comment.createdUtc).toLocaleString()} by {comment.createdByUserName}
+              </Typography>
+              <Typography variant="body1">{comment.text}</Typography>
+              <Divider sx={{ my: 1 }} />
+            </Box>
+          ))}
         </Box>
       )}
     </Paper>

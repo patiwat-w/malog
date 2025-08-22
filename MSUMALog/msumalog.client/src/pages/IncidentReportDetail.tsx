@@ -13,8 +13,7 @@ import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
-import { getIncidentByCase, updateIncidentFull, getCurrentUser, type IncidentReportDto, type User } from '../api/client';
-import IncidentConversation from '../components/IncidentConversation';
+import { getIncidentByCase, updateIncidentFull, getCurrentUser, type IncidentReportDto, type User, updateIncidentPartial } from '../api/client';
 import { getDomainLabel, getSeverityLabel, getSeverityColor } from '../constants/incidentOptions';
 import { incidentStatusOptions } from '../constants/incidentOptions'; 
 import WysiwygMarkdownEditor from '../components/WysiwygMarkdownEditor'; // เพิ่ม import นี้
@@ -29,6 +28,7 @@ import DialogActions from '@mui/material/DialogActions';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 import IncidentConversationWithTimeLine from '../components/IncidentConversationWithTimeLine';
+import IncidentCommentBox from '../components/IncidentCommentBox';
 
 
 const parseToDate = (value: unknown): Date | null => {
@@ -129,6 +129,7 @@ const IncidentReportDetail: React.FC = () => {
   const [errorOpen, setErrorOpen] = useState(false); // AlertDialog on error
   const [errorMessage, setErrorMessage] = useState('');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   // --- end new state ---
 
   const DetailField: React.FC<{ label: string; children: React.ReactNode; color?: string }> = ({ label, children, color }) => {
@@ -278,30 +279,15 @@ const IncidentReportDetail: React.FC = () => {
     setSubmitting(true);
     setLoading(true);
     try {
-      await updateIncidentFull({
+      // อัปเดตเฉพาะ status ด้วย PATCH
+      await updateIncidentPartial({
         id: incident.id,
-        caseNo: incident.caseNo,
-        status,
-        asset: incident.asset,
-        center: incident.center,
-        incidentDate: incident.incidentDate,
-        symptoms: incident.symptoms,
-        severity: incident.severity,
-        impact: incident.impact,
-        domain: incident.domain,
-        subDomain: incident.subDomain,
-        vendor: incident.vendor,
-        manufacturer: incident.manufacturer,
-        partNumber: incident.partNumber,
-        interimAction: incident.interimAction,
-        intermediateAction: incident.intermediateAction,
-        longTermAction: incident.longTermAction,
-        createdUtc: incident.createdUtc,
-        title: incident.title
+        status, // ส่งเฉพาะ field ที่ต้องการเปลี่ยน
       });
       setIncident(prev => prev ? { ...prev, status } : prev);
       setSnackMessage('Status updated successfully');
       setSnackOpen(true);
+      setReloadKey(k => k + 1);
     } catch (e) {
       console.error(e);
       setErrorMessage(String((e as Error)?.message ?? 'Failed to update incident'));
@@ -310,6 +296,10 @@ const IncidentReportDetail: React.FC = () => {
       setSubmitting(false);
       setLoading(false);
     }
+  };
+
+  const handleCommentPosted = () => {
+    setReloadKey(k => k + 1);
   };
 
   if (!incident) {
@@ -642,15 +632,17 @@ const IncidentReportDetail: React.FC = () => {
 
       {incident.caseNo && currentUser && (
         <>
-        <IncidentConversation
-          caseNo={incident.caseNo}
-          incidentId={incident.id}
-          currentUser={currentUser}
-        />
+        
 
         <IncidentConversationWithTimeLine
         referenceId={incident.id}
         referenceEntityName="IncidentReport"
+        reloadKey={reloadKey}
+        />
+        <IncidentCommentBox
+          incidentId={incident.id}
+          currentUser={currentUser}
+          onCommentPosted={handleCommentPosted}
         />
         </>
       )}
