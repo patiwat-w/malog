@@ -56,7 +56,7 @@ const IncidentReportForm: React.FC = () => {
     //const isoNow = formatDate(today, "yyyy-MM-dd'T'HH:mm:ss"); // include time
 
     const [formData, setFormData] = useState<IFormData>({
-        id: undefined,
+        id: undefined, // Ensure id is either number or undefined, not null
         caseNo: '',
         title: '',            // NEW
         asset: '',
@@ -140,7 +140,7 @@ const IncidentReportForm: React.FC = () => {
                     // ถ้า id เหมือนเดิม ไม่ต้องเซ็ตใหม่
                     if (prev.id === dto.id) return prev;
                     return {
-                        id: dto.id,
+                        id: dto.id ?? undefined,
                         caseNo: dto.caseNo || caseNoFromUrl,
                         title: dto.title || dto.caseNo || 'Untitled',
                         asset: dto.asset || '',
@@ -163,6 +163,7 @@ const IncidentReportForm: React.FC = () => {
                         responsibleLineId: dto.responsibleLineId || '',
                         responsibleEmail: dto.responsibleEmail || '',
                         responsiblePhone: dto.responsiblePhone || ''
+
                     };
                 });
 

@@ -13,7 +13,7 @@ import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
-import { getIncidentByCase, updateIncidentFull, getCurrentUser, type IncidentReportDto, type User, updateIncidentPartial } from '../api/client';
+import { getIncidentByCase, getCurrentUser, type IncidentReportDto, type User, updateIncidentPartial } from '../api/client';
 import { getDomainLabel, getSeverityLabel, getSeverityColor } from '../constants/incidentOptions';
 import { incidentStatusOptions } from '../constants/incidentOptions'; 
 import WysiwygMarkdownEditor from '../components/WysiwygMarkdownEditor'; // เพิ่ม import นี้
@@ -638,6 +638,7 @@ const IncidentReportDetail: React.FC = () => {
         referenceId={incident.id}
         referenceEntityName="IncidentReport"
         reloadKey={reloadKey}
+        currentUser={currentUser}
         />
         <IncidentCommentBox
           incidentId={incident.id}

@@ -23,5 +23,6 @@ namespace MSUMALog.Server.DTOs
 
         public AuditActionType ActionType { get; set; }
         public List<AuditFieldChangeDto> Changes { get; set; } = [];
+        public bool EntityExists { get; set; }
     }
 }

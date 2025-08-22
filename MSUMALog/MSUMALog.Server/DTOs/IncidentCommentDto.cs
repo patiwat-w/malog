@@ -16,7 +16,7 @@ public class IncidentCommentDto
     [BindNever]
     public string? AuthorUserName { get; internal set; }
 
-    [Required, MaxLength(8000)]
+    [Required]
     public string Body { get; set; } = string.Empty;
 
     // server-managed audit fields: do not accept from UI

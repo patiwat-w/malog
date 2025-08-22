@@ -107,22 +107,35 @@ public class AuditService(ApplicationDbContext db) : IAuditService
 
         var grouped = logs
             .GroupBy(x => x.BatchId)
-            .Select(g => new AuditTimelineDto
+            .Select(g =>
             {
-                BatchId = g.Key,
-                ChangedUtc = g.Max(x => x.ChangedUtc),
-                ChangedByUser = userDict.GetValueOrDefault(g.First().ChangedByUserId, ""),
-                ChangedByUserId = g.First().ChangedByUserId.ToString(),
-                ActionType = g.First().ActionType,
-                EntityType = g.First().EntityType,
-                EntityId = g.First().EntityId,
-                Changes = g.Select(log => new AuditFieldChangeDto
+                var entityId = g.First().EntityId;
+                bool entityExists = g.First().ReferenceEntityName switch
                 {
-                    FieldName = log.FieldName ?? "",
-                    OldValue = log.OldValue,
-                    NewValue = log.NewValue,
-                    IsImportant = importantFields.Contains(log.FieldName ?? "")
-                }).ToList()
+                    "IncidentReport" => db.IncidentReports.Any(x => x.Id == entityId),
+                    "User" => db.Users.Any(x => x.Id == entityId),
+                    "IncidentComment" => db.IncidentComments.Any(x => x.Id == entityId),
+                    _ => false
+                };
+
+                return new AuditTimelineDto
+                {
+                    BatchId = g.Key,
+                    ChangedUtc = g.Max(x => x.ChangedUtc),
+                    ChangedByUser = userDict.GetValueOrDefault(g.First().ChangedByUserId, ""),
+                    ChangedByUserId = g.First().ChangedByUserId.ToString(),
+                    ActionType = g.First().ActionType,
+                    EntityType = g.First().EntityType,
+                    EntityId = entityId,
+                    Changes = g.Select(log => new AuditFieldChangeDto
+                    {
+                        FieldName = log.FieldName ?? "",
+                        OldValue = log.OldValue,
+                        NewValue = log.NewValue,
+                        IsImportant = importantFields.Contains(log.FieldName ?? "")
+                    }).ToList(),
+                    EntityExists = entityExists // เปลี่ยนชื่อ field ตรงนี้
+                };
             })
             .OrderByDescending(x => x.ChangedUtc)
             .ToList();
@@ -169,6 +182,16 @@ public class AuditService(ApplicationDbContext db) : IAuditService
 
         var userDict = db.Users.ToDictionary(u => u.Id, u => u.Email ?? u.Id.ToString());
 
+        // เช็คว่ามี record จริงใน DB ตาม entity
+        bool entityExists = referenceEntityName switch
+        {
+            "IncidentReport" => await db.IncidentReports.AnyAsync(x => x.Id == referenceId, ct),
+            "User" => await db.Users.AnyAsync(x => x.Id == referenceId, ct),
+            "IncidentComment" => await db.IncidentComments.AnyAsync(x => x.Id == referenceId, ct),
+            // เพิ่มกรณีอื่น ๆ ตาม entity ที่ต้องการ
+            _ => false
+        };
+
         var grouped = logs
             .GroupBy(x => x.BatchId)
             .Select(g => new AuditTimelineDto
@@ -178,7 +201,7 @@ public class AuditService(ApplicationDbContext db) : IAuditService
                 ChangedByUser = userDict.GetValueOrDefault(g.First().ChangedByUserId, ""),
                 ChangedByUserId = g.First().ChangedByUserId.ToString(),
                 ActionType = g.First().ActionType,
-                EntityType = g.First().EntityType, // Ensure EntityType is explicitly set
+                EntityType = g.First().EntityType,
                 EntityId = g.First().EntityId,
                 Changes = g.Select(log => new AuditFieldChangeDto
                 {
@@ -186,7 +209,8 @@ public class AuditService(ApplicationDbContext db) : IAuditService
                     OldValue = log.OldValue,
                     NewValue = log.NewValue,
                     IsImportant = importantFields.Contains(log.FieldName ?? "")
-                }).ToList()
+                }).ToList(),
+                EntityExists = entityExists // เปลี่ยนชื่อ field ตรงนี้
             })
             .OrderByDescending(x => x.ChangedUtc)
             .ToList();

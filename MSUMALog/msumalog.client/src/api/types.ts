@@ -1005,6 +1005,7 @@ export interface components {
             changedByUserId?: string | null;
             actionType?: components["schemas"]["AuditActionType"];
             changes?: components["schemas"]["AuditFieldChangeDto"][] | null;
+            entityExists?: boolean;
         };
         AuditTimelineDtoPagedResultDto: {
             /** Format: int32 */
