@@ -28,6 +28,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
+import IncidentConversationWithTimeLine from '../components/IncidentConversationWithTimeLine';
 
 
 const parseToDate = (value: unknown): Date | null => {
@@ -640,11 +641,18 @@ const IncidentReportDetail: React.FC = () => {
       </Stack>
 
       {incident.caseNo && currentUser && (
+        <>
         <IncidentConversation
           caseNo={incident.caseNo}
           incidentId={incident.id}
           currentUser={currentUser}
         />
+
+        <IncidentConversationWithTimeLine
+        referenceId={incident.id}
+        referenceEntityName="IncidentReport"
+        />
+        </>
       )}
 
       {/* --- PageLoad (Backdrop) --- */}

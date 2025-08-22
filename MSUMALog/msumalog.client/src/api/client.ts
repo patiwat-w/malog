@@ -8,6 +8,10 @@ export type User = components['schemas']['User'];
 export type IncidentCommentDto = components['schemas']['IncidentCommentDto'];
 export type PagedResultDto<T extends Record<string, unknown> = Record<string, unknown>> = components['schemas']['StringObjectIDictionaryPagedResultDto'] & { items: T[] };
 
+export type AuditTimelineDto = components['schemas']['AuditTimelineDto'];
+export type AuditFieldChangeDto = components['schemas']['AuditFieldChangeDto'];
+export type AuditTimelineDtoPagedResultDto = components['schemas']['AuditTimelineDtoPagedResultDto'];
+
 // helper: convert UTC ISO string -> user's local display string (or undefined)
 function utcToLocal(utc?: string | null): string | undefined {
   if (!utc) return undefined;
@@ -104,6 +108,14 @@ export async function getCommentsByCase(caseNo: string) {
   return data;
 }
 
+//getCommentsByCaseId
+export async function getCommentsByCaseId(incidentId: number) {
+  const res = await http.get<IncidentCommentDto[]>(`/IncidentComments/by-incident/${incidentId}`);
+  // convert comment createdUtc to local string
+  const data = res.data.map(c => ({ ...c, createdUtc: utcToLocal(c.createdUtc) ?? c.createdUtc }));
+  return data;
+}
+
 export async function createComment(data: Omit<IncidentCommentDto, 'id' | 'createdUtc' | 'caseNo'>) {
   const res = await http.post<IncidentCommentDto>('/IncidentComments', data);
   return { ...res.data, createdUtc: utcToLocal(res.data.createdUtc) ?? res.data.createdUtc };
@@ -152,5 +164,36 @@ export async function basicLogin(email: string, password: string): Promise<User>
 // New: set-password for currently authenticated user (password only)
 export async function setPassword(password: string) {
   const res = await http.post<{ email: string }>('/auth/set-password', { password }, { withCredentials: true });
+  return res.data;
+}
+
+// ดึง timeline ด้วย incidentId (แบบเดิม)
+export async function getAuditTimelineByIncidentId(params: {
+  incidentId: number;
+  page?: number;
+  limit?: number;
+}) {
+  const res = await http.get<AuditTimelineDtoPagedResultDto>('/Audit/timeline', { params });
+  return res.data;
+}
+
+// ดึง timeline ด้วย ReferenceEntityName/ReferenceId
+export async function getAuditTimelineByReference(params: {
+  referenceEntityName: string;
+  referenceId: number;
+  page?: number;
+  limit?: number;
+}) {
+  const { referenceEntityName, referenceId, page, limit } = params;
+  const res = await http.get<AuditTimelineDtoPagedResultDto>(
+    `/Audit/${encodeURIComponent(referenceEntityName)}/${referenceId}/timeline`,
+    { params: { page, limit } }
+  );
+  return res.data;
+}
+
+// ดึงรายละเอียดการแก้ไขใน batch เดียวกัน
+export async function getAuditBatchDetail(batchId: string) {
+  const res = await http.get<AuditFieldChangeDto[]>(`/Audit/batch/${batchId}`);
   return res.data;
 }
