@@ -114,13 +114,14 @@ public class IncidentCommentService(
 
         // Audit: บันทึกสถานะการลบ ไม่ต้องเก็บรายละเอียด field
         var userId = existing.CreatedUserId ?? existing.AuthorUserId ?? 0;
+        var message = $"Comment with ID {id} deleted";
         var log = new AuditLog
         {
             EntityType = AuditEntityType.IncidentComment,
             EntityId = id,
             FieldName = null,
             OldValue = null,
-            NewValue = "Deleted",
+            NewValue = message,
             ChangedUtc = DateTime.UtcNow,
             ChangedByUserId = userId,
             BatchId = Guid.NewGuid(),

@@ -130,8 +130,8 @@ public class AuditService(ApplicationDbContext db) : IAuditService
                     Changes = g.Select(log => new AuditFieldChangeDto
                     {
                         FieldName = log.FieldName ?? "",
-                        OldValue = log.OldValue,
-                        NewValue = log.NewValue,
+                        OldValue = (log.OldValue != null && log.OldValue.Length > 500) ? "Value is too long to display." : log.OldValue,
+                        NewValue = (log.NewValue != null && log.NewValue.Length > 500) ? "Value is too long to display." : log.NewValue,
                         IsImportant = importantFields.Contains(log.FieldName ?? "")
                     }).ToList(),
                     EntityExists = entityExists // เปลี่ยนชื่อ field ตรงนี้
@@ -206,8 +206,8 @@ public class AuditService(ApplicationDbContext db) : IAuditService
                 Changes = g.Select(log => new AuditFieldChangeDto
                 {
                     FieldName = log.FieldName ?? "",
-                    OldValue = log.OldValue,
-                    NewValue = log.NewValue,
+                    OldValue = (log.OldValue != null && log.OldValue.Length > 100) ? "Value is too long to display." : log.OldValue,
+                    NewValue = (log.NewValue != null && log.NewValue.Length > 100) ? "Value is too long to display." : log.NewValue,
                     IsImportant = importantFields.Contains(log.FieldName ?? "")
                 }).ToList(),
                 EntityExists = entityExists // เปลี่ยนชื่อ field ตรงนี้

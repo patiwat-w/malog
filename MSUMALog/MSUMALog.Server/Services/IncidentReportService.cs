@@ -212,6 +212,7 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
         var user = _httpAccessor.HttpContext?.User;
         var uid = user is not null ? UserClaimsHelper.GetUserId(user) : null;
 
+        var message = $"IncidentReport with ID {id} deleted";
         // Audit: บันทึกสถานะการลบ ไม่ต้องเก็บรายละเอียด field
         var log = new AuditLog
         {
@@ -219,7 +220,7 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
             EntityId = id,
             FieldName = null,
             OldValue = null,
-            NewValue = "Deleted",
+            NewValue = message,
             ChangedUtc = DateTime.UtcNow,
             ChangedByUserId = uid ?? 0,
             BatchId = Guid.NewGuid(),

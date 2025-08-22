@@ -543,45 +543,33 @@ const IncidentReportDetail: React.FC = () => {
         </Box>
       </Box>
       <Divider sx={{ my: 3 }} />
-      {/* Actions <Box
-        sx={{
-          mb: 3,
-          p: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 2,
-          bgcolor: 'background.paper',
-          boxShadow: 1
-        }}
-      >*/}
+
       
         <Typography variant="overline" sx={{ fontWeight: 600 }}>
           Actions
         </Typography>
 
+        {/* Interim Action */}
         <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Interim Action</Typography>
-        <WysiwygMarkdownEditor value={incident.interimAction} readOnly minHeight={100} />
-
-
+        {incident.interimAction
+          ? <WysiwygMarkdownEditor value={incident.interimAction} readOnly minHeight={100} />
+          : <Typography sx={{ color: 'text.secondary', fontStyle: 'italic', mb: 2 }}>N/A</Typography>
+        }
+        {/* Intermediate Action */}
         <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Intermediate Action</Typography>
-        <WysiwygMarkdownEditor value={incident.intermediateAction} readOnly minHeight={100} />
-
-
+        {incident.intermediateAction
+          ? <WysiwygMarkdownEditor value={incident.intermediateAction} readOnly minHeight={100} />
+          : <Typography sx={{ color: 'text.secondary', fontStyle: 'italic', mb: 2 }}>N/A</Typography>
+        }
+        {/* Long-term Action */}
         <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>Long-term Action</Typography>
-        <WysiwygMarkdownEditor value={incident.longTermAction} readOnly minHeight={100} />
+        {incident.longTermAction
+          ? <WysiwygMarkdownEditor value={incident.longTermAction} readOnly minHeight={100} />
+          : <Typography sx={{ color: 'text.secondary', fontStyle: 'italic', mb: 2 }}>N/A</Typography>
+        }
 
 
-        {/* <Grid container direction="column" spacing={2} sx={{ mt: 1 }}>
-        <Box>
-         
-        </Box>
-        <Box>
-          
-        </Box>
-        <Box>
-         
-        </Box>
-      </Grid> </Box>*/}
+
       
 
       <Divider sx={{ my: 3 }} />
@@ -638,7 +626,7 @@ const IncidentReportDetail: React.FC = () => {
         referenceId={incident.id}
         referenceEntityName="IncidentReport"
         reloadKey={reloadKey}
-        currentUser={currentUser}
+        currentUser={currentUser?.id ? { id: currentUser.id } : undefined}
         />
         <IncidentCommentBox
           incidentId={incident.id}
