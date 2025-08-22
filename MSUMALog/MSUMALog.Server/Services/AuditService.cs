@@ -1,6 +1,7 @@
 using MSUMALog.Server.Data;
 using MSUMALog.Server.DTOs;
 using MSUMALog.Server.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace MSUMALog.Server.Services;
 public interface IAuditService
@@ -19,6 +20,11 @@ public interface IAuditService
         int referenceId = 0,
         string referenceEntityName = ""
     );
+    Task<PagedResultDto<AuditTimelineDto>> GetIncidentTimelinePagedAsync(
+        int incidentId, int page, int limit, CancellationToken ct = default);
+    Task<List<AuditFieldChangeDto>> GetAuditBatchDetailAsync(Guid batchId, CancellationToken ct = default);
+    Task<PagedResultDto<AuditTimelineDto>> GetTimelinePagedByReferenceAsync(
+        string referenceEntityName, int referenceId, int page, int limit, CancellationToken ct = default);
 }
 
 public class AuditService(ApplicationDbContext db) : IAuditService
@@ -85,5 +91,109 @@ public class AuditService(ApplicationDbContext db) : IAuditService
         }
         await db.SaveChangesAsync(ct);
         
+    }
+
+    public async Task<PagedResultDto<AuditTimelineDto>> GetIncidentTimelinePagedAsync(
+        int incidentId, int page, int limit, CancellationToken ct = default)
+    {
+        var importantFields = new[] { "Title", "Status", "ResponsibleName" };
+
+        var logs = await db.AuditLogs
+            .Where(x => x.EntityType == AuditEntityType.IncidentReport && x.EntityId == incidentId)
+            .OrderByDescending(x => x.ChangedUtc)
+            .ToListAsync(ct);
+
+        var userDict = db.Users.ToDictionary(u => u.Id, u => u.Email ?? u.Id.ToString());
+
+        var grouped = logs
+            .GroupBy(x => x.BatchId)
+            .Select(g => new AuditTimelineDto
+            {
+                BatchId = g.Key,
+                ChangedUtc = g.Max(x => x.ChangedUtc),
+                ChangedByUser = userDict.GetValueOrDefault(g.First().ChangedByUserId, ""),
+                ActionType = g.First().ActionType,
+                Changes = g.Select(log => new AuditFieldChangeDto
+                {
+                    FieldName = log.FieldName ?? "",
+                    OldValue = log.OldValue,
+                    NewValue = log.NewValue,
+                    IsImportant = importantFields.Contains(log.FieldName ?? "")
+                }).ToList()
+            })
+            .OrderByDescending(x => x.ChangedUtc)
+            .ToList();
+
+        var total = grouped.Count;
+        var items = grouped.Skip((page - 1) * limit).Take(limit).ToList();
+
+        return new PagedResultDto<AuditTimelineDto>
+        {
+            TotalCount = total,
+            Page = page,
+            PageSize = limit,
+            Items = items
+        };
+    }
+
+    public async Task<List<AuditFieldChangeDto>> GetAuditBatchDetailAsync(Guid batchId, CancellationToken ct = default)
+    {
+        var importantFields = new[] { "Title", "Status", "ResponsibleName" };
+
+        var logs = await db.AuditLogs
+            .Where(x => x.BatchId == batchId)
+            .OrderBy(x => x.FieldName)
+            .ToListAsync(ct);
+
+        return logs.Select(log => new AuditFieldChangeDto
+        {
+            FieldName = log.FieldName ?? "",
+            OldValue = log.OldValue,
+            NewValue = log.NewValue,
+            IsImportant = importantFields.Contains(log.FieldName ?? "")
+        }).ToList();
+    }
+
+    public async Task<PagedResultDto<AuditTimelineDto>> GetTimelinePagedByReferenceAsync(
+        string referenceEntityName, int referenceId, int page, int limit, CancellationToken ct = default)
+    {
+        var importantFields = new[] { "Title", "Status", "ResponsibleName" };
+
+        var logs = await db.AuditLogs
+            .Where(x => x.ReferenceEntityName == referenceEntityName && x.ReferenceId == referenceId)
+            .OrderByDescending(x => x.ChangedUtc)
+            .ToListAsync(ct);
+
+        var userDict = db.Users.ToDictionary(u => u.Id, u => u.Email ?? u.Id.ToString());
+
+        var grouped = logs
+            .GroupBy(x => x.BatchId)
+            .Select(g => new AuditTimelineDto
+            {
+                BatchId = g.Key,
+                ChangedUtc = g.Max(x => x.ChangedUtc),
+                ChangedByUser = userDict.GetValueOrDefault(g.First().ChangedByUserId, ""),
+                ActionType = g.First().ActionType,
+                Changes = g.Select(log => new AuditFieldChangeDto
+                {
+                    FieldName = log.FieldName ?? "",
+                    OldValue = log.OldValue,
+                    NewValue = log.NewValue,
+                    IsImportant = importantFields.Contains(log.FieldName ?? "")
+                }).ToList()
+            })
+            .OrderByDescending(x => x.ChangedUtc)
+            .ToList();
+
+        var total = grouped.Count;
+        var items = grouped.Skip((page - 1) * limit).Take(limit).ToList();
+
+        return new PagedResultDto<AuditTimelineDto>
+        {
+            TotalCount = total,
+            Page = page,
+            PageSize = limit,
+            Items = items
+        };
     }
 }

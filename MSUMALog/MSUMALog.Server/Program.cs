@@ -51,6 +51,8 @@ builder.Services.AddScoped<IIncidentReportService, IncidentReportService>();
 builder.Services.AddScoped<IIncidentCommentService, IncidentCommentService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 
+
+
 // Data Protection สำหรับ Production (ย้ายขึ้นมา)
 if (!builder.Environment.IsDevelopment())
 {
@@ -167,12 +169,29 @@ builder.Services.AddAuthentication(options =>
             if (user != null)
             {
                 // Add NameIdentifier claim (DB user id)
+                // remove existing NameIdentifier claim if it exists
+                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.NameIdentifier) ?? new Claim(ClaimTypes.NameIdentifier, ""));
                 context.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()));
+                // remove existing Email claim if it exists
+                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.Email) ?? new Claim(ClaimTypes.Email, ""));
                 context.Identity.AddClaim(new Claim(ClaimTypes.Email, user.Email ?? ""));
+                // Remove existing Name claim if it exists
+                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.Name) ?? new Claim(ClaimTypes.Name, ""));
                 context.Identity.AddClaim(new Claim(ClaimTypes.Name, user.FirstName ?? user.Email ?? ""));
+                // Remove existing GivenName claim if it exists
+                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.GivenName) ?? new Claim(ClaimTypes.GivenName, ""));
                 context.Identity.AddClaim(new Claim(ClaimTypes.GivenName, user.FirstName ?? ""));
+
+                // Remove existing Surname claim if it exists
+                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.Surname) ?? new Claim(ClaimTypes.Surname, ""));
                 context.Identity.AddClaim(new Claim(ClaimTypes.Surname, user.LastName ?? ""));
+
+                // Remove existing Picture claim if it exists
+                context.Identity.RemoveClaim(context.Identity.FindFirst("picture") ?? new Claim("picture", ""));
                 context.Identity.AddClaim(new Claim("picture", user.ProfilePicture ?? ""));
+
+                // Remove existing Role claim if it exists
+                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.Role) ?? new Claim(ClaimTypes.Role, ""));
                 context.Identity.AddClaim(new Claim(ClaimTypes.Role, user.Role ?? "User"));
             }
         }

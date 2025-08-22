@@ -14,11 +14,13 @@ namespace MSUMALog.Server.Controllers;
 [Route("api/[controller]")]
 public class IncidentReportsController(
     IIncidentReportService service,
-    ApplicationDbContext db
+    ApplicationDbContext db,
+    IAuditService auditService // <-- เพิ่ม parameter นี้
 ) : ControllerBase
 {
     private readonly IIncidentReportService _service = service;
     private readonly ApplicationDbContext _db = db;
+    private readonly IAuditService _auditService = auditService; // <-- เพิ่มบรรทัดนี้
 
     private readonly string _userRole = "User";
     private const string UserNotFoundMessage = "User not found";
@@ -188,4 +190,6 @@ public class IncidentReportsController(
 
         return Ok(result);
     }
+
+   
 }
