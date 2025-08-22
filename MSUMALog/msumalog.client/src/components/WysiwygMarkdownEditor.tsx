@@ -263,6 +263,7 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
         // เปลี่ยนจาก innerText เป็น innerHTML โดยแปลง markdown เป็น html
         const html = await marked(value || ''); // ใช้ marked() แทน marked.parse()
         if (editorRef.current.innerHTML !== html) {
+                    if (!editorRef.current) return;
           editorRef.current.innerHTML = html;
         }
       };

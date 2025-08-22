@@ -3,9 +3,7 @@ import { Box, Typography, Paper, Divider, Button, ToggleButtonGroup, ToggleButto
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { getAuditTimelineByReference, deleteComment, getCommentsByCaseId } from "../api/client";
 import type { AuditTimelineDto } from "../api/client";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
+
 import WysiwygMarkdownEditor from './WysiwygMarkdownEditor';
 
 interface Props {
@@ -147,9 +145,61 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
                 );
               })
             : timeline.map((batch) => {
-                // Timeline/Audit Box
                 const importantChanges = batch.changes?.filter(chg => chg.isImportant) ?? [];
                 const otherChanges = batch.changes?.filter(chg => !chg.isImportant) ?? [];
+                const entityExists = batch.entityExists ?? false;
+                const entityType = batch.entityType ?? referenceEntityName;
+
+                // กรณี Comment ถูกยกเลิก
+                if (entityType === 1 && !entityExists) {
+                  return (
+                    <Box key={batch.batchId} sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                      {batch.changedUtc ? new Date(batch.changedUtc).toLocaleString() : 'Invalid date'} Update by {batch.changedByUser}
+                    </Typography>
+                    <ul>
+                      <li>
+                        <Typography >
+                          <strong>Comment ID {batch.entityId}</strong> was posted by <strong>{batch.changedByUser}</strong>
+                        </Typography>
+                      </li>
+                      <li>
+                        <Typography color="error">
+                          <strong>this comment cannot be viewed anymore because the author has deleted it.</strong>
+                        </Typography>
+                      </li>
+                    </ul>
+                    </Box>
+                  );
+                }
+
+                // กรณี Comment ยังอยู่
+                if (entityType === 1 && entityExists) {
+                  return (
+                    <Box key={batch.batchId} sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {batch.changedUtc ? new Date(batch.changedUtc).toLocaleString() : 'Invalid date'} Update by {batch.changedByUser}
+                      </Typography>
+                      <ul>
+                        <li>
+                          <Typography>
+                            <strong>Comment ID {batch.entityId}</strong> was posted by <strong>{batch.changedByUser}</strong>
+                           
+
+                          </Typography>
+                        </li>
+                        <li>
+                          <Typography>
+                            <strong>Message</strong> <strong>{batch?.changes?.[0]?.newValue}</strong>
+                           
+
+                          </Typography>
+                        </li>
+                      </ul>
+                      <Divider sx={{ my: 1 }} />
+                    </Box>
+                  );
+                }
 
                 return (
                   <Box key={batch.batchId} sx={{ mb: 2 }}>
@@ -166,14 +216,13 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
                         <li>
                           <span style={{ fontStyle: "italic", color: "#888" }}>
                             {otherChanges.length === 1
-                              ? "1 field updated"
-                              : `${otherChanges.length} fields updated`}
+                              ? `${otherChanges[0].fieldName || "issue detail"} updated`
+                              : `${otherChanges.length} details  updated`}
                           </span>
                           <Button
                             size="small"
                             sx={{ ml: 1 }}
                             onClick={() =>
-                              // normalize batch.batchId to string | null
                               setDetailBatchId(
                                 detailBatchId === (batch.batchId ? String(batch.batchId) : null)
                                   ? null

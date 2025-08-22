@@ -24,8 +24,9 @@ CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 builder.Services.AddHttpContextAccessor();
 
 // เพิ่ม logging สำหรับ debug
-builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication", LogLevel.Debug);
-
+//builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication", LogLevel.Debug);
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
 // Add services
 builder.Services.AddControllers()
 
