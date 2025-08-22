@@ -195,8 +195,8 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
     {
         var query = _db.IncidentReports.AsQueryable();
 
-        if (userId.HasValue)
-            query = query.Where(x => x.CreatedUserId == userId.Value);
+        //if (userId.HasValue)
+        //    query = query.Where(x => x.CreatedUserId == userId.Value);
 
         foreach (var kv in filters)
         {

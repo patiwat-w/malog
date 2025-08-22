@@ -781,18 +781,28 @@ const IncidentReportForm: React.FC = () => {
                                     variant="outlined"
                                     color="primary"
                                     fullWidth
-                                    onClick={() => navigate('/issues')}
+                                    onClick={() => {
+                                        // ถ้า path มี /admin ให้กลับไป /admin
+                                        if (window.location.pathname.startsWith("/admin")) {
+                                            navigate("/admin");
+                                        } else {
+                                            navigate("/issues");
+                                        }
+                                    }}
                                 >
                                     Close to List
                                 </Button>
-                                <Button
-                                    variant="outlined"
-                                    color="secondary"
-                                    fullWidth
-                                    onClick={() => navigate(`/issues/${formData.caseNo}`)}
-                                >
-                                    Close to Detail
-                                </Button>
+                                {/* แสดงปุ่ม Close to Detail เฉพาะเมื่อไม่ได้อยู่ใน /admin */}
+                                {!window.location.pathname.startsWith("/admin") && (
+                                    <Button
+                                        variant="outlined"
+                                        color="secondary"
+                                        fullWidth
+                                        onClick={() => navigate(`/issues/${formData.caseNo}`)}
+                                    >
+                                        Close to Detail
+                                    </Button>
+                                )}
                             </Stack>
                         )}
                     </Box>

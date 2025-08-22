@@ -38,8 +38,8 @@ function App() {
     const navItems = [
         { label: 'Home', to: '/home' },
         { label: 'New Issue', to: '/report' },
-      
-        { label: 'Admin', to: '/admin' } 
+        // แสดงเมนู Admin เฉพาะผู้ใช้ที่เป็น Admin
+        ...(currentUser?.role === 'Admin' ? [{ label: 'Admin', to: '/admin' }] : [])
     ];
 
     return (
@@ -162,6 +162,8 @@ function App() {
                         <Route path="/login-fail" element={<LoginFailPage />} />
                         <Route path="/profile" element={<RequireAuth><UserProfilePage /></RequireAuth>} />
                         <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
+                        <Route path="/admin/:case_no" element={<RequireAuth><IncidentReportForm /></RequireAuth>} />
+
                         <Route path="*" element={<NotFoundPage />} />
                     </Routes>
                 </Box>
