@@ -830,9 +830,9 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["IncidentReportDto"];
-                    "text/json": components["schemas"]["IncidentReportDto"];
-                    "application/*+json": components["schemas"]["IncidentReportDto"];
+                    "application/json": components["schemas"]["IncidentReportPatchDto"];
+                    "text/json": components["schemas"]["IncidentReportPatchDto"];
+                    "application/*+json": components["schemas"]["IncidentReportPatchDto"];
                 };
             };
             responses: {
@@ -1038,14 +1038,14 @@ export interface components {
         };
         IncidentReportDto: {
             /** Format: int32 */
-            id?: number;
+            id?: number | null;
+            /** Format: int32 */
+            severity?: number;
             readonly caseNo?: string | null;
             title: string;
             description?: string | null;
             /** Format: date-time */
             incidentDate?: string | null;
-            /** Format: int32 */
-            severity?: number;
             asset?: string | null;
             center?: string | null;
             symptoms?: string | null;
@@ -1059,7 +1059,7 @@ export interface components {
             interimAction?: string | null;
             intermediateAction?: string | null;
             longTermAction?: string | null;
-            status?: string | null;
+            status: string;
             /** Format: int32 */
             readonly createdUserId?: number | null;
             /** Format: int32 */
@@ -1076,6 +1076,38 @@ export interface components {
             readonly createdUtc?: string | null;
             /** Format: date-time */
             readonly updatedUtc?: string | null;
+        };
+        IncidentReportPatchDto: {
+            /** Format: int32 */
+            id: number;
+            title?: string | null;
+            status?: string | null;
+            asset?: string | null;
+            center?: string | null;
+            domain?: string | null;
+            subDomain?: string | null;
+            vendor?: string | null;
+            manufacturer?: string | null;
+            partNumber?: string | null;
+            additionalInfo?: string | null;
+            interimAction?: string | null;
+            intermediateAction?: string | null;
+            longTermAction?: string | null;
+            /** Format: int32 */
+            severity?: number | null;
+            symptoms?: string | null;
+            impact?: string | null;
+            responsibleName?: string | null;
+            responsibleLineId?: string | null;
+            responsibleEmail?: string | null;
+            responsiblePhone?: string | null;
+            /** Format: date-time */
+            incidentDate?: string | null;
+            description?: string | null;
+            /** Format: date-time */
+            createdUtc?: string | null;
+            /** Format: date-time */
+            updatedUtc?: string | null;
         };
         LoginRequest: {
             email?: string | null;

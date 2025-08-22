@@ -4,6 +4,7 @@ import type { components } from './types';
 const http = axios.create({ baseURL: '/api' });
 
 export type IncidentReportDto = components['schemas']['IncidentReportDto'];
+export type IncidentReportPatchDto = components['schemas']['IncidentReportPatchDto'];
 export type User = components['schemas']['User'];
 export type IncidentCommentDto = components['schemas']['IncidentCommentDto'];
 export type PagedResultDto<T extends Record<string, unknown> = Record<string, unknown>> = components['schemas']['StringObjectIDictionaryPagedResultDto'] & { items: T[] };
@@ -79,7 +80,7 @@ export async function createIncident(body: Partial<IncidentReportDto>) {
 }
 
 // Update expects an object that includes the id (other fields may be partial)
-export async function updateIncidentFull(dto: Partial<IncidentReportDto> & { id: number }) {
+export async function updateIncidentFull(dto: Partial<IncidentReportPatchDto> & { id: number }) {
   await http.put(`/IncidentReports/${dto.id}`, dto);
   return true;
 }
