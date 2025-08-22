@@ -165,7 +165,9 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
                       {otherChanges.length > 0 && (
                         <li>
                           <span style={{ fontStyle: "italic", color: "#888" }}>
-                            {otherChanges.length} more field{otherChanges.length > 1 ? "s" : ""} updated
+                            {otherChanges.length === 1
+                              ? "1 field updated"
+                              : `${otherChanges.length} fields updated`}
                           </span>
                           <Button
                             size="small"

@@ -101,6 +101,13 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
         return `![${alt}](${src})`;
       }
     });
+    // --- เพิ่มตรงนี้ ---
+    turndownRef.current.addRule('divToNewline', {
+      filter: 'div',
+      replacement: function(content) {
+        return '\n' + content + '\n';
+      }
+    });
   }, []);
 
   const debouncedSyncFromEditor = useRef(
@@ -108,19 +115,14 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
       const html = editorRef.current?.innerHTML || '';
       const td = turndownRef.current;
       if (td) {
-        const md = td.turndown(
-          html
-            .replace(/<div><br><\/div>/g, '<br>')
-            .replace(/<div>/g, '\n')
-            .replace(/<\/div>/g, '')
-        ).trim();
+        const md = td.turndown(html).trim(); // <-- ใช้ turndown ตรงๆ
         lastLocalValueRef.current = md;
         isLocalChangeRef.current = true;
         if (onChange) {
           onChange(md);
         }
       }
-    }, 300) // Delay 300ms
+    }, 300)
   ).current;
 
   useEffect(() => {
