@@ -24,9 +24,9 @@ CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 builder.Services.AddHttpContextAccessor();
 
 // เพิ่ม logging สำหรับ debug
-//builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication", LogLevel.Debug);
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
+builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication", LogLevel.Debug);
+//builder.Logging.AddConsole();
+//builder.Logging.AddDebug();
 // Add services
 builder.Services.AddControllers()
 
@@ -170,30 +170,41 @@ builder.Services.AddAuthentication(options =>
             if (user != null)
             {
                 // Add NameIdentifier claim (DB user id)
-                // remove existing NameIdentifier claim if it exists
-                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.NameIdentifier) ?? new Claim(ClaimTypes.NameIdentifier, ""));
+                // Remove existing NameIdentifier claim if it exists
+                var nameIdClaim = context.Identity.FindFirst(ClaimTypes.NameIdentifier);
+                if (nameIdClaim != null)
+                    context.Identity.RemoveClaim(nameIdClaim);
                 context.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()));
-                // remove existing Email claim if it exists
-                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.Email) ?? new Claim(ClaimTypes.Email, ""));
+
+                // Remove existing Email claim if it exists
+                var emailClaim = context.Identity.FindFirst(ClaimTypes.Email);
+                if (emailClaim != null)
+                    context.Identity.RemoveClaim(emailClaim);
                 context.Identity.AddClaim(new Claim(ClaimTypes.Email, user.Email ?? ""));
+
                 // Remove existing Name claim if it exists
-                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.Name) ?? new Claim(ClaimTypes.Name, ""));
+                var nameClaim = context.Identity.FindFirst(ClaimTypes.Name);
+                if (nameClaim != null)
+                    context.Identity.RemoveClaim(nameClaim);
                 context.Identity.AddClaim(new Claim(ClaimTypes.Name, user.FirstName ?? user.Email ?? ""));
+
                 // Remove existing GivenName claim if it exists
-                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.GivenName) ?? new Claim(ClaimTypes.GivenName, ""));
+                var givenNameClaim = context.Identity.FindFirst(ClaimTypes.GivenName);
+                if (givenNameClaim != null)
+                    context.Identity.RemoveClaim(givenNameClaim);
                 context.Identity.AddClaim(new Claim(ClaimTypes.GivenName, user.FirstName ?? ""));
 
                 // Remove existing Surname claim if it exists
-                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.Surname) ?? new Claim(ClaimTypes.Surname, ""));
+                var surnameClaim = context.Identity.FindFirst(ClaimTypes.Surname);
+                if (surnameClaim != null)
+                    context.Identity.RemoveClaim(surnameClaim);
                 context.Identity.AddClaim(new Claim(ClaimTypes.Surname, user.LastName ?? ""));
 
                 // Remove existing Picture claim if it exists
-                context.Identity.RemoveClaim(context.Identity.FindFirst("picture") ?? new Claim("picture", ""));
+                var pictureClaim = context.Identity.FindFirst("picture");
+                if (pictureClaim != null)
+                    context.Identity.RemoveClaim(pictureClaim);
                 context.Identity.AddClaim(new Claim("picture", user.ProfilePicture ?? ""));
-
-                // Remove existing Role claim if it exists
-                context.Identity.RemoveClaim(context.Identity.FindFirst(ClaimTypes.Role) ?? new Claim(ClaimTypes.Role, ""));
-                context.Identity.AddClaim(new Claim(ClaimTypes.Role, user.Role ?? "User"));
             }
         }
     };
