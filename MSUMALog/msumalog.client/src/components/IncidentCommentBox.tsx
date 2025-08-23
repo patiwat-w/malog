@@ -60,7 +60,7 @@ const IncidentCommentBox: React.FC<Props> = ({
 
   return (
     <Box sx={{ mt: 4 }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>Discussions</Typography>
+      <Typography variant="h6" sx={{ mb: 1 }}>Comment</Typography>
 
       <PageLoading open={pageLoadingOpen} />
 
@@ -70,7 +70,7 @@ const IncidentCommentBox: React.FC<Props> = ({
         </Alert>
       )}
 
-      <Typography variant="h6" sx={{ mb: 2 }}>New Comment</Typography>
+     
 
       <Box sx={{ mb: 2 }}>
         <WysiwygMarkdownEditor
