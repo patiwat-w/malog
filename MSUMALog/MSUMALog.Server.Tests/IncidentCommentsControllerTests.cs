@@ -28,6 +28,8 @@ public class IncidentCommentsControllerTests
         return controller;
     }
 
+    // คำอธิบาย: ทดสอบ Create เมื่อผู้ใช้ไม่ authenticated
+    // ผลลัพธ์ที่คาดหวัง: คืนค่า UnauthorizedObjectResult พร้อมข้อความ "User not authenticated"
     [Fact]
     public async Task Create_ReturnsUnauthorized_IfUserNotAuthenticated()
     {
@@ -47,6 +49,8 @@ public class IncidentCommentsControllerTests
         Assert.Equal("User not authenticated", unauthorized.Value);
     }
 
+    // คำอธิบาย: ทดสอบ Create เมื่อมี claim แต่ไม่พบ user id ในฐานข้อมูล
+    // ผลลัพธ์ที่คาดหวัง: คืนค่า UnauthorizedObjectResult พร้อมข้อความ "User not found"
     [Fact]
     public async Task Create_ReturnsUnauthorized_IfUserIdNotFound()
     {
@@ -68,6 +72,8 @@ public class IncidentCommentsControllerTests
         Assert.Equal("User not found", unauthorized.Value);
     }
 
+    // คำอธิบาย: ทดสอบ Create เมื่อผู้ใช้ authenticated และ service คืนค่า comment ที่สร้างแล้ว
+    // ผลลัพธ์ที่คาดหวัง: คืนค่า CreatedAtActionResult และ Body เท่ากับ DTO ที่ service ส่งกลับ
     [Fact]
     public async Task Create_ReturnsCreated_WhenValid()
     {

@@ -20,7 +20,10 @@ public class IncidentReportsControllerTests
         ApplicationDbContext dbContext,
         ClaimsPrincipal? user = null) // เพิ่ม ? ให้เป็น nullable
     {
-        var controller = new IncidentReportsController(service, dbContext);
+        // สร้าง mock สำหรับ IAuditService แล้วส่งเข้าไปยังคอนโทรลเลอร์
+        var auditMock = new Mock<IAuditService>();
+
+        var controller = new IncidentReportsController(service, dbContext, auditMock.Object);
         var httpContext = new DefaultHttpContext();
         if (user != null)
             httpContext.User = user;
@@ -28,6 +31,8 @@ public class IncidentReportsControllerTests
         return controller;
     }
 
+    // คำอธิบาย: ทดสอบ GetAll เมื่อผู้ใช้งานไม่ authenticated
+    // ผลลัพธ์ที่คาดหวัง: คืนค่า UnauthorizedObjectResult พร้อมข้อความ "User not authenticated"
     [Fact]
     public async Task GetAll_ReturnsUnauthorized_IfUserNotAuthenticated()
     {
@@ -44,6 +49,8 @@ public class IncidentReportsControllerTests
         Assert.Equal("User not authenticated", unauthorized.Value);
     }
 
+    // คำอธิบาย: ทดสอบ Create เมื่อ claim มีชื่อแต่ไม่พบผู้ใช้ในฐานข้อมูล
+    // ผลลัพธ์ที่คาดหวัง: คืนค่า UnauthorizedObjectResult พร้อมข้อความ "User not found"
     [Fact]
     public async Task Create_ReturnsUnauthorized_IfUserIdNotFound()
     {
@@ -62,6 +69,8 @@ public class IncidentReportsControllerTests
         Assert.Equal("User not found", unauthorized.Value);
     }
 
+    // คำอธิบาย: ทดสอบ Create เมื่อมี user id ใน claim และ service คืนค่า object ที่สร้างแล้ว
+    // ผลลัพธ์ที่คาดหวัง: คืนค่า CreatedAtActionResult และ Body เท่ากับ DTO ที่สร้างโดย service
     [Fact]
     public async Task Create_ReturnsCreated_WhenValid()
     {

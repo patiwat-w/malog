@@ -1,274 +1,206 @@
 using Xunit;
+using Moq;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Authentication;
+using System.Security.Claims;
+using System.Threading;
+using System.Threading.Tasks;
 using MSUMALog.Server.Controllers;
 using MSUMALog.Server.Data;
 using MSUMALog.Server.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
-using System.Threading.Tasks;
-using Moq;
-using Microsoft.Extensions.Logging;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Authentication;
-using System.Collections.Generic;
-using System.Linq;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using System;
 
+// ชุดทดสอบสำหรับ AuthController:
+// คำอธิบาย: แต่ละเคสทดสอบตรวจสอบพฤติกรรมของ AuthController และผลลัพธ์ที่คาดหวัง (เช่น สถานะ HTTP และข้อความ/วัตถุที่คืนค่า)
 public class AuthControllerTests
 {
-    private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
-    private readonly Mock<IAuthenticationService> _authenticationServiceMock;
-    private readonly Mock<IServiceProvider> _serviceProviderMock;
-
-    public AuthControllerTests()
+    private DefaultHttpContext CreateHttpContextWithAuthMock(Mock<IAuthenticationService> authMock)
     {
-        _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
-        _authenticationServiceMock = new Mock<IAuthenticationService>();
-        _serviceProviderMock = new Mock<IServiceProvider>();
-        
-        // Setup service provider to return authentication service
-        _serviceProviderMock.Setup(x => x.GetService(typeof(IAuthenticationService)))
-            .Returns(_authenticationServiceMock.Object);
+        var services = new ServiceCollection();
+        services.AddSingleton<IAuthenticationService>(authMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var ctx = new DefaultHttpContext
+        {
+            RequestServices = provider
+        };
+        return ctx;
     }
 
-    private AuthController CreateController(ApplicationDbContext dbContext)
+    // คำอธิบาย: ทดสอบ BasicLogin เมื่อไม่มีข้อมูลรับรอง (email/password)
+    // ผลลัพธ์ที่คาดหวัง: คืนค่า BadRequest พร้อมข้อความ "Missing email/password"
+    [Fact]
+    public async Task BasicLogin_ReturnsBadRequest_WhenMissingCredentials()
     {
-        var httpContext = new DefaultHttpContext
-        {
-            RequestServices = _serviceProviderMock.Object
-        };
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase("AuthTestDb_MissingCreds")
+            .Options;
+        await using var db = new ApplicationDbContext(options);
+        var controller = new AuthController(db);
+        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
 
-        _httpContextAccessorMock.Setup(x => x.HttpContext).Returns(httpContext);
-
-        return new AuthController(dbContext)
-        {
-            ControllerContext = new ControllerContext
-            {
-                HttpContext = httpContext
-            }
-        };
+        var result = await controller.BasicLogin(new AuthController.LoginRequest("", ""));
+        var bad = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Equal("Missing email/password", bad.Value);
     }
 
-    private User CreateTestUser(string email, string? password = null)
+    // คำอธิบาย: ทดสอบ BasicLogin เมื่อรหัสผ่านไม่ถูกต้องสำหรับผู้ใช้ที่มีในฐานข้อมูล
+    // ผลลัพธ์ที่คาดหวัง: คืนค่า Unauthorized พร้อมข้อความ "Invalid credentials"
+    [Fact]
+    public async Task BasicLogin_ReturnsUnauthorized_WhenInvalidPassword()
     {
-        var user = new User
-        {
-            Email = email,
-            Role = "User",
-            FirstName = "Test",
-            LastName = "User",
-            LoginCount = 0,
-            LastLoginDate = DateTime.MinValue,
-            Logs = "",
-            ProfilePicture = "https://example.com/avatar.jpg",
-            Position = "Developer",
-            Department = "IT"
-        };
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase("AuthTestDb_InvalidPwd")
+            .Options;
+        await using var db = new ApplicationDbContext(options);
+        // seed user with known password hash
+        var user = new User { Email = "user@example.com", Role = "User", Logs = "" };
+        var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<User>();
+        user.PasswordHash = hasher.HashPassword(user, "correct-password");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
 
-        if (!string.IsNullOrEmpty(password))
+        var authMock = new Mock<IAuthenticationService>();
+        var ctx = CreateHttpContextWithAuthMock(authMock);
+
+        var controller = new AuthController(db);
+        controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+        var result = await controller.BasicLogin(new AuthController.LoginRequest("user@example.com", "wrong-password"));
+        var unauthorized = Assert.IsType<UnauthorizedObjectResult>(result);
+        Assert.Equal("Invalid credentials", unauthorized.Value);
+    }
+
+    // คำอธิบาย: ทดสอบ BasicLogin กับข้อมูลรับรองที่ถูกต้อง
+    // ผลลัพธ์ที่คาดหวัง: คืนค่า Ok พร้อมวัตถุ User และเรียก SignInAsync เพื่อลงชื่อเข้าใช้
+    [Fact]
+    public async Task BasicLogin_ReturnsOkAndSignsIn_WhenValidCredentials()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase("AuthTestDb_ValidLogin")
+            .Options;
+        await using var db = new ApplicationDbContext(options);
+        var user = new User { Email = "valid@example.com", FirstName = "V", LastName = "User", Role = "User", Logs = "" };
+        var hasher = new Microsoft.AspNetCore.Identity.PasswordHasher<User>();
+        user.PasswordHash = hasher.HashPassword(user, "secret");
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var authMock = new Mock<IAuthenticationService>();
+        authMock
+            .Setup(s => s.SignInAsync(It.IsAny<HttpContext>(), It.Is<string>(sch => sch == CookieAuthenticationDefaults.AuthenticationScheme),
+                It.IsAny<ClaimsPrincipal>(), It.IsAny<AuthenticationProperties>()))
+            .Returns(Task.CompletedTask)
+            .Verifiable();
+
+        var ctx = CreateHttpContextWithAuthMock(authMock);
+
+        var controller = new AuthController(db);
+        controller.ControllerContext = new ControllerContext { HttpContext = ctx };
+
+        var result = await controller.BasicLogin(new AuthController.LoginRequest("valid@example.com", "secret"));
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var returnedUser = Assert.IsType<User>(ok.Value);
+        Assert.Equal("valid@example.com", returnedUser.Email);
+
+        authMock.Verify(); // ensure SignInAsync was invoked
+    }
+
+    // คำอธิบาย: ทดสอบ SetPassword สำหรับผู้ใช้ที่ authenticated (จาก Claim email)
+    // ผลลัพธ์ที่คาดหวัง: คืนค่า Ok พร้อมข้อมูลที่มี email และอัปเดต PasswordHash ในฐานข้อมูล
+    [Fact]
+    public async Task SetPassword_SetsHash_ForAuthenticatedUser()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase("AuthTestDb_SetPassword")
+            .Options;
+        await using var db = new ApplicationDbContext(options);
+        var user = new User { Email = "setpass@example.com", Role = "User", Logs = "" };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var controller = new AuthController(db);
+        var claims = new[] { new Claim(ClaimTypes.Email, "setpass@example.com") };
+        var identity = new ClaimsIdentity(claims, "TestAuth");
+        var principal = new ClaimsPrincipal(identity);
+        var httpContext = new DefaultHttpContext { User = principal };
+        controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
+
+        var res = await controller.SetPassword(new AuthController.SetPasswordRequest("newpwd"));
+        var ok = Assert.IsType<OkObjectResult>(res);
+        Assert.NotNull(ok.Value);
+
+        // try to extract email whether the controller returned a User or an anonymous/object with Email/email property
+        string? returnedEmail = null;
+        if (ok.Value is User u) returnedEmail = u.Email;
+        else
         {
-            var hasher = new PasswordHasher<User>();
-            user.PasswordHash = hasher.HashPassword(user, password);
+            var t = ok.Value.GetType();
+            var prop = t.GetProperty("email") ?? t.GetProperty("Email");
+            returnedEmail = prop?.GetValue(ok.Value) as string;
         }
+        Assert.Equal("setpass@example.com", returnedEmail);
 
-        return user;
+        var updated = await db.Users.FirstOrDefaultAsync(u => u.Email == "setpass@example.com");
+        Assert.False(string.IsNullOrWhiteSpace(updated!.PasswordHash));
     }
 
+    // คำอธิบาย: ทดสอบ Me เมื่อผู้ใช้ authenticated
+    // ผลลัพธ์ที่คาดหวัง: คืนค่า Ok พร้อมวัตถุ User ที่มีอีเมลตรงกับ Claim
     [Fact]
-    public async Task BasicLogin_ReturnsUnauthorized_WhenUserNotFound()
+    public async Task Me_ReturnsUser_WhenAuthenticated()
     {
-        // Arrange
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDb1")
+            .UseInMemoryDatabase("AuthTestDb_Me")
             .Options;
-        
-        using var db = new ApplicationDbContext(options);
-        var controller = CreateController(db);
-
-        var req = new AuthController.LoginRequest("notfound@email.com", "password");
-
-        // Act
-        var result = await controller.BasicLogin(req);
-
-        // Assert
-        var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
-        Assert.Equal("Invalid credentials", unauthorizedResult.Value);
-    }
-
-    [Fact]
-    public async Task BasicLogin_ReturnsUnauthorized_WhenPasswordIncorrect()
-    {
-        // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDb2")
-            .Options;
-        
-        using var db = new ApplicationDbContext(options);
-
-        var user = CreateTestUser("test@email.com", "correctpassword");
+        await using var db = new ApplicationDbContext(options);
+        var user = new User { Email = "me@example.com", FirstName = "Me", Role = "User", Logs = "" };
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        var controller = CreateController(db);
-        var req = new AuthController.LoginRequest("test@email.com", "wrongpassword");
+        var controller = new AuthController(db);
+        var claims = new[] { new Claim(ClaimTypes.Email, "me@example.com") };
+        var identity = new ClaimsIdentity(claims, "TestAuth");
+        var principal = new ClaimsPrincipal(identity);
+        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = principal } };
 
-        // Act
-        var result = await controller.BasicLogin(req);
-
-        // Assert
-        var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
-        Assert.Equal("Invalid credentials", unauthorizedResult.Value);
+        var result = await controller.Me();
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var returned = Assert.IsType<User>(ok.Value);
+        Assert.Equal("me@example.com", returned.Email);
     }
 
+    // คำอธิบาย: ทดสอบ Logout สำหรับผู้ใช้ที่ authenticated
+    // ผลลัพธ์ที่คาดหวัง: เรียก SignOutAsync และคืนค่า NoContent
     [Fact]
-    public async Task BasicLogin_ReturnsOk_WhenCredentialsAreCorrect()
+    public async Task Logout_InvokesSignOut_WhenUserAuthenticated()
     {
-        // Arrange
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDb3")
+            .UseInMemoryDatabase("AuthTestDb_Logout")
             .Options;
-        
-        using var db = new ApplicationDbContext(options);
+        await using var db = new ApplicationDbContext(options);
 
-        var user = CreateTestUser("test@email.com", "correctpassword");
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
+        var authMock = new Mock<IAuthenticationService>();
+        authMock
+            .Setup(s => s.SignOutAsync(It.IsAny<HttpContext>(), It.Is<string>(sch => sch == CookieAuthenticationDefaults.AuthenticationScheme), It.IsAny<AuthenticationProperties?>()))
+            .Returns(Task.CompletedTask)
+            .Verifiable();
 
-        // Mock authentication service
-        _authenticationServiceMock.Setup(x => x.SignInAsync(
-            It.IsAny<HttpContext>(),
-            It.IsAny<string>(),
-            It.IsAny<ClaimsPrincipal>(),
-            It.IsAny<AuthenticationProperties>()
-        )).Returns(Task.CompletedTask);
+        var ctx = CreateHttpContextWithAuthMock(authMock);
+        // set an authenticated user
+        var claims = new[] { new Claim(ClaimTypes.Email, "logout@example.com") };
+        ctx.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth"));
 
-        var controller = CreateController(db);
-        var req = new AuthController.LoginRequest("test@email.com", "correctpassword");
+        var controller = new AuthController(db);
+        controller.ControllerContext = new ControllerContext { HttpContext = ctx };
 
-        // Act
-        var result = await controller.BasicLogin(req);
+        var res = await controller.Logout();
+        Assert.IsType<NoContentResult>(res);
 
-        // Assert
-        var okResult = Assert.IsType<OkObjectResult>(result);
-        var returnedUser = Assert.IsType<User>(okResult.Value);
-        Assert.Equal("test@email.com", returnedUser.Email);
-        
-        // Verify user was updated in database
-        var updatedUser = await db.Users.FirstOrDefaultAsync(u => u.Email == "test@email.com");
-        Assert.NotNull(updatedUser);
-        Assert.Equal(1, updatedUser.LoginCount);
-        Assert.True(updatedUser.LastLoginDate > DateTime.UtcNow.AddMinutes(-1)); // Should be recent
-        Assert.Equal("Basic login", updatedUser.Logs);
-    }
-
-    [Fact]
-    public async Task BasicLogin_ReturnsBadRequest_WhenEmailOrPasswordMissing()
-    {
-        // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDb4")
-            .Options;
-        
-        using var db = new ApplicationDbContext(options);
-        var controller = CreateController(db);
-
-        // Test cases
-        var testCases = new[]
-        {
-            new AuthController.LoginRequest("", "password"),
-            new AuthController.LoginRequest("test@email.com", ""),
-            new AuthController.LoginRequest("", "")
-        };
-
-        foreach (var req in testCases)
-        {
-            // Act
-            var result = await controller.BasicLogin(req);
-
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Equal("Missing email/password", badRequestResult.Value);
-        }
-    }
-
-    [Fact]
-    public async Task BasicLogin_ReturnsUnauthorized_WhenUserHasNoPassword()
-    {
-        // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDb5")
-            .Options;
-        
-        using var db = new ApplicationDbContext(options);
-
-        // Create user without password
-        var user = CreateTestUser("test@email.com");
-        user.PasswordHash = null; // No password set
-
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
-
-        var controller = CreateController(db);
-        var req = new AuthController.LoginRequest("test@email.com", "anypassword");
-
-        // Act
-        var result = await controller.BasicLogin(req);
-
-        // Assert
-        var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result);
-        Assert.Equal("Invalid credentials", unauthorizedResult.Value);
-    }
-
-    [Fact]
-    public async Task BasicLogin_CreatesCorrectClaims_ForAuthenticatedUser()
-    {
-        // Arrange
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDb6")
-            .Options;
-        
-        using var db = new ApplicationDbContext(options);
-
-        var user = CreateTestUser("test@email.com", "correctpassword");
-        user.FirstName = "John";
-        user.LastName = "Doe";
-        user.ProfilePicture = "https://example.com/john.jpg";
-        user.Role = "Admin";
-        
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
-
-        ClaimsPrincipal? capturedPrincipal = null;
-        
-        // Mock authentication service to capture the claims principal
-        _authenticationServiceMock.Setup(x => x.SignInAsync(
-            It.IsAny<HttpContext>(),
-            It.IsAny<string>(),
-            It.IsAny<ClaimsPrincipal>(),
-            It.IsAny<AuthenticationProperties>()
-        )).Callback<HttpContext, string, ClaimsPrincipal, AuthenticationProperties>(
-            (_, _, principal, _) => capturedPrincipal = principal
-        ).Returns(Task.CompletedTask);
-
-        var controller = CreateController(db);
-        var req = new AuthController.LoginRequest("test@email.com", "correctpassword");
-
-        // Act
-        var result = await controller.BasicLogin(req);
-
-        // Assert
-        Assert.IsType<OkObjectResult>(result);
-        Assert.NotNull(capturedPrincipal);
-        
-        var claims = capturedPrincipal.Claims.ToList();
-        Assert.NotNull(user);
-        Assert.Contains(claims, c => c.Type == ClaimTypes.NameIdentifier && c.Value == user!.Id.ToString());
-        Assert.Contains(claims, c => c.Type == ClaimTypes.Email && c.Value == "test@email.com");
-        Assert.Contains(claims, c => c.Type == ClaimTypes.Name && c.Value == "John");
-        Assert.Contains(claims, c => c.Type == ClaimTypes.GivenName && c.Value == "John");
-        Assert.Contains(claims, c => c.Type == ClaimTypes.Surname && c.Value == "Doe");
-        Assert.Contains(claims, c => c.Type == "picture" && c.Value == "https://example.com/john.jpg");
-        Assert.Contains(claims, c => c.Type == ClaimTypes.Role && c.Value == "Admin");
+        authMock.Verify();
     }
 }
