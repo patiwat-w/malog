@@ -61,6 +61,20 @@ namespace MSUMALog.Server.Data
                  .HasForeignKey(ir => ir.UpdatedUserId)
                  .OnDelete(DeleteBehavior.Restrict);
             });
+
+
+            // New User configuration
+            modelBuilder.Entity<User>(b =>
+            {
+                b.Property(u => u.FirstName).HasMaxLength(100);
+                b.Property(u => u.LastName).HasMaxLength(100);
+                b.Property(u => u.Email).HasMaxLength(256).IsRequired();
+                b.Property(u => u.Role).IsRequired();
+                b.Property(u => u.PhoneNumber).HasMaxLength(15);
+                b.Property(u => u.LineID).HasMaxLength(100);
+                b.Property(u => u.OrganizationInfo).HasMaxLength(500);
+                b.Property(u => u.ReceiveNotifications).HasDefaultValue(false);
+            });
         }
     }
 }

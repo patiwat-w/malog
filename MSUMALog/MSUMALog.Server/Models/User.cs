@@ -12,14 +12,23 @@ namespace MSUMALog.Server.Models
         public int LoginCount { get; set; }
         public DateTime LastLoginDate { get; set; }
         public string Logs { get; set; }
-        // hide password hash from API responses
+        
         [JsonIgnore]
         [MaxLength(256)]
         public string? PasswordHash { get; set; }
+        
         public string? ProfilePicture { get; set; }
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public string? Position { get; set; }
         public string? Department { get; set; }
+        
+        // New properties for user management
+        public string? PhoneNumber { get; set; }
+
+        public string? LineID { get; set; }
+        public string? OrganizationInfo { get; set; }
+        public bool IsBlocked { get; set; }
+        public bool ReceiveNotifications { get; set; }
     }
 }
