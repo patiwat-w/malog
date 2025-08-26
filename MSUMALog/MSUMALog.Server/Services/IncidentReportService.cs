@@ -298,8 +298,8 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
             }
         }
 
-        if (userId.HasValue)
-            query = query.Where(x => x.CreatedUserId == userId.Value);
+        //if (userId.HasValue)
+        //    query = query.Where(x => x.CreatedUserId == userId.Value);
 
         if (!string.IsNullOrWhiteSpace(order))
             query = query.OrderBy(order);
