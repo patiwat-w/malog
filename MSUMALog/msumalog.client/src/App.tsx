@@ -1,26 +1,28 @@
-import './App.css';
-import { AppBar, Toolbar, Typography, Button, Container, Box, IconButton, Drawer, List, ListItemButton, ListItemText, Divider } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import { useState, useEffect } from 'react';
-import { Link, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import MenuIcon from '@mui/icons-material/Menu';
+import { AppBar, Box, Button, Container, Divider, Drawer, IconButton, List, ListItemButton, ListItemText, Toolbar, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import './App.css';
 
-import RequireAuth from './components/RequireAuth';
 import AppBreadcrumbs from './components/AppBreadcrumbs';
+import RequireAuth from './components/RequireAuth';
 
 
-import LoginPage from './pages/LoginPage';
-import HomePage from './pages/HomePage';
-import IncidentReportForm from './pages/IncidentReportForm';
-import IncidentReportDetail from './pages/IncidentReportDetail';
-import LogoutPage from './pages/LogoutPage';
-import LoginFailPage from './pages/LoginFailPage';
-import NotFoundPage from './pages/NotFoundPage';
-import { getCurrentUser } from './api/client';
-import UserProfilePage from './pages/UserProfilePage';
 import type { User } from './api/client';
+import { getCurrentUser } from './api/client';
 import LineBrowserGuard from "./components/LineBrowserGuard";
 import AdminPage from './pages/AdminPage';
+import HomePage from './pages/HomePage';
+import IncidentReportDetail from './pages/IncidentReportDetail';
+import IncidentReportForm from './pages/IncidentReportForm';
+import LoginFailPage from './pages/LoginFailPage';
+import LoginPage from './pages/LoginPage';
+import LogoutPage from './pages/LogoutPage';
+import NotFoundPage from './pages/NotFoundPage';
+import UserAccountPage from './pages/UserAccountPage';
+import UserProfilePage from './pages/UserProfilePage';
+
 
 function App() {
     const location = useLocation();
@@ -38,8 +40,13 @@ function App() {
     const navItems = [
         { label: 'Home', to: '/home' },
         { label: 'New Issue', to: '/report' },
+       // { label: 'Users', to: '/admin/users' },
+        //{ label: 'Profile', to: '/profile' },
         // แสดงเมนู Admin เฉพาะผู้ใช้ที่เป็น Admin
-        ...(currentUser?.role === 'Admin' ? [{ label: 'Admin', to: '/admin' }] : [])
+        ...(currentUser?.role === 'Admin' ? [{ label: 'Admin', to: '/admin' }] : []),
+        // แสดงเมนู User List เฉพาะผู้ใช้ที่เป็น Admin
+        //...(currentUser?.role === 'Admin' ? [{ label: 'User List', to: '/admin/users' }] : [])
+
     ];
 
     return (
@@ -163,6 +170,7 @@ function App() {
                         <Route path="/profile" element={<RequireAuth><UserProfilePage /></RequireAuth>} />
                         <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
                         <Route path="/admin/:case_no" element={<RequireAuth><IncidentReportForm /></RequireAuth>} />
+                        <Route path="/admin/users" element={<RequireAuth><UserAccountPage /></RequireAuth>} />
 
                         <Route path="*" element={<NotFoundPage />} />
                     </Routes>

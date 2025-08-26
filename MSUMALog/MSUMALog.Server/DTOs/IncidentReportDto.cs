@@ -99,11 +99,15 @@ namespace MSUMALog.Server.DTOs
 
         [BindNever]
         public DateTime? UpdatedUtc { get; internal set; }
+
+      
     }
 
     public class IncidentReportPatchDto : IncidentReportDtoBase
     {
         [Required]
-         public  int Id { get; set; }
+        public int Id { get; set; }
+
+        // Keep same nullable string type as DTO
     }
 }

@@ -51,6 +51,8 @@ builder.Services.AddScoped<IIncidentCommentRepository, IncidentCommentRepository
 builder.Services.AddScoped<IIncidentReportService, IncidentReportService>();
 builder.Services.AddScoped<IIncidentCommentService, IncidentCommentService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 
 

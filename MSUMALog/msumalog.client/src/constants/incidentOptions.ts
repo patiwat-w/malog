@@ -1,8 +1,9 @@
+import AutorenewIcon from '@mui/icons-material/Autorenew';
+import BlockIcon from '@mui/icons-material/Block';
+import CancelIcon from '@mui/icons-material/Cancel';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import HourglassTopIcon from '@mui/icons-material/HourglassTop';
-import AutorenewIcon from '@mui/icons-material/Autorenew';
 import LockIcon from '@mui/icons-material/Lock';
-import BlockIcon from '@mui/icons-material/Block';
 import React from 'react';
 
 export interface DomainOption {
@@ -54,7 +55,9 @@ export const incidentStatusOptions: IncidentStatusOption[] = [
   { value: 'InProgress', label: 'In Progress', color: 'info', paletteColor: 'info.main', icon: React.createElement(AutorenewIcon, { fontSize: "small" }) },
   { value: 'Resolved', label: 'Resolved', color: 'success', paletteColor: 'success.main', icon: React.createElement(CheckCircleIcon, { fontSize: "small" }) },
   { value: 'Closed', label: 'Closed', color: 'default', paletteColor: 'grey.600', icon: React.createElement(LockIcon, { fontSize: "small" }) },
-  { value: 'Rejected', label: 'Rejected', color: 'error', paletteColor: 'error.main', icon: React.createElement(BlockIcon, { fontSize: "small" }) }
+  { value: 'Rejected', label: 'Rejected', color: 'error', paletteColor: 'error.main', icon: React.createElement(BlockIcon, { fontSize: "small" }) },
+  // Cancelled status can be added if needed
+   { value: 'Cancelled', label: 'Cancelled', color: 'secondary', paletteColor: 'secondary.main', icon: React.createElement(CancelIcon, { fontSize: "small" }) },
 ];
 
 export const getDomainLabel = (code: string | null | undefined) =>

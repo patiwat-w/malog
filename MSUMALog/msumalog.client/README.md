@@ -75,7 +75,7 @@ To generate TypeScript types from your Swagger/OpenAPI spec, run:
 
 ```powershell
 $env:NODE_TLS_REJECT_UNAUTHORIZED=0
-npx openapi-typescript http://localhost:5293/swagger/v1/swagger.json -o src/api/types.ts
+npx openapi-typescript https://localhost/swagger/v1/swagger.json -o src/api/types.ts
 ```
 
 This will fetch the schema and generate/update `src/api/types.ts` for use in your API client code.

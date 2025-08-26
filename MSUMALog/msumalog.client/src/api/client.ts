@@ -13,6 +13,51 @@ export type AuditTimelineDto = components['schemas']['AuditTimelineDto'];
 export type AuditFieldChangeDto = components['schemas']['AuditFieldChangeDto'];
 export type AuditTimelineDtoPagedResultDto = components['schemas']['AuditTimelineDtoPagedResultDto'];
 
+// เพิ่ม type สำหรับ Admin user DTO (จาก swagger)
+export type AdminUserDto = components['schemas']['UserDto'];
+
+// ฟังก์ชัน API สำหรับ AdminUsers
+export async function getAdminUsers(): Promise<AdminUserDto[]> {
+  const res = await http.get<AdminUserDto[]>('/AdminUsers');
+  return res.data;
+}
+
+export async function getAdminUsersPaged(params: {
+  page?: number;
+  limit?: number;
+  select?: string;
+  order?: string;
+  filter?: Record<string, string>;
+}) {
+  const res = await http.get<PagedResultDto<AdminUserDto>>('/AdminUsers/paged', { params });
+  return res.data;
+}
+
+export async function getAdminUserById(id: number): Promise<AdminUserDto> {
+  const res = await http.get<AdminUserDto>(`/AdminUsers/${id}`);
+  return res.data;
+}
+
+export async function updateAdminUser(id: number, body: AdminUserDto) {
+  await http.put(`/AdminUsers/${id}`, body);
+  return true;
+}
+
+export async function deleteAdminUser(id: number) {
+  await http.delete(`/AdminUsers/${id}`);
+  return true;
+}
+
+export async function blockAdminUser(id: number) {
+  await http.post(`/AdminUsers/${id}/block`);
+  return true;
+}
+
+export async function unblockAdminUser(id: number) {
+  await http.post(`/AdminUsers/${id}/unblock`);
+  return true;
+}
+
 // helper: convert UTC ISO string -> user's local display string (or undefined)
 function utcToLocal(utc?: string | null): string | undefined {
   if (!utc) return undefined;
