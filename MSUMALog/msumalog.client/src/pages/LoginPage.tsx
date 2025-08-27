@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { basicLogin } from '../api/client'; // เพิ่มบรรทัดนี้
 
@@ -122,14 +122,14 @@ function LoginPage() {
             }}>
                 {/* Logo */}
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                    <img src="/images/Circle/Svg/128px.svg" alt="Logo" style={{ width: 96, height: 96, objectFit: 'contain' }} />
+                    <img src="/images/logo/msu-eg-logo.png" alt="Logo" style={{ width: 200, height: 200, objectFit: 'contain' }} />
                 </div>
 
                 <h2 style={{ textAlign: 'center', marginBottom: '1rem', color: '#333' }}>เข้าสู่ระบบ MSU-MALOG</h2>
                 {error && <div style={{ color: 'red', marginBottom: '1rem', fontSize: '.9rem' }}>{error}</div>}
                 <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div>
-                        <label htmlFor="email" style={{ display: 'block', marginBottom: '.5rem', fontWeight: 'bold', color: '#555' }}>Email</label>
+                        <label htmlFor="email" style={{ display: 'block', marginBottom: '.5rem', fontWeight: 'bold', color: '#555' }}>Email </label>
                         <input
                             type="email"
                             id="email"
