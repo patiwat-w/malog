@@ -1,48 +1,47 @@
-import { Link, useNavigate } from 'react-router-dom';
-import React, { useState, useEffect } from 'react';
-import {
-    Container,
-    Typography,
-    Button,
-    Box,
-    List,
-    ListItem,
-    ListItemText,
-    ListItemButton,
-    Divider,
-    Chip,
-    CircularProgress,
-    Alert,
-    TextField,
-    MenuItem,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions
-} from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'; // Import the tag icon
+import {
+    Alert,
+    Box,
+    Button,
+    Chip,
+    CircularProgress,
+    Container,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Divider,
+    List,
+    ListItem,
+    ListItemButton,
+    ListItemText,
+    MenuItem,
+    TextField,
+    Typography
+} from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close'; // เพิ่มการ import CloseIcon
-import { getIncidentReports } from '../api/client';
 import type { IncidentReportDto } from '../api/client';
+import { getIncidentReports } from '../api/client';
 import {
-  
-    getSeverityColor,
-    incidentStatusOptions,
-    getIncidentStatusPaletteColor,
-    severityOptions,
-    getSeverityLabelEn,
     domainOptions,
     getDomainLabel,
-    getSeverityLetter
+    getIncidentStatusPaletteColor,
+    getSeverityColor,
+    getSeverityLabelEn,
+    getSeverityLetter,
+    incidentStatusOptions,
+    severityOptions
 } from '../constants/incidentOptions';
 
 
-import Tooltip from '@mui/material/Tooltip';
 import { useMediaQuery } from '@mui/material'; // Import useMediaQuery
+import Tooltip from '@mui/material/Tooltip';
 
 // Add raw incident shape
 type RawIncident = {
@@ -467,7 +466,7 @@ function HomePage() {
                 </Box>
                 {loading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}><CircularProgress /></Box>}
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
+                <List disablePadding sx={{ width: '100%', bgcolor: 'background.paper', pt: 0, pb: 0 }}>
                     
                     {filteredIssues.map((issue, index) => {
                         const caseNo = issue.caseNo ?? (issue.id ? `#${issue.id}` : `#${index}`);

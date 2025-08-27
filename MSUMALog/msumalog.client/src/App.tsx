@@ -152,7 +152,7 @@ function App() {
                 </>
             )}
 
-            <Container maxWidth={false} sx={{ py: showNav ? 2 : 0 }}>
+            <Container maxWidth={false} className="msu-container" sx={{ py: showNav ? 2 : 0 }}>
                 {showNav && <AppBreadcrumbs />}
                 <Box>
                     <Routes>
