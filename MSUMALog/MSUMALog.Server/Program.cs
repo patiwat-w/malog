@@ -13,6 +13,8 @@ using System.Security.Claims;
 using MSUMALog.Server.Mapping;
 using MSUMALog.Server.Models;
 using System.Globalization;
+using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Http.Features; // FormOptions
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,17 +27,15 @@ builder.Services.AddHttpContextAccessor();
 
 // เพิ่ม logging สำหรับ debug
 builder.Logging.AddFilter("Microsoft.AspNetCore.Authentication", LogLevel.Debug);
-//builder.Logging.AddConsole();
-//builder.Logging.AddDebug();
-// Add services
-builder.Services.AddControllers()
 
+// Controllers + JSON
+builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
     });
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 // DbContext (SQL Server)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -53,10 +53,10 @@ builder.Services.AddScoped<IIncidentCommentService, IncidentCommentService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IIncidentAttachmentRepository, IncidentAttachmentRepository>();
+builder.Services.AddScoped<IIncidentAttachmentService, IncidentAttachmentService>();
 
-
-
-// Data Protection สำหรับ Production (ย้ายขึ้นมา)
+// Data Protection สำหรับ Production
 if (!builder.Environment.IsDevelopment())
 {
     var keysPath = builder.Configuration["DataProtection:KeysPath"];
@@ -64,6 +64,13 @@ if (!builder.Environment.IsDevelopment())
         .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
         .SetApplicationName("MSUMALog");
 }
+
+// Upload options + ลิมิต multipart (ปรับได้)
+builder.Services.Configure<UploadsOptions>(builder.Configuration.GetSection("Uploads"));
+builder.Services.Configure<FormOptions>(o =>
+{
+    o.MultipartBodyLengthLimit = 20 * 1024 * 1024; // 20 MB (แก้ได้ตามต้องการ)
+});
 
 // Cookie Policy
 builder.Services.Configure<CookiePolicyOptions>(options =>
@@ -107,9 +114,7 @@ builder.Services.AddAuthentication(options =>
 
     options.Scope.Add("email");
     options.Scope.Add("profile");
-
     options.AccessType = "offline";
-    //options.Prompt = "consent";
 
     options.ClaimActions.MapJsonKey("picture", "picture");
     options.ClaimActions.MapJsonKey(ClaimTypes.GivenName, "given_name");
@@ -127,7 +132,6 @@ builder.Services.AddAuthentication(options =>
             var profilePicture = context.Identity.FindFirst("picture")?.Value;
             Console.WriteLine($"profilePicture: {profilePicture}");
 
-            // สร้างหรืออัปเดต user ใน database
             var db = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
             var user = db.Users.FirstOrDefault(u => u.Email == email);
             if (user == null)
@@ -168,44 +172,30 @@ builder.Services.AddAuthentication(options =>
                 await db.SaveChangesAsync();
             }
 
-            // publish user id and role into claims so downstream services can read current user's DB id
             if (user != null)
             {
-                // Add NameIdentifier claim (DB user id)
-                // Remove existing NameIdentifier claim if it exists
                 var nameIdClaim = context.Identity.FindFirst(ClaimTypes.NameIdentifier);
-                if (nameIdClaim != null)
-                    context.Identity.RemoveClaim(nameIdClaim);
+                if (nameIdClaim != null) context.Identity.RemoveClaim(nameIdClaim);
                 context.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()));
 
-                // Remove existing Email claim if it exists
                 var emailClaim = context.Identity.FindFirst(ClaimTypes.Email);
-                if (emailClaim != null)
-                    context.Identity.RemoveClaim(emailClaim);
+                if (emailClaim != null) context.Identity.RemoveClaim(emailClaim);
                 context.Identity.AddClaim(new Claim(ClaimTypes.Email, user.Email ?? ""));
 
-                // Remove existing Name claim if it exists
                 var nameClaim = context.Identity.FindFirst(ClaimTypes.Name);
-                if (nameClaim != null)
-                    context.Identity.RemoveClaim(nameClaim);
+                if (nameClaim != null) context.Identity.RemoveClaim(nameClaim);
                 context.Identity.AddClaim(new Claim(ClaimTypes.Name, user.FirstName ?? user.Email ?? ""));
 
-                // Remove existing GivenName claim if it exists
                 var givenNameClaim = context.Identity.FindFirst(ClaimTypes.GivenName);
-                if (givenNameClaim != null)
-                    context.Identity.RemoveClaim(givenNameClaim);
+                if (givenNameClaim != null) context.Identity.RemoveClaim(givenNameClaim);
                 context.Identity.AddClaim(new Claim(ClaimTypes.GivenName, user.FirstName ?? ""));
 
-                // Remove existing Surname claim if it exists
                 var surnameClaim = context.Identity.FindFirst(ClaimTypes.Surname);
-                if (surnameClaim != null)
-                    context.Identity.RemoveClaim(surnameClaim);
+                if (surnameClaim != null) context.Identity.RemoveClaim(surnameClaim);
                 context.Identity.AddClaim(new Claim(ClaimTypes.Surname, user.LastName ?? ""));
 
-                // Remove existing Picture claim if it exists
                 var pictureClaim = context.Identity.FindFirst("picture");
-                if (pictureClaim != null)
-                    context.Identity.RemoveClaim(pictureClaim);
+                if (pictureClaim != null) context.Identity.RemoveClaim(pictureClaim);
                 context.Identity.AddClaim(new Claim("picture", user.ProfilePicture ?? ""));
             }
         }
@@ -218,86 +208,86 @@ builder.Services.AddCors(options =>
     options.AddPolicy("frontend", policy =>
     {
         policy.WithOrigins(
-            "https://localhost:63950",
-            "https://msu-malog.egmu-research.org"
-        )
-        .AllowAnyHeader()
-        .AllowAnyMethod()
-        .AllowCredentials()
-        .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+                "https://localhost:63950",
+                "https://msu-malog.egmu-research.org"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()
+            .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
     });
 });
 
-// ใน Program.cs หรือ Startup.cs
+// Audit config
 builder.Services.Configure<AuditConfig>(builder.Configuration.GetSection("Audit"));
+
+// Swagger (รวมเป็นครั้งเดียว)
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "MSUMALog API",
+        Version = "v1",
+        Description = "MSU MALog backend API"
+    });
+
+    // (ถ้าต้องใช้ JWT/OAuth2 ในอนาคต ค่อยเพิ่ม SecurityScheme/Requirement ที่นี่)
+});
 
 var app = builder.Build();
 
-// Middleware Pipeline
+// ===== Middleware Pipeline =====
 app.UseCookiePolicy();
 app.UseHttpsRedirection();
 
-if (app.Environment.IsDevelopment())
+// (ทางเลือก) ถ้ามี PathBase จาก config
+var pathBase = builder.Configuration["PathBase"];
+if (!string.IsNullOrWhiteSpace(pathBase))
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UsePathBase(pathBase);
 }
 
-// Global hardening middleware
-app.Use(async (context, next) =>
+// Swagger (Dev)
+if (app.Environment.IsDevelopment())
 {
-    if (context.Request.ContentLength > 5 * 1024 * 1024)
+    app.UseSwagger(c =>
     {
-        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
-        return;
-    }
-
-    var method = context.Request.Method;
-    bool mustHaveJson = HttpMethods.IsPost(method) ||
-                        HttpMethods.IsPut(method) ||
-                        HttpMethods.IsPatch(method) ||
-                        (HttpMethods.IsDelete(method) && (context.Request.ContentLength ?? 0) > 0);
-
-    if (mustHaveJson)
-    {
-        var contentType = context.Request.ContentType ?? "";
-        if (!contentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase))
+        // ให้ UI/clients รู้ base url ที่ถูกต้อง
+        c.PreSerializeFilters.Add((swagger, httpReq) =>
         {
-            context.Response.StatusCode = StatusCodes.Status415UnsupportedMediaType;
-            await context.Response.WriteAsync("Unsupported Media Type");
-            return;
-        }
-    }
+            var scheme = httpReq.Scheme;
+            var host = httpReq.Host.Value;
+            var basePath = httpReq.PathBase.HasValue ? httpReq.PathBase.Value : string.Empty;
+            swagger.Servers = new List<OpenApiServer> { new() { Url = $"{scheme}://{host}{basePath}" } };
+        });
+    });
 
-    await next();
-});
+    app.UseSwaggerUI(c =>
+    {
+        c.RoutePrefix = "swagger";
+        c.SwaggerEndpoint("./v1/swagger.json", "MSUMALog v1");
+        // c.EnableTryItOutByDefault();
+    });
+}
 
-// Request logging middleware
+// Request logging (วางต้น ๆ)
 app.Use(async (context, next) =>
 {
-    // Log basic request information
     Console.WriteLine($"Request: {context.Request.Method} {context.Request.Path} {context.Request.QueryString}");
-
-    // Log Controller and Action (if available)
     var endpoint = context.GetEndpoint();
     if (endpoint != null)
     {
-        var controller = endpoint.Metadata.GetMetadata<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>();
-        if (controller != null)
-        {
-            Console.WriteLine($"Controller: {controller.ControllerName}, Action: {controller.ActionName}");
-        }
+        var cad = endpoint.Metadata.GetMetadata<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>();
+        if (cad != null)
+            Console.WriteLine($"Controller: {cad.ControllerName}, Action: {cad.ActionName}");
     }
-
     await next();
 });
 
-// 📌 ตำแหน่งที่ถูกต้องสำหรับ Middleware ที่เกี่ยวกับการตรวจสอบความปลอดภัย
-// middleware เหล่านี้ควรอยู่ก่อน UseAuthentication() และ UseAuthorization()
+// CORS ควรอยู่ก่อน Auth สำหรับ preflight
 app.UseCors("frontend");
 
-// 🎯 แก้ไข Origin/Referer check for production
-// ย้ายมาไว้ก่อน UseAuthentication และแก้ไขเงื่อนไขให้ยอมรับ Referer จาก Google
+// (Prod) Origin/Referer check
 if (!app.Environment.IsDevelopment())
 {
     app.Use(async (context, next) =>
@@ -308,8 +298,6 @@ if (!app.Environment.IsDevelopment())
         bool IsAllowedHost(string url)
         {
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
-
-            // ยอมรับ host ของตัวเอง, localhost, และ Google
             return string.Equals(uri.Host, host, StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
                    uri.Host.StartsWith("127.0.0.", StringComparison.OrdinalIgnoreCase) ||
@@ -342,9 +330,63 @@ app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// 🔐 Global hardening (เวอร์ชันที่ “ยกเว้น” multipart/form-data)
+app.Use(async (context, next) =>
+{
+    // ป้องกัน payload ใหญ่เกิน (รวมถึง multipart/json)
+    if (context.Request.ContentLength > 5 * 1024 * 1024)
+    {
+        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+        await context.Response.WriteAsync("Payload Too Large");
+        return;
+    }
+
+    var method = context.Request.Method;
+    var hasBody =
+        HttpMethods.IsPost(method) ||
+        HttpMethods.IsPut(method) ||
+        HttpMethods.IsPatch(method) ||
+        (HttpMethods.IsDelete(method) && (context.Request.ContentLength ?? 0) > 0);
+
+    if (hasBody)
+    {
+        var endpoint = context.GetEndpoint();
+
+        // ตรวจว่า endpoint นี้ประกาศ Consumes("multipart/form-data") ไว้หรือไม่
+        var consumesAttrs = endpoint?.Metadata.GetOrderedMetadata<Microsoft.AspNetCore.Mvc.ConsumesAttribute>();
+        var expectsMultipart = consumesAttrs?.Any(a =>
+            a.ContentTypes.Any(ct => ct.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase))) == true;
+
+        var contentType = context.Request.ContentType ?? string.Empty;
+
+        if (expectsMultipart)
+        {
+            await next(); // ✅ ปล่อย multipart/form-data ผ่าน
+            return;
+        }
+
+        // อนุญาต x-www-form-urlencoded สำหรับแบบฟอร์มธรรมดา (ถ้ามี)
+        if (contentType.StartsWith("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
+        {
+            await next();
+            return;
+        }
+
+        // นอกนั้นบังคับ JSON
+        if (!contentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status415UnsupportedMediaType;
+            await context.Response.WriteAsync("Unsupported Media Type");
+            return;
+        }
+    }
+
+    await next();
+});
+
 app.MapControllers();
 
-// Run migrations & seed once at startup. Use SQL Server application lock to ensure only one instance performs this.
+// Run migrations & seed once at startup (application lock)
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
@@ -355,13 +397,11 @@ using (var scope = app.Services.CreateScope())
         await conn.OpenAsync();
         try
         {
-            // Try to acquire an exclusive application lock. Timeout = 10000 ms (10s).
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "DECLARE @result int; EXEC @result = sp_getapplock @Resource = 'MSUMALog_Migrations', @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 10000; SELECT @result;";
             var scalar = await cmd.ExecuteScalarAsync();
             var result = scalar != null ? Convert.ToInt32(scalar) : -999;
 
-            // sp_getapplock returns >=0 on success, negative on failure
             if (result >= 0)
             {
                 logger.LogInformation("Acquired migration lock (sp_getapplock={Result}). Applying migrations and seeding...", result);
@@ -376,7 +416,6 @@ using (var scope = app.Services.CreateScope())
         }
         finally
         {
-            // Release lock explicitly and close connection if open.
             if (conn.State == System.Data.ConnectionState.Open)
             {
                 try
@@ -385,26 +424,19 @@ using (var scope = app.Services.CreateScope())
                     relCmd.CommandText = "EXEC sp_releaseapplock @Resource = 'MSUMALog_Migrations', @LockOwner = 'Session';";
                     await relCmd.ExecuteNonQueryAsync();
                 }
-                catch
-                {
-                    // ignore release errors
-                }
-                finally
-                {
-                    await conn.CloseAsync();
-                }
+                catch { /* ignore */ }
+                finally { await conn.CloseAsync(); }
             }
         }
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "Database migration/seed failed at startup.");
-        // Rethrow to stop startup if you want fail-fast; otherwise comment the next line.
         throw;
     }
 }
 
-// Error handling middleware
+// Error handling (ท้าย ๆ เพื่อจับ exception ทั้ง pipeline)
 app.Use(async (context, next) =>
 {
     try

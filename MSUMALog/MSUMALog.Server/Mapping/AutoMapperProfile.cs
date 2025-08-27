@@ -44,5 +44,23 @@ public class AutoMapperProfile : Profile
             .ForSourceMember(d => d.CreatedUserName, opt => opt.DoNotValidate())
             .ForSourceMember(d => d.UpdatedUserName, opt => opt.DoNotValidate())
             .ForSourceMember(d => d.CaseNo, opt => opt.DoNotValidate());
+
+        // IncidentAttachment -> IncidentAttachmentDto
+        CreateMap<IncidentAttachment, MSUMALog.Server.DTOs.IncidentAttachmentDto>()
+            .ForMember(d => d.Kind, o => o.MapFrom(s => s.Kind.ToString()))
+            .ForMember(d => d.CreatedUtc, o => o.MapFrom(s => s.CreatedUtc))
+            .ForMember(d => d.UpdatedUtc, o => o.MapFrom(s => s.UpdatedUtc))
+            .ForMember(d => d.RowVersion, o => o.MapFrom(s => s.RowVersion))
+            // Do not map PhysicalPath to DTO
+            .ForSourceMember(s => s.PhysicalPath, o => o.DoNotValidate());
+
+        // IncidentAttachmentDto -> IncidentAttachment
+        CreateMap<MSUMALog.Server.DTOs.IncidentAttachmentDto, IncidentAttachment>()
+            .ForMember(e => e.Kind, o => o.MapFrom(d => Enum.Parse<AttachmentType>(d.Kind ?? "File")))
+            .ForMember(e => e.PhysicalPath, o => o.Ignore()) // never accept physical path from client
+            // ignore navigation properties to avoid attaching detached instances
+            .ForMember(e => e.Incident, o => o.Ignore())
+            .ForMember(e => e.CreatedUser, o => o.Ignore())
+            .ForMember(e => e.UpdatedUser, o => o.Ignore());
     }
 }

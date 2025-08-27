@@ -11,6 +11,7 @@ namespace MSUMALog.Server.Data
         public DbSet<IncidentComment> IncidentComments => Set<IncidentComment>();
         public DbSet<User> Users { get; set; }
         public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+        public DbSet<IncidentAttachment> IncidentAttachments { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -62,6 +63,30 @@ namespace MSUMALog.Server.Data
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
+            // Configure IncidentAttachment
+            modelBuilder.Entity<IncidentAttachment>(b =>
+            {
+                b.HasIndex(a => a.IncidentId);
+
+                b.Property(a => a.Kind)
+                 .HasConversion<string>()
+                 .HasMaxLength(50)
+                 .IsRequired();
+
+                b.Property(a => a.StorageKey).HasMaxLength(512);
+                b.Property(a => a.RelativePath).HasMaxLength(512);
+                b.Property(a => a.PhysicalPath).HasMaxLength(1024);
+                b.Property(a => a.FileName).HasMaxLength(260);
+                b.Property(a => a.ContentType).HasMaxLength(100);
+                b.Property(a => a.ExternalUrl).HasMaxLength(2048);
+                b.Property(a => a.Description).HasMaxLength(1000);
+
+                b.Property(a => a.SizeBytes).HasColumnType("bigint");
+                b.Property(a => a.IsExternal).HasColumnType("bit");
+                b.Property(a => a.CreatedUtc).HasColumnType("datetime2");
+                b.Property(a => a.UpdatedUtc).HasColumnType("datetime2");
+                b.Property(a => a.RowVersion).IsRowVersion();
+            });
 
             // New User configuration
             modelBuilder.Entity<User>(b =>

@@ -677,6 +677,194 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/IncidentAttachments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["IncidentAttachmentDto"];
+                        "application/json": components["schemas"]["IncidentAttachmentDto"];
+                        "text/json": components["schemas"]["IncidentAttachmentDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/IncidentAttachments/by-incident/{incidentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    incidentId: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["IncidentAttachmentDto"][];
+                        "application/json": components["schemas"]["IncidentAttachmentDto"][];
+                        "text/json": components["schemas"]["IncidentAttachmentDto"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/IncidentAttachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["IncidentAttachmentDto"];
+                    "text/json": components["schemas"]["IncidentAttachmentDto"];
+                    "application/*+json": components["schemas"]["IncidentAttachmentDto"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["IncidentAttachmentDto"];
+                        "application/json": components["schemas"]["IncidentAttachmentDto"];
+                        "text/json": components["schemas"]["IncidentAttachmentDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/IncidentAttachments/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        File: string;
+                        /** Format: int32 */
+                        IncidentId: number;
+                        Description?: string;
+                        Kind?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["IncidentAttachmentDto"];
+                        "application/json": components["schemas"]["IncidentAttachmentDto"];
+                        "text/json": components["schemas"]["IncidentAttachmentDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/IncidentComments/by-case/{caseNo}": {
         parameters: {
             query?: never;
@@ -1192,6 +1380,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/UploadFile/Upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        File: string;
+                        /** Format: int32 */
+                        SubjectId?: number;
+                        /** Format: int32 */
+                        UserId?: number;
+                        FileType?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/WeatherForecast": {
         parameters: {
             query?: never;
@@ -1250,6 +1494,32 @@ export interface components {
             /** Format: int32 */
             pageSize?: number;
             items?: components["schemas"]["AuditTimelineDto"][] | null;
+        };
+        IncidentAttachmentDto: {
+            /** Format: int32 */
+            id?: number;
+            /** Format: int32 */
+            incidentId: number;
+            storageKey?: string | null;
+            relativePath?: string | null;
+            fileName?: string | null;
+            contentType?: string | null;
+            /** Format: int64 */
+            sizeBytes?: number | null;
+            isExternal?: boolean;
+            externalUrl?: string | null;
+            kind?: string | null;
+            description?: string | null;
+            /** Format: int32 */
+            readonly createdUserId?: number | null;
+            /** Format: int32 */
+            readonly updatedUserId?: number | null;
+            /** Format: date-time */
+            readonly createdUtc?: string | null;
+            /** Format: date-time */
+            readonly updatedUtc?: string | null;
+            /** Format: byte */
+            readonly rowVersion?: string | null;
         };
         IncidentCommentDto: {
             /** Format: int32 */

@@ -21,7 +21,40 @@ function LoginPage() {
     const [showPdpa, setShowPdpa] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showBasicLogin, setShowBasicLogin] = useState(false);
+    const [isPhone, setIsPhone] = useState(false);
     const navigate = useNavigate();
+    
+    useEffect(() => {
+        const onResize = () => setIsPhone(window.innerWidth <= 480);
+        onResize();
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
+    // Add a temporary page-specific override so the MUI Container padding is removed only on login page
+    useEffect(() => {
+        document.body.classList.add('login-page');
+        const style = document.createElement('style');
+        style.id = 'login-page-container-override';
+        style.innerHTML = `
+            .login-page .css-1xd5xpj-MuiContainer-root {
+                width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+                box-sizing: border-box !important;
+            }
+        `;
+        document.head.appendChild(style);
+        return () => {
+            document.body.classList.remove('login-page');
+            const el = document.getElementById('login-page-container-override');
+            if (el) el.remove();
+        };
+    }, []);
 
     useEffect(() => {
         const abort = new AbortController();
@@ -114,16 +147,20 @@ function LoginPage() {
         <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             justifyContent: 'center', minHeight: '100vh',
-            backgroundColor: '#f0f2f5', padding: '1rem'
+            backgroundColor: 'white', padding: isPhone ? 0 : '1rem'
         }}>
             <div style={{
-                width: '100%', maxWidth: '420px', padding: '2rem',
-                backgroundColor: 'white', borderRadius: '8px',
-                boxShadow: '0 6px 18px rgba(0,0,0,0.08)'
+                width: '100%', maxWidth: isPhone ? '100%' : '420px',
+                // เพิ่ม horizontal padding เล็กน้อยบนมือถือเพื่อไม่ให้ตัวอักษรชิดขอบ
+                padding: isPhone ? '1rem 12px' : '2rem',
+                backgroundColor: 'white',
+                borderRadius: isPhone ? 0 : '8px',
+                boxShadow: isPhone ? 'none' : '0 6px 18px rgba(0,0,0,0.08)',
+                margin: isPhone ? 0 : 'auto'
             }}>
                 {/* Logo */}
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-                    <img src="/images/logo/msu-eg-logo.png" alt="Logo" style={{ width: 200, height: 200, objectFit: 'contain' }} />
+                    <img src="/images/logo/msu-eg-logo.png" alt="Logo" style={{ width: isPhone ? 120 : 200, height: isPhone ? 120 : 200, objectFit: 'contain' }} />
                 </div>
 
                 <h2 style={{ textAlign: 'center', marginBottom: '1rem', color: '#333' }}>เข้าสู่ระบบ MSU-MALOG</h2>
@@ -131,11 +168,11 @@ function LoginPage() {
 
                 {/* Instruction under logo */}
                 <div style={{ textAlign: 'center', marginBottom: '2rem', color: '#555', fontSize: 14  }}>
-                    สำหรับผู้ใช้ Gmail หรือ Google Account กรุณาใช้การเข้าสู่ระบบด้วย Google Sign-In
+                    สำหรับผู้ใช้ Gmail หรือ Google Account ให้ใช้ Google Sign-In
 
                     {!agreePdpa && (
                         <div style={{ fontSize: 12, color: '#555', marginTop: '1rem' }}>
-                            กรุณายอมรับเงื่อนไข PDPA ก่อนเข้าใช้งาน
+                            และกรุณายอมรับเงื่อนไข PDPA ก่อนเข้าใช้งาน
                         </div>
                     )}
 
@@ -143,7 +180,7 @@ function LoginPage() {
                 </div>
 
                 
-                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '2rem', paddingLeft: 8, paddingRight: 8}}>
                     {/* Keep PDPA checkbox and "ดูรายละเอียด PDPA" always visible */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151' }}>
@@ -211,7 +248,7 @@ function LoginPage() {
 
                
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' ,paddingLeft: 8, paddingRight: 8}}>
                     <button
                         onClick={loginGoogle}
                         type="button"

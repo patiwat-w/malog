@@ -1,7 +1,17 @@
 import axios from 'axios';
 import type { components } from './types';
 
-const http = axios.create({ baseURL: '/api' });
+// set axios to include credentials (cookies) if your backend uses cookie auth
+const http = axios.create({ baseURL: '/api', withCredentials: true });
+
+// export helper to set/remove Bearer token when using token auth
+export function setAuthToken(token?: string) {
+  if (token) {
+    http.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete http.defaults.headers.common['Authorization'];
+  }
+}
 
 export type IncidentReportDto = components['schemas']['IncidentReportDto'];
 export type IncidentReportPatchDto = components['schemas']['IncidentReportPatchDto'];
@@ -15,6 +25,16 @@ export type AuditTimelineDtoPagedResultDto = components['schemas']['AuditTimelin
 
 // เพิ่ม type สำหรับ Admin user DTO (จาก swagger)
 export type AdminUserDto = components['schemas']['UserDto'];
+
+// เพิ่ม export ของ schema types ที่ยังขาด
+export type UserDto = components['schemas']['UserDto'];
+export type LoginRequest = components['schemas']['LoginRequest'];
+export type SetPasswordRequest = components['schemas']['SetPasswordRequest'];
+export type ProblemDetails = components['schemas']['ProblemDetails'];
+export type StringObjectIDictionaryPagedResultDto = components['schemas']['StringObjectIDictionaryPagedResultDto'];
+export type WeatherForecast = components['schemas']['WeatherForecast'];
+export type AuditActionType = components['schemas']['AuditActionType'];
+export type AuditEntityType = components['schemas']['AuditEntityType'];
 
 // ฟังก์ชัน API สำหรับ AdminUsers
 export async function getAdminUsers(): Promise<AdminUserDto[]> {
@@ -247,5 +267,101 @@ export async function getAuditTimelineByReference(params: {
 // ดึงรายละเอียดการแก้ไขใน batch เดียวกัน
 export async function getAuditBatchDetail(batchId: string) {
   const res = await http.get<AuditFieldChangeDto[]>(`/Audit/batch/${batchId}`);
+  return res.data;
+}
+
+/**
+ * IncidentAttachments APIs (ตาม OpenAPI types)
+ */
+export type IncidentAttachmentDto = components['schemas']['IncidentAttachmentDto'];
+
+export async function getIncidentAttachmentsByIncident(incidentId: number): Promise<IncidentAttachmentDto[]> {
+  const res = await http.get<IncidentAttachmentDto[]>(`/IncidentAttachments/by-incident/${incidentId}`);
+  return res.data;
+}
+
+export async function getIncidentAttachmentById(id: number): Promise<IncidentAttachmentDto> {
+  const res = await http.get<IncidentAttachmentDto>(`/IncidentAttachments/${id}`);
+  return res.data;
+}
+
+/**
+ * Create attachment metadata (JSON) - OpenAPI ระบุ POST /api/IncidentAttachments with JSON body
+ * If your backend expects multipart upload, use uploadIncidentAttachmentForm below instead.
+ */
+export async function createIncidentAttachment(body: IncidentAttachmentDto): Promise<IncidentAttachmentDto> {
+  const res = await http.post<IncidentAttachmentDto>('/IncidentAttachments', body);
+  return res.data;
+}
+
+export async function deleteIncidentAttachment(id: number) {
+  await http.delete(`/IncidentAttachments/${id}`);
+}
+
+/**
+ * Try to download raw file blob. Tries a few common endpoints:
+ * - /IncidentAttachments/{id}/download
+ * - /IncidentAttachments/{id}/raw
+ * - /IncidentAttachments/{id} (if server returns file directly)
+ */
+export async function downloadIncidentAttachmentBlob(id: number): Promise<Blob> {
+  const tryUrls = [
+    `/IncidentAttachments/${id}/download`,
+    `/IncidentAttachments/${id}/raw`,
+    `/IncidentAttachments/${id}`
+  ];
+  for (const u of tryUrls) {
+    try {
+      const res = await http.get(u, { responseType: 'blob' as const });
+      if (res.status >= 200 && res.status < 300) return res.data as Blob;
+    } catch {
+      // ignore and try next
+    }
+  }
+  throw new Error('Download failed: no endpoint returned a file blob');
+}
+
+/**
+ * Optional: multipart upload helper (if backend provides /IncidentAttachments/upload)
+ * Use when server supports multipart/form-data upload route.
+ */
+export async function uploadIncidentAttachment(data: {
+  file: File;
+  incidentId: number;
+  description?: string;
+  kind?: string;
+}): Promise<boolean> {
+  // delegate to generic UploadFile/Upload endpoint; map fields accordingly
+  return await uploadFileUpload({
+    file: data.file,
+    subjectId: data.incidentId,
+    fileType: data.kind,
+  });
+}
+
+// ----------------- NEW: additional helpers based on updated types -----------------
+
+// Upload generic file to /UploadFile/Upload (multipart). Returns true on HTTP 200.
+export async function uploadFileUpload(data: {
+  file: File;
+  subjectId?: number;
+  userId?: number;
+  fileType?: string;
+}): Promise<boolean> {
+  const form = new FormData();
+  form.append("File", data.file);
+  if (typeof data.subjectId !== "undefined") form.append("SubjectId", data.subjectId.toString());
+  if (typeof data.userId !== "undefined") form.append("UserId", data.userId.toString());
+  if (data.fileType) form.append("FileType", data.fileType);
+
+  const res = await http.post("/UploadFile/Upload", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.status >= 200 && res.status < 300;
+}
+
+// Thin wrapper for /auth/claims — returns backend payload as-is (type unknown because OpenAPI doesn't define content)
+export async function getAuthClaims(): Promise<unknown> {
+  const res = await http.get("/auth/claims", { withCredentials: true });
   return res.data;
 }

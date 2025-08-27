@@ -1,34 +1,44 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Box, Paper, Typography, Chip, Stack, Divider, TextField, Button, MenuItem,
-  IconButton, Tooltip, Avatar
-} from '@mui/material';
-import { Grid } from '@mui/material';
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
-import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
-import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import PhoneOutlinedIcon from '@mui/icons-material/PhoneOutlined';
+import {
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  Divider,
+  Grid,
+  IconButton,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography
+} from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
-import { getIncidentByCase, getCurrentUser, type IncidentReportDto, type User, updateIncidentPartial } from '../api/client';
-import { getDomainLabel, getSeverityLabel, getSeverityColor } from '../constants/incidentOptions';
-import { incidentStatusOptions } from '../constants/incidentOptions'; 
+import { getCurrentUser, getIncidentByCase, updateIncidentPartial, type IncidentReportDto, type User } from '../api/client';
 import WysiwygMarkdownEditor from '../components/WysiwygMarkdownEditor'; // เพิ่ม import นี้
+import { getDomainLabel, getSeverityColor, getSeverityLabel, incidentStatusOptions } from '../constants/incidentOptions';
 
 // --- NEW imports for dialogs / backdrop / snackbar / alert ---
+import MuiAlert from '@mui/material/Alert';
 import Backdrop from '@mui/material/Backdrop';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import Snackbar from '@mui/material/Snackbar';
-import MuiAlert from '@mui/material/Alert';
-import IncidentConversationWithTimeLine from '../components/IncidentConversationWithTimeLine';
+import IncidentAttachments from '../components/IncidentAttachments';
 import IncidentCommentBox from '../components/IncidentCommentBox';
+import IncidentConversationWithTimeLine from '../components/IncidentConversationWithTimeLine';
 
 
 const parseToDate = (value: unknown): Date | null => {
@@ -410,6 +420,11 @@ const IncidentReportDetail: React.FC = () => {
         </Typography>
         <WysiwygMarkdownEditor value={incident.symptoms} readOnly minHeight={100} />
         
+        <Divider sx={{ my: 3 }} />
+
+       
+        <IncidentAttachments incidentId={incident.id} />
+
         <Divider sx={{ my: 3 }} />
       {/* Meta Fields */}
       <Box

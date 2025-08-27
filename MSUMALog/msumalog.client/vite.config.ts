@@ -1,11 +1,11 @@
 import { fileURLToPath, URL } from 'node:url';
 
-import { defineConfig } from 'vite';
 import plugin from '@vitejs/plugin-react';
+import child_process from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import child_process from 'child_process';
 import { env } from 'process';
+import { defineConfig } from 'vite';
 
 const baseFolder =
     env.APPDATA !== undefined && env.APPDATA !== ''
@@ -53,12 +53,10 @@ export default defineConfig({
             },
             // เพิ่ม proxy สำหรับ API ทั้งหมด
             '^/api': {
-                target,
+                target: 'https://localhost', // <- ชี้ตรงไปยัง backend port (ปรับตามเครื่อง)
                 secure: false,
                 changeOrigin: true,
-                // ถ้าต้องการดูว่า proxy ทำงาน ใช้ logLevel: 'debug'
-                // logLevel: 'debug',
-                // ถ้า backend มี path base / ไม่ต้อง rewrite; ถ้ามี /api ซ้ำ ให้ uncomment ด้านล่าง
+                // Removed logLevel as it is not a valid property of ProxyOptions
                 // rewrite: (p) => p.replace(/^\/api/, '/api')
             }
         },
