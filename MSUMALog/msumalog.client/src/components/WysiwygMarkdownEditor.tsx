@@ -1,19 +1,21 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { Box, Paper, Typography, Button } from '@mui/material';
-import TurndownService from 'turndown';
-import ImageIcon from '@mui/icons-material/Image';
+import { Delete } from '@mui/icons-material';
+import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
+import CodeIcon from '@mui/icons-material/Code';
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
 import FormatItalicIcon from '@mui/icons-material/FormatItalic';
 import ListIcon from '@mui/icons-material/FormatListBulleted';
-import { marked } from 'marked'; // เพิ่มบรรทัดนี้ (ติดตั้งด้วย: npm install marked)
+import ImageIcon from '@mui/icons-material/Image';
+import RemoveIcon from '@mui/icons-material/Remove';
+import { Box, Button, Paper, Typography } from '@mui/material';
 import Dialog from '@mui/material/Dialog';
 import IconButton from '@mui/material/IconButton';
-import CloseIcon from '@mui/icons-material/Close';
-import AddIcon from '@mui/icons-material/Add';
-import RemoveIcon from '@mui/icons-material/Remove';
-import { Delete } from '@mui/icons-material';
-import ConfirmDialog from './ConfirmDialog'; // Import the ConfirmDialog component
+import TextField from '@mui/material/TextField';
 import { debounce } from 'lodash';
+import { marked } from 'marked'; // เพิ่มบรรทัดนี้ (ติดตั้งด้วย: npm install marked)
+import React, { useEffect, useRef, useState } from 'react';
+import TurndownService from 'turndown';
+import ConfirmDialog from './ConfirmDialog'; // Import the ConfirmDialog component
 
 interface Props {
   value?: string | null;
@@ -76,6 +78,14 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
   const [zoomImageSrc, setZoomImageSrc] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(1); // เพิ่ม state สำหรับ zoom
   const [confirmOpen, setConfirmOpen] = useState(false); // State for dialog visibility
+  // Source (Markdown) edit mode
+  const [isSource, setIsSource] = useState(false);
+  const [markdownSource, setMarkdownSource] = useState<string>(value || '');
+
+  useEffect(() => {
+    // ถ้า value เปลี่ยนจากภายนอกขณะอยู่ใน Source mode ให้อัปเดต textarea
+    if (isSource) setMarkdownSource(value || '');
+  }, [value, isSource]);
 
   useEffect(() => {
     if (!zoomImageSrc) setZoomLevel(1); // reset zoom เมื่อปิด Dialog
@@ -248,6 +258,33 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
     setImgWidthPercent(100);
   };
 
+  const toggleSource = async () => {
+    // สลับโหมด WYSIWYG <-> Source
+    if (!isSource) {
+      // เข้าโหมด Source: แปลง HTML ปัจจุบันเป็น Markdown
+      const html = editorRef.current?.innerHTML ?? (value || '');
+      const td = turndownRef.current;
+      const md = td ? td.turndown(html).trim() : (value || '');
+      setMarkdownSource(md);
+      setIsSource(true);
+    } else {
+      // ออกจากโหมด Source: รอให้ editor ถูก mount แล้วค่อยแปลง Markdown เป็น HTML และอัปเดต editor + parent
+      const md = markdownSource || '';
+      setIsSource(false);
+      // รอ render ให้ editor element มีอยู่ก่อน แล้วค่อยตั้ง innerHTML และแจ้ง parent
+      requestAnimationFrame(async () => {
+        const html = marked(md);
+        if (editorRef.current) {
+          const resolvedHtml = await html;
+          editorRef.current.innerHTML = resolvedHtml;
+        }
+        lastLocalValueRef.current = md;
+        isLocalChangeRef.current = true;
+        if (onChange) onChange(md);
+      });
+    }
+  };
+
   // Set editor html from value (markdown) when value changes
   useEffect(() => {
       const updateEditorHtml = async () => {
@@ -280,6 +317,14 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
             <Button size="small" variant="outlined" onClick={() => format('italic')} startIcon={<FormatItalicIcon />}></Button>
             <Button size="small" variant="outlined" onClick={() => format('insertUnorderedList')} startIcon={<ListIcon />}></Button>
             <Button size="small" variant="outlined" onClick={handlePickImage} startIcon={<ImageIcon />}></Button>
+            {/* <Button
+              size="small"
+              variant={isSource ? 'contained' : 'outlined'}
+              onClick={toggleSource}
+              startIcon={<CodeIcon />}
+            >
+              Source
+            </Button> */}
             <Button
               disabled={!value || value.trim() === ''} // Disable if value is empty or null
               size="small"
@@ -301,102 +346,65 @@ const WysiwygMarkdownEditor: React.FC<Props> = ({
         )}
       </Box>
       <Box sx={{ position: 'relative' }}>
-        <Box
-          ref={editorRef}
-          contentEditable={!readOnly}
-          suppressContentEditableWarning
-          onInput={readOnly ? undefined : syncFromEditor}
-          onClick={handleEditorClick}
-          sx={{
-            minHeight,
-            maxHeight: maxHeight ?? undefined,
-            overflowY: maxHeight ? 'auto' : undefined,
-            padding: '12px 14px',
-            border: '1px solid rgba(0,0,0,0.23)',
-            borderRadius: 4,
-            fontFamily: 'inherit',
-            fontSize: '.95rem',
-            outline: 'none',
-            whiteSpace: 'pre-wrap',
-            overflowWrap: 'anywhere',
-            background: readOnly ? 'linear-gradient(135deg, #f5f7fa 0%,rgba(195, 207, 226, 0.2) 100%)' : '#fff', // สีพื้นหลังแบบคลีลิค
-            cursor: readOnly ? 'default' : 'text',
-            '& img': {
-              maxWidth: '100%',
-              borderRadius: 1,
-              outline: (theme) => selectedImage ? `2px solid ${theme.palette.primary.main}` : 'none'
-            },
-            /* Custom scrollbar style: ไม่มี background */
-            '&::-webkit-scrollbar': {
-              width: 8,
-              background: 'transparent', // ไม่มี background
-              borderRadius: 8,
-            },
-            '&::-webkit-scrollbar-thumb': {
-              background: '#bdbdbd',
-              borderRadius: 8,
-              minHeight: 24,
-            },
-            '&::-webkit-scrollbar-thumb:hover': {
-              background: '#888',
-            },
-            scrollbarColor: '#bdbdbd transparent', // For Firefox: ไม่มี background
-            scrollbarWidth: 'thin', // For Firefox
-          }}
-          data-placeholder={placeholder}
-        />
-        {!readOnly && selectedImage && imgToolbarPos && (
-          <Paper
-            elevation={4}
-            sx={{
-              position: 'absolute',
-              left: imgToolbarPos.x,
-              top: imgToolbarPos.y,
-              p: 1,
-              zIndex: 10,
-              minWidth: 220,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1
+        {isSource ? (
+          <TextField
+            fullWidth
+            multiline
+            minRows={6}
+            value={markdownSource}
+            onChange={(e) => {
+              // แค่อัปเดตสถานะในโหมด Source — ไม่แจ้ง parent ทุก keypress
+              setMarkdownSource(e.target.value);
             }}
-          >
-            <Typography variant="caption" sx={{ fontWeight: 600 }}>
-              Image width: {imgWidthPercent}%
-            </Typography>
-            <Box sx={{ px: 1 }}>
-              <input
-                id="image-width-range"
-                type="range"
-                min={10}
-                max={100}
-                step={5}
-                value={imgWidthPercent}
-                onChange={(e) => applyImageWidth(parseInt(e.target.value))}
-                className="image-width-range"
-                placeholder="Adjust image width"
-              />
-            </Box>
-            <Box sx={{ display: 'flex', gap: .5, flexWrap: 'wrap' }}>
-              {[25, 50, 75, 100].map(v => (
-                <Button
-                  key={v}
-                  size="small"
-                  variant={imgWidthPercent === v ? 'contained' : 'outlined'}
-                  onClick={() => applyImageWidth(v)}
-                >
-                  {v}%
-                </Button>
-              ))}
-              <Button size="small" onClick={clearImageWidth}>Reset</Button>
-              <Button
-                size="small"
-                color="error"
-                onClick={() => { setSelectedImage(null); setImgToolbarPos(null); }}
-              >
-                Close
-              </Button>
-            </Box>
-          </Paper>
+            placeholder={placeholder}
+            disabled={readOnly}
+            sx={{ fontFamily: 'monospace', '& .MuiInputBase-input': { whiteSpace: 'pre-wrap', fontFamily: 'monospace' }, minHeight, maxHeight: maxHeight ?? undefined, overflow: maxHeight ? 'auto' : undefined }}
+          />
+        ) : (
+          <Box
+            ref={editorRef}
+            contentEditable={!readOnly}
+            suppressContentEditableWarning
+            onInput={readOnly ? undefined : syncFromEditor}
+            onClick={handleEditorClick}
+            sx={{
+              minHeight,
+              maxHeight: maxHeight ?? undefined,
+              overflowY: maxHeight ? 'auto' : undefined,
+              padding: '12px 14px',
+              border: '1px solid rgba(0,0,0,0.23)',
+              borderRadius: 4,
+              fontFamily: 'inherit',
+              fontSize: '.95rem',
+              outline: 'none',
+              whiteSpace: 'pre-wrap',
+              overflowWrap: 'anywhere',
+              background: readOnly ? 'linear-gradient(135deg, #f5f7fa 0%,rgba(195, 207, 226, 0.2) 100%)' : '#fff', // สีพื้นหลังแบบคลีลิค
+              cursor: readOnly ? 'default' : 'text',
+              '& img': {
+                maxWidth: '100%',
+                borderRadius: 1,
+                outline: (theme) => selectedImage ? `2px solid ${theme.palette.primary.main}` : 'none'
+              },
+              /* Custom scrollbar style: ไม่มี background */
+              '&::-webkit-scrollbar': {
+                width: 8,
+                background: 'transparent', // ไม่มี background
+                borderRadius: 8,
+              },
+              '&::-webkit-scrollbar-thumb': {
+                background: '#bdbdbd',
+                borderRadius: 8,
+                minHeight: 24,
+              },
+              '&::-webkit-scrollbar-thumb:hover': {
+                background: '#888',
+              },
+              scrollbarColor: '#bdbdbd transparent', // For Firefox: ไม่มี background
+              scrollbarWidth: 'thin', // For Firefox
+            }}
+            data-placeholder={placeholder}
+          />
         )}
       </Box>
       {/* --- Image Zoom Dialog --- */}
