@@ -1,0 +1,111 @@
+:root{
+	/* spacing scale (rem) */ 
+	--space-xxs: .25rem;
+	--space-xs: .5rem;
+	--space-sm: .75rem;
+	--space-md: 1rem;
+	--space-lg: 1.5rem;
+	--space-xl: 2rem;
+
+	/* typography */
+	--fs-sm: .9rem;
+	--fs-md: 1rem;
+	--fs-lg: 1.25rem;
+	--line-height: 1.4;
+
+	/* layout */
+	--container-max: 1100px;
+	--radius: 8px;
+	--muted: #6b7280;
+	--bg: #f8fafc;
+	--card-bg: #ffffff;
+	--border: #e5e7eb;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+	margin:0;
+	font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+	font-size:var(--fs-md);
+	line-height:var(--line-height);
+	color:#111827;
+	background:var(--bg);
+}
+
+/* Container center + responsive */
+.container{
+	max-width:var(--container-max);
+	margin-left:auto;
+	margin-right:auto;
+	padding-left:var(--space-md);
+	padding-right:var(--space-md);
+}
+
+/* Header */
+.header{
+	padding:var(--space-lg) 0;
+	display:flex;
+	align-items:center;
+	justify-content:space-between;
+	gap:var(--space-md);
+}
+.header .title{
+	font-size:var(--fs-lg);
+	font-weight:600;
+	letter-spacing:0.2px;
+}
+
+/* Grid / Row / Column */
+.row{
+	display:flex;
+	flex-wrap:wrap;
+	gap:var(--space-lg);
+	margin: calc(-1 * var(--space-lg)) 0 0 calc(-1 * var(--space-lg));
+}
+.col{
+	padding:var(--space-lg) 0 0 var(--space-lg);
+	flex:1 1 0%;
+	min-width:220px; /* allows responsive wrap */
+}
+
+/* Card */
+.card{
+	background:var(--card-bg);
+	border:1px solid var(--border);
+	border-radius:var(--radius);
+	padding:var(--space-md);
+	box-shadow:0 1px 2px rgba(16,24,40,0.03);
+	display:flex;
+	flex-direction:column;
+	gap:var(--space-sm);
+}
+
+/* Spacing utilities */
+.mt-sm{margin-top:var(--space-sm)}
+.mt-md{margin-top:var(--space-md)}
+.mb-sm{margin-bottom:var(--space-sm)}
+.mb-md{margin-bottom:var(--space-md)}
+.p-sm{padding:var(--space-sm)}
+.p-md{padding:var(--space-md)}
+.p-lg{padding:var(--space-lg)}
+
+/* Text helpers */
+.text-muted{color:var(--muted); font-size:var(--fs-sm)}
+.lead{font-size:var(--fs-lg); font-weight:500}
+
+/* Compact list for metadata */
+.meta{
+	display:flex;
+	flex-wrap:wrap;
+	gap:var(--space-xs) var(--space-sm);
+	font-size:var(--fs-sm);
+	color:var(--muted);
+}
+
+/* Responsive tweaks */
+@media (max-width:720px){
+	.header{flex-direction:column; align-items:flex-start; gap:var(--space-sm)}
+	.row{gap:var(--space-md); margin: calc(-1 * var(--space-md)) 0 0 calc(-1 * var(--space-md))}
+	.col{padding:var(--space-md) 0 0 var(--space-md); min-width:100%}
+}

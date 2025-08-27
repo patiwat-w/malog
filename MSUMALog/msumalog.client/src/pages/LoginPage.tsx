@@ -20,6 +20,7 @@ function LoginPage() {
     const [agreePdpa, setAgreePdpa] = useState(false);
     const [showPdpa, setShowPdpa] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [showBasicLogin, setShowBasicLogin] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -127,32 +128,23 @@ function LoginPage() {
 
                 <h2 style={{ textAlign: 'center', marginBottom: '1rem', color: '#333' }}>เข้าสู่ระบบ MSU-MALOG</h2>
                 {error && <div style={{ color: 'red', marginBottom: '1rem', fontSize: '.9rem' }}>{error}</div>}
-                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div>
-                        <label htmlFor="email" style={{ display: 'block', marginBottom: '.5rem', fontWeight: 'bold', color: '#555' }}>Email </label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            style={{ width: '100%', padding: '.75rem', border: '1px solid #ccc', borderRadius: '4px' }}
-                            required
-                            autoComplete="email"
-                        />
-                    </div>
-                    <div>
-                        <label htmlFor="password" style={{ display: 'block', marginBottom: '.5rem', fontWeight: 'bold', color: '#555' }}>Password</label>
-                        <input
-                            type="password"
-                            id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            style={{ width: '100%', padding: '.75rem', border: '1px solid #ccc', borderRadius: '4px' }}
-                            required
-                            autoComplete="current-password"
-                        />
-                    </div>
 
+                {/* Instruction under logo */}
+                <div style={{ textAlign: 'center', marginBottom: '2rem', color: '#555', fontSize: 14  }}>
+                    สำหรับผู้ใช้ Gmail หรือ Google Account กรุณาใช้การเข้าสู่ระบบด้วย Google Sign-In
+
+                    {!agreePdpa && (
+                        <div style={{ fontSize: 12, color: '#555', marginTop: '1rem' }}>
+                            กรุณายอมรับเงื่อนไข PDPA ก่อนเข้าใช้งาน
+                        </div>
+                    )}
+
+
+                </div>
+
+                
+                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {/* Keep PDPA checkbox and "ดูรายละเอียด PDPA" always visible */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151' }}>
                             <input
@@ -172,18 +164,52 @@ function LoginPage() {
                         </button>
                     </div>
 
-                    <button type="submit" disabled={!agreePdpa || loading} style={{
-                        padding: '.75rem', border: 'none', borderRadius: '4px',
-                        backgroundColor: '#007bff', color: 'white', fontWeight: 'bold', cursor: (!agreePdpa || loading) ? 'not-allowed' : 'pointer',
-                        opacity: (!agreePdpa || loading) ? 0.6 : 1
-                    }}>
-                        {loading ? 'กำลังเข้าสู่ระบบ...' : 'Login'}
-                    </button>
+                   
+
+                    {/* Show the actual email/password fields + submit only after toggling */}
+                    {showBasicLogin && (
+                        <>
+                            <div>
+                                <label htmlFor="email" style={{ display: 'block', marginBottom: '.5rem', fontWeight: 'bold', color: '#555' }}>Email </label>
+                                <input
+                                    type="email"
+                                    id="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    style={{ width: '100%', padding: '.75rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                                    required
+                                    autoComplete="email"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="password" style={{ display: 'block', marginBottom: '.5rem', fontWeight: 'bold', color: '#555' }}>Password</label>
+                                <input
+                                    type="password"
+                                    id="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    style={{ width: '100%', padding: '.75rem', border: '1px solid #ccc', borderRadius: '4px' }}
+                                    required
+                                    autoComplete="current-password"
+                                />
+                            </div>
+
+                            <button type="submit" disabled={!agreePdpa || loading} style={{
+                                padding: '.75rem', border: 'none', borderRadius: '4px',
+                                backgroundColor: '#007bff', color: 'white', fontWeight: 'bold', cursor: (!agreePdpa || loading) ? 'not-allowed' : 'pointer',
+                                opacity: (!agreePdpa || loading) ? 0.6 : 1
+                            }}>
+                                {loading ? 'กำลังเข้าสู่ระบบ...' : 'Login'}
+                            </button>
+                        </>
+                    )}
                 </form>
 
                 <div style={{ margin: '1.5rem 0', textAlign: 'center', fontSize: '.8rem', color: '#888' }}>
-                    <span style={{ background: '#fff', padding: '0 .5rem' }}>OR</span>
+                    <span style={{ background: '#fff', padding: '0 .5rem' }}></span>
                 </div>
+
+               
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '.75rem' }}>
                     <button
@@ -207,10 +233,36 @@ function LoginPage() {
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" style={{ width: 18, height: 18 }} />
                         Sign in with Google
                     </button>
-                    {!agreePdpa && (
-                        <div style={{ fontSize: 12, color: '#555', marginTop: 6 }}>
-                            กรุณายอมรับเงื่อนไข PDPA ก่อนใช้ Google Sign-In
-                        </div>
+                    
+
+                    {/* New Basic Login toggle moved under the Google button with updated icon */}
+                    {!showBasicLogin && (
+                        <button
+                            type="button"
+                            onClick={() => setShowBasicLogin(true)}
+                            disabled={loading}
+                            style={{
+                                marginTop: 4,
+                                padding: '.65rem',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                backgroundColor: 'white',
+                                cursor: loading ? 'not-allowed' : 'pointer',
+                                fontWeight: 600,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '.5rem'
+                            }}
+                        >
+                            {/* inline envelope SVG as new icon */}
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                <circle cx="7" cy="7" r="3" stroke="#374151" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                                <path d="M9.5 9.5L21 21" stroke="#374151" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M17 17h2v2" stroke="#374151" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            Or log in with your msu malog account
+                        </button>
                     )}
                 </div>
             </div>
