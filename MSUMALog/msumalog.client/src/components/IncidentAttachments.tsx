@@ -24,8 +24,11 @@ import {
   ListItemText,
   Paper,
   Stack,
+  Tab,
   Table, TableBody, TableCell, TableHead,
-  TableRow, TextField,
+  TableRow,
+  Tabs,
+  TextField,
   Tooltip,
   Typography,
   useMediaQuery, useTheme
@@ -768,10 +771,18 @@ export default function IncidentAttachments({
   const formPanel = (
     // render as div to avoid nested <form> when this component is placed inside another form
     <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-      <Stack direction="row" spacing={1}>
-        <Button variant={uploadMode === 'upload' ? 'contained' : 'outlined'} onClick={() => setUploadMode('upload')} startIcon={<UploadFileIcon />}>File</Button>
-        <Button variant={uploadMode === 'link' ? 'contained' : 'outlined'} onClick={() => setUploadMode('link')} startIcon={<LinkIcon />}>Link</Button>
-      </Stack>
+      <Tabs
+        value={uploadMode}
+        onChange={(_, v) => setUploadMode(v as 'upload' | 'link')}
+        aria-label="Attachment mode"
+        variant="standard"
+        textColor="primary"
+        indicatorColor="primary"
+        sx={{ alignSelf: 'flex-start' }}
+      >
+        <Tab icon={<UploadFileIcon />} iconPosition="start" label="File" value="upload" />
+        <Tab icon={<LinkIcon />} iconPosition="start" label="Link" value="link" />
+      </Tabs>
 
       {uploadMode === 'upload' ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
