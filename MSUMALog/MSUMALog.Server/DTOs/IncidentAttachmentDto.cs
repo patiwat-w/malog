@@ -41,7 +41,13 @@ public class IncidentAttachmentDto
     public int? CreatedUserId { get; internal set; }
 
     [BindNever]
+    public string? CreatedUserName { get; internal set; }
+
+    [BindNever]
     public int? UpdatedUserId { get; internal set; }
+
+    [BindNever]
+    public string? UpdatedUserName { get; internal set; }
 
     [BindNever]
     public DateTime? CreatedUtc { get; internal set; }

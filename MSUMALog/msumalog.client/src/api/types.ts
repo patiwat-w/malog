@@ -1623,8 +1623,10 @@ export interface components {
             description?: string | null;
             /** Format: int32 */
             readonly createdUserId?: number | null;
+            readonly createdUserName?: string | null;
             /** Format: int32 */
             readonly updatedUserId?: number | null;
+            readonly updatedUserName?: string | null;
             /** Format: date-time */
             readonly createdUtc?: string | null;
             /** Format: date-time */

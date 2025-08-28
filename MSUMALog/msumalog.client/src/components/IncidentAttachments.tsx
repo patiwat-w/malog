@@ -672,7 +672,12 @@ export default function IncidentAttachments({
                     secondary={
                       <Stack direction="column" spacing={0.25}>
                         <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: 12 }}>{it.description}</Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>{fmtSize(it.sizeBytes)} • {it.createdUtc ? new Date(it.createdUtc).toLocaleString() : '-'}</Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: 12 }}>
+                          By {it.createdUserName ?? '-'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
+                          {fmtSize(it.sizeBytes)} • {it.createdUtc ? new Date(it.createdUtc).toLocaleString() : '-'}
+                        </Typography>
                       </Stack>
                     }
                   />
@@ -697,7 +702,7 @@ export default function IncidentAttachments({
             <TableCell>File</TableCell>
             <TableCell>Type</TableCell>
             <TableCell>Size</TableCell>
-            <TableCell>Uploaded</TableCell>
+            <TableCell>By</TableCell>
             <TableCell align="right">Actions</TableCell>
           </TableRow>
         </TableHead>
@@ -710,7 +715,12 @@ export default function IncidentAttachments({
               </TableCell>
               <TableCell>{it.kind ?? (it.contentType?.split('/')[0] ?? '-')}</TableCell>
               <TableCell>{fmtSize(it.sizeBytes)}</TableCell>
-              <TableCell>{it.createdUtc ? new Date(it.createdUtc).toLocaleString() : '-'}</TableCell>
+              <TableCell>
+                <Stack direction="column" spacing={0.25}>
+                  <Typography variant="body2">{it.createdUserName ?? '-'}</Typography>
+                  <Typography variant="caption" color="text.secondary">{it.createdUtc ? new Date(it.createdUtc).toLocaleString() : '-'}</Typography>
+                </Stack>
+              </TableCell>
               <TableCell align="right">
                 <Tooltip title="Preview inline">
                   <span>

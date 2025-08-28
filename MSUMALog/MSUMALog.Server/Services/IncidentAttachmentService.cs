@@ -12,6 +12,8 @@ using AutoMapper;
 using MSUMALog.Server.DTOs;
 using MSUMALog.Server.Models;
 using MSUMALog.Server.Repositories;
+using Microsoft.EntityFrameworkCore;
+using MSUMALog.Server.Data; // adjust to your actual namespace for ApplicationDbContext
 
 namespace MSUMALog.Server.Services;
 
@@ -22,17 +24,20 @@ public class IncidentAttachmentService : IIncidentAttachmentService
     private readonly IWebHostEnvironment _env;
     private readonly UploadsOptions _opts;
     private readonly FileExtensionContentTypeProvider _contentTypeProvider = new();
+    private readonly ApplicationDbContext _db; // add
 
     public IncidentAttachmentService(
         IIncidentAttachmentRepository repo,
         IMapper mapper,
         IOptions<UploadsOptions> opts,
-        IWebHostEnvironment env)
+        IWebHostEnvironment env,
+        ApplicationDbContext db) // add
     {
         _repo = repo;
         _mapper = mapper;
         _env = env;
         _opts = opts.Value;
+        _db = db;
     }
 
     public async Task<IncidentAttachmentDto?> GetByIdAsync(int id, CancellationToken ct = default)
@@ -40,14 +45,52 @@ public class IncidentAttachmentService : IIncidentAttachmentService
         var e = await _repo.GetByIdAsync(id, ct);
         if (e == null) return null;
         var dto = _mapper.Map<IncidentAttachmentDto>(e);
-        // never expose physical path
+
+        // populate user display names (short, non-blocking)
+        if (dto.CreatedUserId.HasValue)
+            dto.CreatedUserName = await _db.Users
+                .Where(u => u.Id == dto.CreatedUserId.Value)
+                .Select(u => (u.FirstName ?? u.Email)!)
+                .FirstOrDefaultAsync(ct);
+        if (dto.UpdatedUserId.HasValue)
+            dto.UpdatedUserName = await _db.Users
+                .Where(u => u.Id == dto.UpdatedUserId.Value)
+                .Select(u => (u.FirstName  ?? u.Email)!)
+                .FirstOrDefaultAsync(ct);
+
         return dto;
     }
 
     public async Task<List<IncidentAttachmentDto>> GetByIncidentIdAsync(int incidentId, CancellationToken ct = default)
     {
         var list = await _repo.GetByIncidentIdAsync(incidentId, ct);
-        return list.Select(a => _mapper.Map<IncidentAttachmentDto>(a)).ToList();
+        var dtos = list.Select(a => _mapper.Map<IncidentAttachmentDto>(a)).ToList();
+
+        var userIds = dtos.SelectMany(d => new[] { d.CreatedUserId, d.UpdatedUserId }.Where(x => x.HasValue).Select(x => x!.Value)).Distinct().ToList();
+        if (userIds.Count > 0)
+        {
+            var users = await _db.Users
+                .Where(u => userIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.FirstName, u.LastName, u.Email })
+                .ToListAsync(ct);
+
+            var userDisplay = users.ToDictionary(
+                u => u.Id,
+                u =>
+                {
+                    var name = ((u.FirstName ?? "").Trim() + " " + (u.LastName ?? "").Trim()).Trim();
+                    return string.IsNullOrEmpty(name) ? (u.Email ?? "") : name;
+                });
+
+            foreach (var d in dtos)
+            {
+                if (d.CreatedUserId.HasValue && userDisplay.TryGetValue(d.CreatedUserId.Value, out var createdName))
+                    d.CreatedUserName = createdName;
+                if (d.UpdatedUserId.HasValue && userDisplay.TryGetValue(d.UpdatedUserId.Value, out var updatedName))
+                    d.UpdatedUserName = updatedName;
+            }
+        }
+        return dtos;
     }
 
     public async Task<IncidentAttachmentDto> CreateAsync(IncidentAttachmentDto dto, CancellationToken ct = default)
