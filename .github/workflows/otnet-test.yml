@@ -9,24 +9,40 @@ on:
 jobs:
   build-test:
     runs-on: windows-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '9.0.x'
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
 
-    - name: Restore dependencies
-      working-directory: MSUMALog
-      run: dotnet restore MSUMALog.sln
+      - name: Restore dependencies (NuGet)
+        working-directory: MSUMALog
+        run: dotnet restore MSUMALog.sln
 
-    - name: Build
-      working-directory: MSUMALog
-      run: dotnet build MSUMALog.sln --configuration Release --no-restore
+      - name: Build
+        working-directory: MSUMALog
+        run: dotnet build MSUMALog.sln --configuration Release --no-restore
 
-    - name: Test
-      working-directory: MSUMALog
-      run: dotnet test MSUMALog.Server.Tests/MSUMALog.Server.Tests.csproj --no-build --verbosity normal
+      - name: Run .NET tests
+        working-directory: MSUMALog
+        run: |
+          # mark running tests so Program can skip DB migration if you used the env-var check
+          echo "DOTNET_RUNNING_IN_UNIT_TESTS=1" >> $GITHUB_ENV
+          dotnet test MSUMALog.sln --no-build --verbosity normal
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        working-directory: msumalog.client
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: msumalog.client
+        run: npm run test --if-present
