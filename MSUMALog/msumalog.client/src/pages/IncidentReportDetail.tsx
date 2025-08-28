@@ -122,6 +122,10 @@ interface Incident extends Omit<IncidentReportDto,
   responsibleLineId?: string;
   responsibleEmail?: string;
   responsiblePhone?: string;
+
+  // Estimated cost (from DTO)
+  estimateCostOfMa?: number;
+  estimateCostOfMaCurrency: string;
 }
 
 const IncidentReportDetail: React.FC = () => {
@@ -144,7 +148,7 @@ const IncidentReportDetail: React.FC = () => {
 
   const DetailField: React.FC<{ label: string; children: React.ReactNode; color?: string }> = ({ label, children, color }) => {
     const isSeverity = label.toLowerCase() === 'severity';
-    const isChipField = ['impact', 'domain', 'sub-domain','asset','center','vendor','manufacturer','part-number','incident-date'].includes(label.toLowerCase());
+    const isChipField = ['impact', 'domain', 'sub domain','asset','center','vendor','manufacturer','part number','incident date','estimate cost of ma'].includes(label.toLowerCase());
 
     return (
       // make each field take full width of its grid cell and stack label+content vertically
@@ -244,6 +248,9 @@ const IncidentReportDetail: React.FC = () => {
           responsibleLineId: data.responsibleLineId ?? '',
           responsibleEmail: data.responsibleEmail ?? '',
           responsiblePhone: data.responsiblePhone ?? '',
+          // estimated cost
+          estimateCostOfMa: data.estimateCostOfMa ?? undefined,
+          estimateCostOfMaCurrency: data.estimateCostOfMaCurrency ?? 'THB',
          
           // Map other fields as needed
           id: data.id ?? 0
@@ -452,17 +459,12 @@ const IncidentReportDetail: React.FC = () => {
             <DetailField label="Domain">{getDomainLabel(incident.domain)}</DetailField>
           </Grid>
           <Grid  >
-            <DetailField label="Sub-domain">{incident.subDomain}</DetailField>
+            <DetailField label="Sub Domain">{incident.subDomain}</DetailField>
           </Grid>
           <Grid>
-  <DetailField label="Incident-date">
-    <Box>
-
-      <Typography variant="body2" color="primary">
-      {formatDateTime(incident.incidentDate) || '-'}
-      </Typography>
-    </Box>
-  </DetailField>
+          <DetailField label="Incident date">
+            {formatDateTime(incident.incidentDate) || '-'}
+          </DetailField>
 </Grid>
         </Grid>
       </Box>
@@ -498,7 +500,16 @@ const IncidentReportDetail: React.FC = () => {
             <DetailField label="Manufacturer">{incident.manufacturer}</DetailField>
           </Grid>
           <Grid  >
-            <DetailField label="Part-number">{incident.partNumber}</DetailField>
+            <DetailField label="Part Number">{incident.partNumber}</DetailField>
+          </Grid>
+
+          <Grid>
+            <DetailField label="Estimate Cost of MA">
+                 {typeof incident.estimateCostOfMa === 'number'
+                    ? `${incident.estimateCostOfMa.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${incident.estimateCostOfMaCurrency ?? 'THB'}`
+                    : '-'} 
+              
+            </DetailField>
           </Grid>
         </Grid>
       </Box>

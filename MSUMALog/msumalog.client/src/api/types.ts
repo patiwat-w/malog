@@ -1576,7 +1576,7 @@ export interface components {
          * Format: int32
          * @enum {integer}
          */
-        AuditEntityType: 0 | 1;
+        AuditEntityType: 0 | 1 | 2;
         AuditFieldChangeDto: {
             fieldName?: string | null;
             oldValue?: string | null;
@@ -1660,6 +1660,9 @@ export interface components {
             id?: number | null;
             /** Format: int32 */
             severity?: number;
+            /** Format: double */
+            estimateCostMyMA?: number | null;
+            estimateCostMyMACurrency?: string | null;
             readonly caseNo?: string | null;
             title: string;
             description?: string | null;
@@ -1691,6 +1694,9 @@ export interface components {
             responsibleLineId?: string | null;
             responsibleEmail?: string | null;
             responsiblePhone?: string | null;
+            /** Format: currency */
+            estimateCostOfMa?: number;
+            estimateCostOfMaCurrency: string;
             /** Format: date-time */
             readonly createdUtc?: string | null;
             /** Format: date-time */
@@ -1720,6 +1726,9 @@ export interface components {
             responsibleLineId?: string | null;
             responsibleEmail?: string | null;
             responsiblePhone?: string | null;
+            /** Format: double */
+            estimateCostMyMA?: number | null;
+            estimateCostMyMACurrency?: string | null;
             /** Format: date-time */
             incidentDate?: string | null;
             description?: string | null;

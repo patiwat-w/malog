@@ -98,10 +98,10 @@ namespace MSUMALog.Server.DTOs
         public string? ResponsiblePhone { get; set; }
 
         [DataType(DataType.Currency)]
-        public decimal EstimateCostMyMA { get; set; } = 0m;
+        public decimal EstimateCostOfMa { get; set; } = 0m;
 
         [Required, StringLength(3)]
-        public string EstimateCostMyMACurrency { get; set; } = "THB";
+        public string EstimateCostOfMaCurrency { get; set; } = "THB";
 
         [BindNever]
         public DateTime? CreatedUtc { get; internal set; }

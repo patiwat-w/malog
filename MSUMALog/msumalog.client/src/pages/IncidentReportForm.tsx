@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Box, Button, Container, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Container, InputAdornment, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -13,6 +13,7 @@ import './IncidentReportForm.css'; // เพิ่ม (ถ้ายังไม�
 
 import ConfirmDialog from "../components/ConfirmDialog";
 
+import { NumericFormat } from 'react-number-format';
 import AlertDialog from "../components/AlertDialog"; // <-- added
 import IncidentAttachments from '../components/IncidentAttachments';
 import PageLoading from "../components/PageLoading"; // <-- added
@@ -44,6 +45,9 @@ interface IFormData {
     responsibleLineId: string;
     responsibleEmail: string;
     responsiblePhone: string;
+    // added estimated cost fields
+    estimateCostOfMa?: number; // optional, can be undefined
+    estimateCostOfMaCurrency: string; // e.g. 'THB'
 }
 
 const IncidentReportForm: React.FC = () => {
@@ -80,7 +84,9 @@ const IncidentReportForm: React.FC = () => {
         responsibleName: '',
         responsibleLineId: '',
         responsibleEmail: '',
-        responsiblePhone: ''
+        responsiblePhone: '',
+        estimateCostOfMa: undefined, // default to undefined
+        estimateCostOfMaCurrency: 'THB' // default currency
     });
 
     //const [originalFormData, setOriginalFormData] = useState<IFormData | null>(null);
@@ -123,6 +129,25 @@ const IncidentReportForm: React.FC = () => {
     const [errorDialogOpen, setErrorDialogOpen] = useState(false);
     const [errorDialogTitle, setErrorDialogTitle] = useState('');
     const [errorDialogMessage, setErrorDialogMessage] = useState('');
+    // validation state for estimated cost input
+    const [estimateCostError, setEstimateCostError] = useState<string | null>(null);
+    // input string for estimated cost (shows commas) kept separate from numeric value
+    const [estimateCostInput, setEstimateCostInput] = useState<string>('');
+
+    useEffect(() => {
+        setEstimateCostInput(
+            formData.estimateCostOfMa !== undefined
+                ? (Math.round(formData.estimateCostOfMa * 100) / 100).toFixed(2)
+                : ''
+        );
+    }, [formData.estimateCostOfMa]);
+
+    const rawFromDisplay = (display: string) => display.replace(/,/g, '').trim();
+    const formatWithCommas = (raw: string) => {
+        const n = Number(rawFromDisplay(raw));
+        if (isNaN(n)) return raw;
+        return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
 
     useEffect(() => {
         let ignore = false;
@@ -167,7 +192,10 @@ const IncidentReportForm: React.FC = () => {
                         responsibleName: dto.responsibleName || '',
                         responsibleLineId: dto.responsibleLineId || '',
                         responsibleEmail: dto.responsibleEmail || '',
-                        responsiblePhone: dto.responsiblePhone || ''
+                        responsiblePhone: dto.responsiblePhone || '',
+
+                        estimateCostOfMa: dto.estimateCostOfMa ?? undefined,
+                        estimateCostOfMaCurrency: dto.estimateCostOfMaCurrency || 'THB'
 
                     };
                 });
@@ -344,7 +372,10 @@ const IncidentReportForm: React.FC = () => {
             responsibleLineId: formData.responsibleLineId,
             responsibleEmail: formData.responsibleEmail,
             responsiblePhone: formData.responsiblePhone,
-            incidentDate: incidentIso // <-- COMBINED ISO at save time
+            incidentDate: incidentIso, // <-- COMBINED ISO at save time
+            estimateCostOfMa: formData.estimateCostOfMa,
+            estimateCostOfMaCurrency: formData.estimateCostOfMaCurrency || 'THB'
+
         };
     
         // เก็บ payload ชั่วคราว แล้วเปิด ConfirmDialog แทน window.confirm
@@ -714,6 +745,38 @@ const IncidentReportForm: React.FC = () => {
                                     <TextField fullWidth size="small" margin="dense" id="additionalInfo" name="additionalInfo" label="Additional Information" value={formData.additionalInfo} onChange={handleChange}
                                     sx={getSxFor('additionalInfo')} inputProps={{ className: getClassFor('additionalInfo') }} />
                                 </Box>
+                               
+                                <Box>
+                                    <NumericFormat
+                                        // render as MUI TextField
+                                        customInput={TextField}
+                                        fullWidth
+                                        size="small"
+                                        margin="dense"
+                                        id="estimateCostOfMa"
+                                        name="estimateCostOfMa"
+                                        label="Estimated Cost of MA"
+                                        placeholder="0.00"
+                                        value={formData.estimateCostOfMa ?? ''}
+                                        onValueChange={(values) => {
+                                            // values.floatValue is number | undefined
+                                            setFormData(prev => ({ ...prev, estimateCostOfMa: values.floatValue ?? undefined }));
+                                            setEstimateCostError(null);
+                                        }}
+                                        thousandSeparator=","
+                                        decimalScale={2}
+                                        allowNegative={false}
+                                        InputProps={{
+                                            startAdornment: <InputAdornment position="start">{formData.estimateCostOfMaCurrency || 'THB'}</InputAdornment>,
+                                            className: getClassFor('estimateCostOfMa')
+                                        }}
+                                        error={!!estimateCostError}
+                                        helperText={estimateCostError ?? ' '}
+                                        sx={getSxFor('estimateCostOfMa')}
+                                    />
+                                    <input type="hidden" name="estimateCostOfMaCurrency" value={formData.estimateCostOfMaCurrency || 'THB'} />
+                                </Box>
+                               
                             </Box>
 
                             {/* Actions & Status */}
