@@ -37,9 +37,9 @@ jobs:
           cache: 'npm'
 
       - name: Install frontend dependencies
-        working-directory: msumalog.client
+        working-directory: MSUMALog/msumalog.client
         run: npm ci
 
       - name: Run frontend tests
-        working-directory: msumalog.client
+        working-directory: MSUMALog/msumalog.client
         run: npm run test --if-present
