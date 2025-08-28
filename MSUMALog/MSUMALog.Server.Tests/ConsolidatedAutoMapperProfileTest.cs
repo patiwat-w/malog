@@ -1,6 +1,6 @@
 using System;
 using AutoMapper;
-using MSUMALog.Server.Mapping;
+using MSUMALog.Server.Mappings;
 using MSUMALog.Server.Models;
 using MSUMALog.Server.DTOs;
 using Xunit;
@@ -11,7 +11,15 @@ namespace MSUMALog.Server.Mapping.Tests
     {
         private static IMapper GetMapper()
         {
-            var cfg = new MapperConfiguration(cfg => cfg.AddProfile(new ConsolidatedAutoMapperProfile()));
+            // Register all profiles from the mappings assembly so tests see the split profiles
+            var cfg = new MapperConfiguration(cfg =>
+            {
+                cfg.AddProfile(new ConsolidatedAutoMapperProfile());
+                cfg.AddProfile(new IncidentReportMapperProfile());
+                cfg.AddProfile(new IncidentCommentMapperProfile());
+                cfg.AddProfile(new IncidentAttachmentMapperProfile());
+                cfg.AddProfile(new UserMapperProfile());
+            });
             cfg.AssertConfigurationIsValid();
             return cfg.CreateMapper();
         }

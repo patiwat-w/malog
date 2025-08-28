@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.DataProtection;
 using System.Security.Claims;
-using MSUMALog.Server.Mapping;
+using MSUMALog.Server.Mappings;
 using MSUMALog.Server.Models;
 using System.Globalization;
 using Microsoft.OpenApi.Models;
@@ -392,7 +392,11 @@ app.Use(async (context, next) =>
 app.MapControllers();
 
 // --- Begin change: skip DB migration/seed during tests ---
-if (!app.Environment.IsEnvironment("Testing"))
+var isTest = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Test"
+             || Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_UNIT_TESTS") == "1"
+             || Environment.GetEnvironmentVariable("SKIP_DB_MIGRATION") == "1";
+
+if (!isTest)
 {
     using (var scope = app.Services.CreateScope())
     {
@@ -463,8 +467,11 @@ if (!app.Environment.IsEnvironment("Testing"))
 }
 else
 {
-    // Intentionally skip DB migration/seed when running under the "Testing" environment
-    // to avoid loading production DB providers and to allow tests to replace DbContext.
+    using (var scope = app.Services.CreateScope())
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogInformation("Skipping database migration/seed because running in test environment.");
+    }
 }
 // --- End change ---
 

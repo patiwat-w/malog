@@ -16,6 +16,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Mapping\_old\**" />
+    <Content Remove="Mapping\_old\**" />
+    <EmbeddedResource Remove="Mapping\_old\**" />
+    <None Remove="Mapping\_old\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Mappings\IncidentCommentProfile.cs" />
     <Compile Remove="Mappings\MappingProfile.cs" />
     <Compile Remove="Mapping\AutoMapperProfile.cs" />

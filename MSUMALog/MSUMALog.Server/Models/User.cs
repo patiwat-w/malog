@@ -11,7 +11,7 @@ namespace MSUMALog.Server.Models
         public string Role { get; set; }
         public int LoginCount { get; set; }
         public DateTime LastLoginDate { get; set; }
-        public string Logs { get; set; }
+        public string? Logs { get; set; }
         
         [JsonIgnore]
         [MaxLength(256)]
