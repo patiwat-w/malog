@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using MSUMALog.Server.Data;
 using MSUMALog.Server.Repositories;
 using MSUMALog.Server.Services;
-using MSUMALog.Server.Mappings;
 using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
@@ -45,7 +44,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
            .LogTo(Console.WriteLine, LogLevel.Information));
 
 // AutoMapper
-builder.Services.AddAutoMapper(typeof(IncidentReportProfile).Assembly);
+builder.Services.AddAutoMapper(typeof(ConsolidatedAutoMapperProfile).Assembly);
 
 // DI
 builder.Services.AddScoped<IIncidentReportRepository, IncidentReportRepository>();

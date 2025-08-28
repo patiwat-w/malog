@@ -16,6 +16,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Mappings\IncidentCommentProfile.cs" />
+    <Compile Remove="Mappings\MappingProfile.cs" />
+    <Compile Remove="Mapping\AutoMapperProfile.cs" />
+    <Compile Remove="Mapping\IncidentReportProfile.cs" />
+    <Compile Remove="Mapping\UserProfile.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.SpaProxy">
@@ -35,6 +43,10 @@
     <ProjectReference Include="..\msumalog.client\msumalog.client.esproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Mappings\" />
   </ItemGroup>
 
 </Project>
