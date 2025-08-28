@@ -90,6 +90,7 @@ const IncidentReportForm: React.FC = () => {
         getCurrentUser()
             .then(user => {
                 if (user) {
+                    setCurrentUser(user);
                     setFormData(f => ({
                         ...f,
                         responsibleEmail: user.email ?? '', // coerce to string to match IFormData
@@ -108,6 +109,9 @@ const IncidentReportForm: React.FC = () => {
     const [saving, setSaving] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);   // <-- เพิ่ม
+
+    // current user for passing to child components
+    const [currentUser, setCurrentUser] = useState<any | null>(null);
 
     // NEW: state สำหรับยืนยันการส่งแทน window.confirm
     const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
@@ -198,6 +202,7 @@ const IncidentReportForm: React.FC = () => {
             getCurrentUser()
                 .then(user => {
                     if (user) {
+                        setCurrentUser(user);
                         setFormData(f => ({
                             ...f,
                             responsibleEmail: user.email ?? '',           // coerce to string
@@ -567,7 +572,7 @@ const IncidentReportForm: React.FC = () => {
                                               Attachments (ไฟล์แนบ)
                                             </Typography>
                                             {formData.id ? (
-                                              <IncidentAttachments incidentId={formData.id} />
+                                              <IncidentAttachments incidentId={formData.id} currentUser={currentUser} />
                                             ) : (
                                               <Typography variant="body2" color="text.secondary">
                                                 หากต้องการแนบไฟล์ โปรดบันทึกเคสก่อน (Save แล้วจะสามารถแนบไฟล์ได้)

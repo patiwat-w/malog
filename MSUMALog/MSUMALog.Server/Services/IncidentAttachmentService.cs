@@ -54,6 +54,10 @@ public class IncidentAttachmentService : IIncidentAttachmentService
     {
         var entity = _mapper.Map<IncidentAttachment>(dto);
         entity.CreatedUtc = DateTime.UtcNow;
+
+        // Ensure CreatedUserId from the DTO is persisted
+        entity.CreatedUserId = dto.CreatedUserId;
+
         await _repo.AddAsync(entity, ct);
         var reloaded = await _repo.GetByIdAsync(entity.Id, ct);
         return _mapper.Map<IncidentAttachmentDto>(reloaded!);

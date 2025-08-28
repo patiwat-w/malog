@@ -38,22 +38,26 @@ import {
   downloadIncidentAttachmentBlob,
   getIncidentAttachmentFileInfo,
   getIncidentAttachmentsByIncident,
-  uploadIncidentAttachment
+  uploadIncidentAttachment,
+  type User
 } from '../api/client';
-
 // Add dialog/snackbar components
 import AlertDialog from './AlertDialog';
 import ConfirmDialog from './ConfirmDialog';
 import SnackbarAlert from './SnackbarAlert';
 
+
+
 type Props = {
   incidentId: number;
   readOnly?: boolean;
+  currentUser?: User;
 };
 
 export default function IncidentAttachments({
   incidentId,
-  readOnly = false
+  readOnly = false,
+  currentUser
 }: Props) {
   const theme = useTheme();
   // treat tablet and smaller as "mobile" (use theme.breakpoint 'md' ~ 960px)
@@ -639,11 +643,18 @@ export default function IncidentAttachments({
                     <IconButton size="small" onClick={() => onOpenDetached(it.id, it.contentType, it.fileName)} aria-label="open">
                       <OpenInNewIcon fontSize="small" />
                     </IconButton>
-                    { !readOnly && (
-                      <IconButton size="small" onClick={() => onDelete(it.id)} aria-label="delete">
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    )}
+                    { !readOnly && (() => {
+                      const isCreator = !!currentUser && (currentUser.id === (it.createdUserId ??  null));
+                      return (
+                        <Tooltip title={isCreator ? 'ลบ' : 'ไม่มีสิทธิ์ลบ'}>
+                          <span>
+                            <IconButton size="small" onClick={() => onDelete(it.id)} aria-label="delete" disabled={!isCreator}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      );
+                    })()}
                   </Stack>
                 }
               >
@@ -718,13 +729,18 @@ export default function IncidentAttachments({
                     <DownloadIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                { !readOnly && (
-                  <Tooltip title="Delete">
-                    <IconButton size="small" onClick={() => onDelete(it.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
+                { !readOnly && (() => {
+                  const isCreator = !!currentUser && (currentUser.id === (it.createdUserId ?? null));
+                  return (
+                    <Tooltip title={isCreator ? 'ลบ' : 'ไม่สามารถลบได้'}>
+                      <span>
+                        <IconButton size="small" onClick={() => onDelete(it.id)} disabled={!isCreator}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  );
+                })()}
               </TableCell>
             </TableRow>
           ))}

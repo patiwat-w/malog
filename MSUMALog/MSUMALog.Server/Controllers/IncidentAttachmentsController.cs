@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MSUMALog.Server.DTOs;
+using MSUMALog.Server.Helpers;
 using MSUMALog.Server.Services;
 using System.Net.Http;
+using System;
 
 namespace MSUMALog.Server.Controllers;
 
@@ -49,9 +51,10 @@ public class IncidentAttachmentsController : ControllerBase
     {
         if (req.File == null || req.File.Length == 0) return BadRequest("file required");
 
-        int? userId = null;
-        var userIdClaim = User.FindFirst("sub") ?? User.FindFirst("id");
-        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var uid)) userId = uid;
+        var userId = UserClaimsHelper.GetUserId(User);
+
+        if (userId == null) return Unauthorized("User not found");
+       
 
         var created = await _service.UploadAsync(req.File, req.IncidentId, userId, req.Description, req.Kind, ct);
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
@@ -105,5 +108,23 @@ public class IncidentAttachmentsController : ControllerBase
     [Authorize]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct = default)
-        => await _service.DeleteAsync(id, ct) ? NoContent() : NotFound();
+    {
+        // get current user id
+        var userId = UserClaimsHelper.GetUserId(User);
+        if (userId == null) return Unauthorized("User not found");
+
+        // ensure resource exists
+        var dto = await _service.GetByIdAsync(id, ct);
+        if (dto == null) return NotFound();
+
+        // only the creator can delete
+        // normalize both IDs to strings to avoid type mismatch (int? vs string?)
+        var creatorIdStr = dto.CreatedUserId?.ToString();
+        var currentUserIdStr = userId?.ToString();
+        if (!string.Equals(creatorIdStr, currentUserIdStr, StringComparison.OrdinalIgnoreCase))
+            return Forbid();
+
+        // proceed with delete
+        return await _service.DeleteAsync(id, ct) ? NoContent() : NotFound();
+    }
 }
