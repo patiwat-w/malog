@@ -88,7 +88,7 @@ public class IncidentReportsController(
     [HttpPost]
     [ProducesResponseType(typeof(IncidentReportDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<IncidentReportDto>> Create([FromBody] IncidentReportDto dto, CancellationToken ct = default)
+    public async Task<ActionResult<IncidentReportDto>> Create([FromBody] IncidentReportCreateDto dto, CancellationToken ct = default)
     {
         if (!User.Identity?.IsAuthenticated ?? true)
             return Unauthorized("User not authenticated");
@@ -110,7 +110,7 @@ public class IncidentReportsController(
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update(int id, [FromBody] IncidentReportDto dto, CancellationToken ct = default)
+    public async Task<IActionResult> Update(int id, [FromBody] IncidentReportUpdateDto dto, CancellationToken ct = default)
     {
         if (dto.Id != 0 && dto.Id != id)
             return BadRequest("Mismatched id.");

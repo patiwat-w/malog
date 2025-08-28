@@ -51,7 +51,7 @@ namespace MSUMALog.Server.Services.Tests
 
             var service = new IncidentReportService(repoMock.Object, mapper, db, httpAccessorMock.Object, auditMock.Object, Microsoft.Extensions.Options.Options.Create(new AuditConfig()));
 
-            var dto = new IncidentReportDto { SubDomain = "sd" };
+            var dto = new IncidentReportCreateDto { SubDomain = "sd" };
 
             var result = await service.CreateAsync(dto);
 

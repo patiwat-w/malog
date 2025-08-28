@@ -28,15 +28,15 @@ namespace MSUMALog.Server.Services
                 {
                     Id = user.Id,
                     Email = user.Email,
-                    FirstName = user.FirstName,
-                    LastName = user.LastName,
+                    FirstName = user.FirstName ?? string.Empty,
+                    LastName = user.LastName ?? string.Empty,
                     Role = user.Role,
-                    PhoneNumber = user.PhoneNumber,
-                    OrganizationInfo = user.OrganizationInfo,
-                    LineID = user.LineID,
+                    PhoneNumber = user.PhoneNumber ?? string.Empty,
+                    OrganizationInfo = user.OrganizationInfo ?? string.Empty,
+                    LineID = user.LineID ?? string.Empty,
                     IsBlocked = user.IsBlocked,
                     ReceiveNotifications = user.ReceiveNotifications,
-                    ProfilePicture = user.ProfilePicture
+                    ProfilePicture = user.ProfilePicture ?? string.Empty
                 })
                 .ToListAsync(ct);
         }
@@ -47,22 +47,23 @@ namespace MSUMALog.Server.Services
                 .AsNoTracking()
                 .SingleOrDefaultAsync(u => u.Id == userId, ct);
 
-            if (user == null) return null;
+            if (user == null) 
+                throw new KeyNotFoundException($"User with ID {userId} not found.");
 
             return new UserDto
-            {
-                Id = user.Id,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Role = user.Role,
-                PhoneNumber = user.PhoneNumber,
-                OrganizationInfo = user.OrganizationInfo,
-                LineID = user.LineID,
-                IsBlocked = user.IsBlocked,
-                ReceiveNotifications = user.ReceiveNotifications,
-                ProfilePicture = user.ProfilePicture
-            };
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    FirstName = user.FirstName ?? string.Empty,
+                    LastName = user.LastName ?? string.Empty,
+                    Role = user.Role,
+                    PhoneNumber = user.PhoneNumber ?? string.Empty,
+                    OrganizationInfo = user.OrganizationInfo ?? string.Empty,
+                    LineID = user.LineID ?? string.Empty,
+                    IsBlocked = user.IsBlocked,
+                    ReceiveNotifications = user.ReceiveNotifications,
+                    ProfilePicture = user.ProfilePicture ?? string.Empty
+                };
         }
 
         public async Task UpdateUserAsync(UserDto userDto, CancellationToken ct = default)

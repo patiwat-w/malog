@@ -61,6 +61,10 @@ builder.Services.AddScoped<IIncidentAttachmentService, IncidentAttachmentService
 if (!builder.Environment.IsDevelopment())
 {
     var keysPath = builder.Configuration["DataProtection:KeysPath"];
+    if (string.IsNullOrWhiteSpace(keysPath))
+    {
+        throw new InvalidOperationException("DataProtection:KeysPath is not configured.");
+    }
     builder.Services.AddDataProtection()
         .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
         .SetApplicationName("MSUMALog");
@@ -127,20 +131,20 @@ builder.Services.AddAuthentication(options =>
         OnCreatingTicket = async context =>
         {
             Console.WriteLine("OnCreatingTicket called");
-            var email = context.Identity.FindFirst(ClaimTypes.Email)?.Value;
-            var firstName = context.Identity.FindFirst(ClaimTypes.GivenName)?.Value;
-            var lastName = context.Identity.FindFirst(ClaimTypes.Surname)?.Value;
-            var profilePicture = context.Identity.FindFirst("picture")?.Value;
+            var email = context.Identity?.FindFirst(ClaimTypes.Email)?.Value;
+            var firstName = context.Identity?.FindFirst(ClaimTypes.GivenName)?.Value;
+            var lastName = context.Identity?.FindFirst(ClaimTypes.Surname)?.Value;
+            var profilePicture = context.Identity?.FindFirst("picture")?.Value;
             Console.WriteLine($"profilePicture: {profilePicture}");
 
             var db = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
-            var user = db.Users.FirstOrDefault(u => u.Email == email);
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email);
             if (user == null)
             {
                 Console.WriteLine("Creating new user");
                 user = new User
                 {
-                    Email = email,
+                    Email = email ?? string.Empty,
                     Role = "User",
                     LoginCount = 1,
                     LastLoginDate = DateTime.UtcNow,
@@ -173,31 +177,31 @@ builder.Services.AddAuthentication(options =>
                 await db.SaveChangesAsync();
             }
 
-            if (user != null)
+            if (user != null && context?.Identity != null)
             {
-                var nameIdClaim = context.Identity.FindFirst(ClaimTypes.NameIdentifier);
-                if (nameIdClaim != null) context.Identity.RemoveClaim(nameIdClaim);
-                context.Identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()));
+                var nameIdClaim = context.Identity?.FindFirst(ClaimTypes.NameIdentifier);
+                if (context.Identity != null && nameIdClaim != null) context.Identity.RemoveClaim(nameIdClaim);
+                context?.Identity?.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()));
 
-                var emailClaim = context.Identity.FindFirst(ClaimTypes.Email);
-                if (emailClaim != null) context.Identity.RemoveClaim(emailClaim);
-                context.Identity.AddClaim(new Claim(ClaimTypes.Email, user.Email ?? ""));
+                var emailClaim = context?.Identity?.FindFirst(ClaimTypes.Email);
+                if (emailClaim != null) context?.Identity?.RemoveClaim(emailClaim);
+                context?.Identity?.AddClaim(new Claim(ClaimTypes.Email, user.Email ?? ""));
 
-                var nameClaim = context.Identity.FindFirst(ClaimTypes.Name);
-                if (nameClaim != null) context.Identity.RemoveClaim(nameClaim);
-                context.Identity.AddClaim(new Claim(ClaimTypes.Name, user.FirstName ?? user.Email ?? ""));
+                var nameClaim = context?.Identity?.FindFirst(ClaimTypes.Name);
+                if (nameClaim != null) context?.Identity?.RemoveClaim(nameClaim);
+                context?.Identity?.AddClaim(new Claim(ClaimTypes.Name, user.FirstName ?? user.Email ?? ""));
 
-                var givenNameClaim = context.Identity.FindFirst(ClaimTypes.GivenName);
-                if (givenNameClaim != null) context.Identity.RemoveClaim(givenNameClaim);
-                context.Identity.AddClaim(new Claim(ClaimTypes.GivenName, user.FirstName ?? ""));
+                var givenNameClaim = context?.Identity?.FindFirst(ClaimTypes.GivenName);
+                if (givenNameClaim != null) context?.Identity?.RemoveClaim(givenNameClaim);
+               context?.Identity?.AddClaim(new Claim(ClaimTypes.GivenName, user.FirstName ?? ""));
 
-                var surnameClaim = context.Identity.FindFirst(ClaimTypes.Surname);
-                if (surnameClaim != null) context.Identity.RemoveClaim(surnameClaim);
-                context.Identity.AddClaim(new Claim(ClaimTypes.Surname, user.LastName ?? ""));
+                var surnameClaim = context?.Identity?.FindFirst(ClaimTypes.Surname);
+                if (surnameClaim != null) context?.Identity?.RemoveClaim(surnameClaim);
+                context?.Identity?.AddClaim(new Claim(ClaimTypes.Surname, user.LastName ?? ""));
 
-                var pictureClaim = context.Identity.FindFirst("picture");
-                if (pictureClaim != null) context.Identity.RemoveClaim(pictureClaim);
-                context.Identity.AddClaim(new Claim("picture", user.ProfilePicture ?? ""));
+                var pictureClaim = context?.Identity?.FindFirst("picture");
+                if (pictureClaim != null) context?.Identity?.RemoveClaim(pictureClaim);
+                context?.Identity?.AddClaim(new Claim("picture", user.ProfilePicture ?? ""));
             }
         }
     };

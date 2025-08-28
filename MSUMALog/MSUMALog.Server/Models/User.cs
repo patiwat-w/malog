@@ -7,8 +7,8 @@ namespace MSUMALog.Server.Models
     public class User
     {
         public int Id { get; set; }
-        public string Email { get; set; }
-        public string Role { get; set; }
+        public string? Email { get; set; }
+        public string Role { get; set; } = "User"; // Default role
         public int LoginCount { get; set; }
         public DateTime LastLoginDate { get; set; }
         public string? Logs { get; set; }

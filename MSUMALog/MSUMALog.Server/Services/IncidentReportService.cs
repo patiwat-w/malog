@@ -53,7 +53,7 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
         return $"{ym}-{next:0000}";
     }
 
-    public async Task<IncidentReportDto> CreateAsync(IncidentReportDto dto, CancellationToken ct = default)
+    public async Task<IncidentReportDto> CreateAsync(IncidentReportCreateDto dto, CancellationToken ct = default)
     {
         var entity = _mapper.Map<IncidentReport>(dto);
 
@@ -111,7 +111,7 @@ public class IncidentReportService(IIncidentReportRepository repo, IMapper mappe
         return entity is null ? null : _mapper.Map<IncidentReportDto>(entity);
     }
 
-    public async Task<bool> UpdateAsync(int id, IncidentReportDto dto, CancellationToken ct = default)
+    public async Task<bool> UpdateAsync(int id, IncidentReportUpdateDto dto, CancellationToken ct = default)
     {
         using var transaction = await _db.Database.BeginTransactionAsync(ct);
 

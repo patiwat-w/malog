@@ -3,9 +3,6 @@ using MSUMALog.Server.DTOs;
 using MSUMALog.Server.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
-
-using System.Diagnostics;
-using System.Text.Json;
 using System.Diagnostics;
 namespace MSUMALog.Server.Services;
 

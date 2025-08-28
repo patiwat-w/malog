@@ -63,7 +63,7 @@ public class IncidentReportsControllerTests
         var user = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth"));
         var controller = CreateController(serviceMock.Object, dbContext, user);
 
-        var result = await controller.Create(new IncidentReportDto(), CancellationToken.None);
+        var result = await controller.Create(new IncidentReportCreateDto(), CancellationToken.None);
 
         var unauthorized = Assert.IsType<UnauthorizedObjectResult>(result.Result);
         Assert.Equal("User not found", unauthorized.Value);
@@ -83,11 +83,13 @@ public class IncidentReportsControllerTests
         var user = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth"));
         var controller = CreateController(serviceMock.Object, dbContext, user);
 
+        // เปลี่ยนให้ mock คืน IncidentReportDto (ไม่ใช่ CreateDto)
+        var createDto = new IncidentReportCreateDto { /* Initialize properties as needed */ };
         var dto = new IncidentReportDto { Id = 1 };
-        serviceMock.Setup(s => s.CreateAsync(It.IsAny<IncidentReportDto>(), It.IsAny<CancellationToken>()))
+        serviceMock.Setup(s => s.CreateAsync(It.IsAny<IncidentReportCreateDto>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(dto);
 
-        var result = await controller.Create(dto, CancellationToken.None);
+        var result = await controller.Create(createDto, CancellationToken.None);
 
         var created = Assert.IsType<CreatedAtActionResult>(result.Result);
         Assert.Equal(dto, created.Value);
