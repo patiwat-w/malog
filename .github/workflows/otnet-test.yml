@@ -22,16 +22,13 @@ jobs:
         working-directory: MSUMALog
         run: dotnet restore MSUMALog.sln
 
-      - name: Build
+      - name: Run .NET tests (build + test)
         working-directory: MSUMALog
-        run: dotnet build MSUMALog.sln --configuration Release --no-restore
-
-      - name: Run .NET tests
-        working-directory: MSUMALog
+        env:
+          # optional: allow your Program.cs to detect test run and skip migrations
+          DOTNET_RUNNING_IN_UNIT_TESTS: "1"
         run: |
-          # mark running tests so Program can skip DB migration if you used the env-var check
-          echo "DOTNET_RUNNING_IN_UNIT_TESTS=1" >> $GITHUB_ENV
-          dotnet test MSUMALog.sln --no-build --verbosity normal
+          dotnet test MSUMALog.sln --configuration Release --no-restore --verbosity normal
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
