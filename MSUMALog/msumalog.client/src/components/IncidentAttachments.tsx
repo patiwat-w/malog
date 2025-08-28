@@ -81,6 +81,7 @@ export default function IncidentAttachments({
   const [previewFileName, setPreviewFileName] = useState<string | null>(null);
   const [previewExternalUrl, setPreviewExternalUrl] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const previewWindowRef = useRef<Window | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -705,16 +706,26 @@ export default function IncidentAttachments({
             <TableCell>File</TableCell>
             <TableCell>Type</TableCell>
             <TableCell>Size</TableCell>
-            <TableCell>By</TableCell>
-            <TableCell align="right">Actions</TableCell>
+            <TableCell>Created</TableCell>
+            <TableCell align="right">...</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {items.map(it => (
             <TableRow key={it.id}>
-              <TableCell>
-                <Typography variant="body2">{it.fileName ?? it.storageKey ?? '-'}</Typography>
-                <Typography variant="caption" color="text.secondary">{it.description}</Typography>
+              <TableCell
+                onClick={() => onPreview(it.id, it.contentType)}
+                sx={{ cursor: 'pointer', p: 1 }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onPreview(it.id, it.contentType); }}
+              >
+                <Typography variant="body2" noWrap sx={{ color: 'primary.main', textDecoration: 'underline' }}>
+                  {it.fileName ?? it.storageKey ?? '-'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  {it.description}
+                </Typography>
               </TableCell>
               <TableCell>{it.kind ?? (it.contentType?.split('/')[0] ?? '-')}</TableCell>
               <TableCell>{fmtSize(it.sizeBytes)}</TableCell>
@@ -725,23 +736,23 @@ export default function IncidentAttachments({
                 </Stack>
               </TableCell>
               <TableCell align="right">
-                <Tooltip title="Preview inline">
+                {/* <Tooltip title="Preview inline">
                   <span>
                     <IconButton size="small" onClick={() => onPreview(it.id, it.contentType)}>
                       <VisibilityIcon fontSize="small" />
                     </IconButton>
                   </span>
-                </Tooltip>
-                <Tooltip title="Open (detached)">
+                </Tooltip> */}
+                {/* <Tooltip title="Open (detached)">
                   <IconButton size="small" onClick={() => onOpenDetached(it.id, it.contentType, it.fileName)}>
                     <OpenInNewIcon fontSize="small" />
                   </IconButton>
-                </Tooltip>
-                <Tooltip title="Download">
+                </Tooltip> */}
+                {/* <Tooltip title="Download">
                   <IconButton size="small" onClick={() => onDownload(it.id, it.fileName)}>
                     <DownloadIcon fontSize="small" />
                   </IconButton>
-                </Tooltip>
+                </Tooltip> */}
                 { !readOnly && (() => {
                   const isCreator = !!currentUser && (currentUser.id === (it.createdUserId ?? null));
                   return (
@@ -900,10 +911,19 @@ export default function IncidentAttachments({
       {isSmall ? renderListView() : renderTableView()}
 
       {/* form placed under the list */}
-      {/* show form only when not readonly */}
+      {/* show toggle button and reveal form only when not readonly */}
       {!readOnly && (
         <Box sx={{ mt: 2 }}>
-          {formPanel}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: showForm ? 1 : 0 }}>
+            <Button
+              variant={showForm ? 'outlined' : 'contained'}
+              startIcon={showForm ? <CloseIcon /> : <UploadFileIcon />}
+              onClick={() => setShowForm(s => !s)}
+            >
+              {showForm ? 'Close' : 'Add Attachment'}
+            </Button>
+          </Box>
+          {showForm && formPanel}
         </Box>
       )}
 
