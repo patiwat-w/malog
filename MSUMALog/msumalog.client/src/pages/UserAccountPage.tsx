@@ -13,9 +13,10 @@ import {
 } from "@mui/material";
 import type { GridColDef, GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
 import { DataGrid } from "@mui/x-data-grid";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import * as XLSX from "xlsx";
 
 import type { AdminUserDto } from "../api/client";
 import {
@@ -62,20 +63,41 @@ export default function UserAccountPage() {
   const navigate = useNavigate();
 
   const handleExport = () => {
-    const exportRows = rows.map((r: any) => ({
-      id: r.id,
-      email: r.email,
-      displayName: r.displayName ?? r.name,
-      phone: r.phone ?? r.phoneNumber,
-      roles: Array.isArray(r.roles) ? r.roles.join(", ") : r.role ?? "",
-      createdUtc: r.createdUtc,
-      updatedUtc: r.updatedUtc,
-    }));
-    const ws = XLSX.utils.json_to_sheet(exportRows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Users");
-    const date = new Date().toISOString().split("T")[0];
-    XLSX.writeFile(wb, `Users_${date}.xlsx`);
+    (async () => {
+      try {
+        const exportRows = rows.map((r: any) => ({
+          id: r.id,
+          email: r.email,
+          displayName: r.displayName ?? r.name,
+          phone: r.phone ?? r.phoneNumber,
+          roles: Array.isArray(r.roles) ? r.roles.join(", ") : r.role ?? "",
+          createdUtc: r.createdUtc,
+          updatedUtc: r.updatedUtc,
+        }));
+
+        const workbook = new ExcelJS.Workbook();
+        const ws = workbook.addWorksheet("Users");
+
+        if (!exportRows || exportRows.length === 0) {
+          ws.addRow(["No data"]);
+        } else {
+          const cols = Object.keys(exportRows[0]).map((k) => ({
+            header: k,
+            key: k,
+            width: 20,
+          }));
+          ws.columns = cols;
+          exportRows.forEach((r) => ws.addRow(r as any));
+        }
+
+        const buf = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const date = new Date().toISOString().split("T")[0];
+        saveAs(blob, `Users_${date}.xlsx`);
+      } catch (err) {
+        console.error("Export error", err);
+      }
+    })();
   };
 
   useEffect(() => {

@@ -1,17 +1,16 @@
-import { useEffect, useState } from "react";
-import { DataGrid } from "@mui/x-data-grid";
-import type { GridPaginationModel } from "@mui/x-data-grid";
-import type { GridColDef } from "@mui/x-data-grid";
-import type { GridSortModel } from "@mui/x-data-grid";
-import { Box, Typography } from "@mui/material";
-import { getIncidentReportsPaged } from "../api/client";
-import type { IncidentReportDto } from "../api/client";
-import { getSeverityLabel, getDomainLabel } from "../constants/incidentOptions";
-import { useNavigate } from "react-router-dom";
 import EditIcon from "@mui/icons-material/Edit";
-import IconButton from "@mui/material/IconButton";
-import * as XLSX from "xlsx";
+import { Box, Typography } from "@mui/material";
 import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import type { GridColDef, GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
+import { DataGrid } from "@mui/x-data-grid";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { IncidentReportDto } from "../api/client";
+import { getIncidentReportsPaged } from "../api/client";
+import { getDomainLabel, getSeverityLabel } from "../constants/incidentOptions";
 /**
  *  id?: number;                 // <-- เพิ่ม id
     caseNo: string;
@@ -131,15 +130,38 @@ export default function AdminPage() {
   const navigate = useNavigate();
 
   const handleExportExcel = () => {
-    // สร้าง worksheet จาก rows
-    const ws = XLSX.utils.json_to_sheet(rows);
-    // สร้าง workbook
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "IncidentReports");
-    // Export เป็นไฟล์ + date
-    const date = new Date().toISOString().split("T")[0]; // YYYY-MM
-    const fileName = `IncidentReports_${date}.xlsx`;
-    XLSX.writeFile(wb, fileName);
+    (async () => {
+      try {
+        const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+        const workbook = new ExcelJS.Workbook();
+        const ws = workbook.addWorksheet("IncidentReports");
+
+        if (!rows || rows.length === 0) {
+          ws.addRow(["No data"]);
+        } else {
+          // build columns from first row keys
+          const cols = Object.keys(rows[0]).map((k) => ({
+            header: k,
+            key: k,
+            width: 20,
+          }));
+          ws.columns = cols;
+
+          // add rows
+          rows.forEach((r) => {
+            ws.addRow(r as any);
+          });
+        }
+
+        const buf = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buf], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        saveAs(blob, `IncidentReports_${date}.xlsx`);
+      } catch (err) {
+        console.error("Export error", err);
+      }
+    })();
   };
 
   useEffect(() => {
