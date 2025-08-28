@@ -11,6 +11,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import {
   Box, Button, Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
@@ -40,10 +41,12 @@ import {
 
 type Props = {
   incidentId: number;
+  readOnly?: boolean;
 };
 
 export default function IncidentAttachments({
-  incidentId
+  incidentId,
+  readOnly = false
 }: Props) {
   const theme = useTheme();
   // treat tablet and smaller as "mobile" (use theme.breakpoint 'md' ~ 960px)
@@ -504,9 +507,11 @@ export default function IncidentAttachments({
                     <IconButton size="small" onClick={() => onOpenDetached(it.id, it.contentType, it.fileName)} aria-label="open">
                       <OpenInNewIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" onClick={() => onDelete(it.id)} aria-label="delete">
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    { !readOnly && (
+                      <IconButton size="small" onClick={() => onDelete(it.id)} aria-label="delete">
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
                   </Stack>
                 }
               >
@@ -581,11 +586,13 @@ export default function IncidentAttachments({
                     <DownloadIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Delete">
-                  <IconButton size="small" onClick={() => onDelete(it.id)}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
+                { !readOnly && (
+                  <Tooltip title="Delete">
+                    <IconButton size="small" onClick={() => onDelete(it.id)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
               </TableCell>
             </TableRow>
           ))}
@@ -599,133 +606,140 @@ export default function IncidentAttachments({
     );
   }
 
-  return (
-    <Box>
-      {/* hidden file input (moved out of the form area) */}
-      <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={(e) => onPickFile(e)} />
+  // build form panel once so we can place it left/right responsively
+  const formPanel = (
+    <Box component="form" onSubmit={onUpload} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <Stack direction="row" spacing={1}>
+        <Button variant={uploadMode === 'upload' ? 'contained' : 'outlined'} onClick={() => setUploadMode('upload')} startIcon={<UploadFileIcon />}>File</Button>
+        <Button variant={uploadMode === 'link' ? 'contained' : 'outlined'} onClick={() => setUploadMode('link')} startIcon={<LinkIcon />}>Link</Button>
+      </Stack>
 
-      <Typography variant="h6" sx={{ mb: 1 }}>Attachments</Typography>
+      {uploadMode === 'upload' ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {/* Dropzone */}
+          <Box
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const f = e.dataTransfer?.files?.[0];
+              if (f) handleFile(f);
+            }}
+            tabIndex={0}
+            role="button"
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+            sx={{
+              border: '2px dashed',
+              borderColor: 'divider',
+              borderRadius: 1,
+              p: 2,
+              textAlign: 'center',
+              bgcolor: 'background.paper',
+              '&:hover': { borderColor: 'primary.main' },
+              minHeight: 96,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              gap: 1
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>Drop file here</Typography>
+            <Typography variant="caption" color="text.secondary">or</Typography>
+            <Button size="small" variant="outlined" onClick={() => fileInputRef.current?.click()} startIcon={<UploadFileIcon />}>
+              Choose file
+            </Button>
+            <Typography variant="caption" color="text.secondary">Supported: images, audio, video, pdf, other files</Typography>
+          </Box>
 
-      {/* Upload / Link form - mobile first */}
-      <Box component="form" onSubmit={onUpload} sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
-        <Stack direction="row" spacing={1}>
-          <Button variant={uploadMode === 'upload' ? 'contained' : 'outlined'} onClick={() => setUploadMode('upload')} startIcon={<UploadFileIcon />}>File</Button>
-          <Button variant={uploadMode === 'link' ? 'contained' : 'outlined'} onClick={() => setUploadMode('link')} startIcon={<LinkIcon />}>Link</Button>
-        </Stack>
-        {uploadMode === 'upload' ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {/* Dropzone */}
-            <Box
-              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const f = e.dataTransfer?.files?.[0];
-                if (f) handleFile(f);
-              }}
-              tabIndex={0}
-              role="button"
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
-              sx={{
-                border: '2px dashed',
-                borderColor: 'divider',
-                borderRadius: 1,
-                p: 2,
-                textAlign: 'center',
-                bgcolor: 'background.paper',
-                '&:hover': { borderColor: 'primary.main' },
-                minHeight: 96,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                gap: 1
+          {/* show selected file as first row (icon, name, size, remove) */}
+          {selectedFile && (
+            <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', width: 36, justifyContent: 'center' }}>
+                { selectedFile.type.startsWith('image/') ? <ImageIcon /> :
+                  selectedFile.type.startsWith('video/') ? <MovieIcon /> :
+                  selectedFile.type.startsWith('audio/') ? <InsertDriveFileIcon /> :
+                  <InsertDriveFileIcon /> }
+              </Box>
+              <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                <Typography variant="body2" noWrap>{selectedFile.name}</Typography>
+                <Typography variant="caption" color="text.secondary">{fmtSize(selectedFile.size)} • {kind ?? '-'}</Typography>
+              </Box>
+              <IconButton size="small" onClick={() => { setSelectedFile(null); setKind(undefined); }}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Paper>
+          )}
+
+          {/* description separate row (full width textarea) */}
+          <Box>
+            <TextField value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" multiline minRows={3} fullWidth size="small" />
+          </Box>
+
+          {/* Upload + Clear buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+            <Button
+              variant="contained"
+              startIcon={<UploadFileIcon />}
+              disabled={uploading || !selectedFile}
+              onClick={async () => {
+                if (!selectedFile) {
+                  alert('Please choose a file first.');
+                  return;
+                }
+                await onUpload();
               }}
             >
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>Drop file here</Typography>
-              <Typography variant="caption" color="text.secondary">or</Typography>
-              <Button size="small" variant="outlined" onClick={() => fileInputRef.current?.click()} startIcon={<UploadFileIcon />}>
-                Choose file
-              </Button>
-              <Typography variant="caption" color="text.secondary">Supported: images, audio, video, pdf, other files</Typography>
-            </Box>
-
-            {/* show selected file as first row (icon, name, size, remove) */}
-            {selectedFile && (
-              <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
-                {/* icon */}
-                <Box sx={{ display: 'flex', alignItems: 'center', width: 36, justifyContent: 'center' }}>
-                  { selectedFile.type.startsWith('image/') ? <ImageIcon /> :
-                    selectedFile.type.startsWith('video/') ? <MovieIcon /> :
-                    selectedFile.type.startsWith('audio/') ? <InsertDriveFileIcon /> :
-                    <InsertDriveFileIcon /> }
-                </Box>
-                <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                  <Typography variant="body2" noWrap>{selectedFile.name}</Typography>
-                  <Typography variant="caption" color="text.secondary">{fmtSize(selectedFile.size)} • {kind ?? '-'}</Typography>
-                </Box>
-                <IconButton size="small" onClick={() => { setSelectedFile(null); setKind(undefined); }}>
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              </Paper>
-            )}
-
-            {/* description separate row (full width textarea) */}
-            <Box>
-              <TextField value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" multiline minRows={3} fullWidth size="small" />
-            </Box>
-
-            {/* Upload + Clear buttons (Clear enabled only when a file is selected) */}
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-              <Button
-                variant="contained"
-                startIcon={<UploadFileIcon />}
-                disabled={uploading || !selectedFile}
-                onClick={async () => {
-                  if (!selectedFile) {
-                    alert('Please choose a file first.');
-                    return;
-                  }
-                  await onUpload();
-                }}
-              >
-                {uploading ? 'Uploading...' : 'Upload'}
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => { setSelectedFile(null); setKind(undefined); setDescription(''); }}
-                disabled={!selectedFile || uploading}
-              >
-                CLEAR
-              </Button>
-            </Box>
+              {uploading ? 'Uploading...' : 'Upload'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => { setSelectedFile(null); setKind(undefined); setDescription(''); }}
+              disabled={!selectedFile || uploading}
+            >
+              CLEAR
+            </Button>
           </Box>
-        ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <TextField value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="Link URL" fullWidth size="small" />
-            <TextField value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" multiline minRows={3} fullWidth size="small" />
-            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-              <Button type="submit" variant="contained" startIcon={<LinkIcon />} disabled={!linkUrl || uploading}>{uploading ? 'Uploading...' : 'Upload'}</Button>
-              <Button variant="outlined" onClick={() => { setLinkUrl(''); setDescription(''); }} disabled={!linkUrl || uploading}>CLEAR</Button>
-            </Box>
+        </Box>
+      ) : (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <TextField value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="Link URL" fullWidth size="small" />
+          <TextField value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" multiline minRows={3} fullWidth size="small" />
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+            <Button type="submit" variant="contained" startIcon={<LinkIcon />} disabled={!linkUrl || uploading}>{uploading ? 'Uploading...' : 'Upload'}</Button>
+            <Button variant="outlined" onClick={() => { setLinkUrl(''); setDescription(''); }} disabled={!linkUrl || uploading}>CLEAR</Button>
           </Box>
-        )}
-      </Box>
+        </Box>
+      )}
+    </Box>
+  );
 
+  return (
+    <Box>
+      {/* hidden file input */}
+      <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={(e) => onPickFile(e)} />
+
+      {/* <Typography variant="h6" sx={{ mb: 1 }}>Attachments</Typography> */}
+
+      {/* List first (top), form below */}
       {loading && <LinearProgress sx={{ mb: 1 }} />}
-
+      {/* show list view (table on large, list on small) */}
       {isSmall ? renderListView() : renderTableView()}
+
+      {/* form placed under the list */}
+      {/* show form only when not readonly */}
+      {!readOnly && (
+        <Box sx={{ mt: 2 }}>
+          {formPanel}
+        </Box>
+      )}
 
       <Dialog open={!!previewBlobUrl || selectedId !== null} onClose={closePreview} maxWidth="md" fullWidth fullScreen={dialogFullScreen}>
         <DialogTitle>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography>Preview {previewFileName ? `— ${previewFileName}` : ''}</Typography>
-            <Stack direction="row" spacing={1}>
-              <Button size="small" startIcon={<DownloadIcon />} onClick={() => downloadFromDialog(selectedId ?? undefined)}>Download</Button>
-              <Button size="small" startIcon={<OpenWithIcon />} onClick={() => detachPreview(selectedId ?? undefined)}>Detach</Button>
-              <IconButton size="small" onClick={closePreview}><CloseIcon /></IconButton>
-            </Stack>
+            {/* keep only title here to avoid overflow on small screens */}
           </Stack>
         </DialogTitle>
         <DialogContent sx={{ minHeight: 200, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -759,6 +773,12 @@ export default function IncidentAttachments({
             {(!previewBlobUrl && !previewMime) && <Typography color="text.secondary">No preview available</Typography>}
           </Box>
         </DialogContent>
+        <DialogActions sx={{ gap: 1, px: 2, pb: 2 }}>
+          <Button size="small" startIcon={<DownloadIcon />} onClick={() => downloadFromDialog(selectedId ?? undefined)}>Download</Button>
+          <Button size="small" startIcon={<OpenWithIcon />} onClick={() => detachPreview(selectedId ?? undefined)}>Detach</Button>
+          <Box sx={{ flex: 1 }} /> {/* push close to right */}
+          <IconButton size="small" onClick={closePreview}><CloseIcon /></IconButton>
+        </DialogActions>
       </Dialog>
     </Box>
   );

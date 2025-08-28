@@ -1,21 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Box, TextField, Button, Typography, Container, Paper, MenuItem, Stack } from '@mui/material';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { TimePicker } from '@mui/x-date-pickers/TimePicker';
+import { Box, Button, Container, MenuItem, Paper, Stack, TextField, Typography } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import './IncidentReportForm.css'; // เพิ่ม (ถ้ายังไม่ได้ import)
-import { createIncident as apiCreateIncident, getIncidentByCase, updateIncidentFull, getCurrentUser } from '../api/client'; // เพิ่ม import
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { TimePicker } from '@mui/x-date-pickers/TimePicker';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import type { IncidentReportDto } from '../api/client';
-import { domainOptions, severityOptions, incidentStatusOptions } from '../constants/incidentOptions'; // <-- refactored import
+import { createIncident as apiCreateIncident, getCurrentUser, getIncidentByCase, updateIncidentFull } from '../api/client'; // เพิ่ม import
+import { domainOptions, incidentStatusOptions, severityOptions } from '../constants/incidentOptions'; // <-- refactored import
+import './IncidentReportForm.css'; // เพิ่ม (ถ้ายังไม่ได้ import)
 
 import ConfirmDialog from "../components/ConfirmDialog";
 
+import AlertDialog from "../components/AlertDialog"; // <-- added
+import IncidentAttachments from '../components/IncidentAttachments';
 import PageLoading from "../components/PageLoading"; // <-- added
 import SnackbarAlert from "../components/SnackbarAlert"; // <-- added
-import AlertDialog from "../components/AlertDialog"; // <-- added
 import WysiwygMarkdownEditor from '../components/WysiwygMarkdownEditor'; // <-- added
 
 interface IFormData {
@@ -561,6 +562,17 @@ const IncidentReportForm: React.FC = () => {
                                     {!formData.symptoms.trim() && (
                                         <Typography color="error" sx={{ color: '#f44336', fontSize: '0.75rem' }}>Symptoms are required</Typography>
                                     )}
+
+                                    <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '.6px' }}>
+                                              Attachments (ไฟล์แนบ)
+                                            </Typography>
+                                            {formData.id ? (
+                                              <IncidentAttachments incidentId={formData.id} />
+                                            ) : (
+                                              <Typography variant="body2" color="text.secondary">
+                                                หากต้องการแนบไฟล์ โปรดบันทึกเคสก่อน (Save แล้วจะสามารถแนบไฟล์ได้)
+                                              </Typography>
+                                            )}
                                 </Box>
                                 <Box>
                                     <TextField

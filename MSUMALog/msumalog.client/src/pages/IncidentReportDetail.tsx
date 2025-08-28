@@ -422,8 +422,10 @@ const IncidentReportDetail: React.FC = () => {
         
         <Divider sx={{ my: 3 }} />
 
-       
-        <IncidentAttachments incidentId={incident.id} />
+        <Typography variant="overline" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: '.6px' }}>
+          Attachments (ไฟล์แนบ)
+        </Typography>
+        <IncidentAttachments incidentId={incident.id} readOnly />
 
         <Divider sx={{ my: 3 }} />
       {/* Meta Fields */}
