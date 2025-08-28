@@ -913,7 +913,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    proxy?: boolean;
+                };
                 header?: never;
                 path: {
                     id: number;

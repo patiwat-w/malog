@@ -1,6 +1,10 @@
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
+import ImageIcon from '@mui/icons-material/Image';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import LinkIcon from '@mui/icons-material/Link';
+import MovieIcon from '@mui/icons-material/Movie';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import OpenWithIcon from '@mui/icons-material/OpenWith';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
@@ -51,13 +55,17 @@ export default function IncidentAttachments({
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
+  const [uploadMode, setUploadMode] = useState<'upload' | 'link'>('upload');
+  const [linkUrl, setLinkUrl] = useState<string>('');
   const [kind, setKind] = useState<string | undefined>(undefined);
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const [previewMime, setPreviewMime] = useState<string | null>(null);
   const [previewDescription, setPreviewDescription] = useState<string | null>(null);
   const [previewFileName, setPreviewFileName] = useState<string | null>(null);
+  const [previewExternalUrl, setPreviewExternalUrl] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const previewWindowRef = useRef<Window | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // open a new window with a blob URL and auto-revoke when closed
   async function openDetachedWindowWithBlob(blob: Blob, fileName?: string | null, descriptionText?: string | null) {
@@ -157,27 +165,101 @@ export default function IncidentAttachments({
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   }
 
-  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null;
-    setSelectedFile(f);
-    setKind(detectKindFromMime(f?.type ?? null));
+  // handle file selection (used by file input and dropzone)
+  // NOTE: do NOT auto-upload here — just set selectedFile/kind. Upload happens when user clicks Upload.
+  function handleFile(file: File) {
+    if (!file) return;
+    setSelectedFile(file);
+    const detected = detectKindFromMime(file.type ?? null);
+    setKind(detected);
+    setUploadMode('upload');
+  }
+
+  // hidden file input handler: just set selected file
+  const onPickFile = (e: React.ChangeEvent<HTMLInputElement> | null) => {
+    const f = e?.target?.files?.[0] ?? null;
+    if (!f) return;
+    handleFile(f);
   };
+
+  async function createLinkAttachment(payload: { incidentId: number; url: string; description?: string }) {
+    const body = {
+      incidentId: payload.incidentId,
+      storageKey: payload.url,
+      isExternal: true,
+      description: payload.description ?? null,
+      kind: 'Link'
+    };
+    const res = await fetch('/api/IncidentAttachments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Create link failed: ${res.status}`);
+    return res.json();
+  }
 
   async function onUpload(e?: React.FormEvent) {
     e?.preventDefault();
-    if (!selectedFile) return;
-    setUploading(true);
-    try {
-      await uploadIncidentAttachment({ file: selectedFile, incidentId, description: description || undefined, kind: kind || undefined });
-      setSelectedFile(null);
-      setDescription('');
-      setKind('File');
-      await loadList();
-    } catch (err) {
-      console.error(err);
-      alert((err as Error).message || 'Upload failed');
-    } finally {
-      setUploading(false);
+
+    if (uploadMode === 'upload') {
+      if (!selectedFile) return;
+
+      // duplicate check (case-insensitive)
+      const nameLower = selectedFile.name?.toLowerCase() ?? '';
+      const existingFile = items.find(it =>
+        (it.fileName && it.fileName.toLowerCase() === nameLower) ||
+        (it.storageKey && it.storageKey.toLowerCase() === nameLower)
+      );
+      if (existingFile) {
+        const ok = confirm(`An attachment named "${selectedFile.name}" already exists. Upload anyway?`);
+        if (!ok) return;
+      }
+
+      setUploading(true);
+      try {
+        await uploadIncidentAttachment({ file: selectedFile, incidentId, description: description || undefined, kind: kind || undefined });
+        setSelectedFile(null);
+        setDescription('');
+        setKind('File');
+        await loadList();
+      } catch (err) {
+        console.error(err);
+        alert((err as Error).message || 'Upload failed');
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
+
+    // link mode
+    if (uploadMode === 'link') {
+      if (!linkUrl) { alert('Enter link URL'); return; }
+
+      // duplicate check for link (normalize)
+      const u = linkUrl.trim().toLowerCase();
+      const existingLink = items.find(it =>
+        (it.storageKey && it.storageKey.trim().toLowerCase() === u) ||
+        (it.externalUrl && it.externalUrl.trim().toLowerCase() === u)
+      );
+      if (existingLink) {
+        const ok = confirm(`A link "${linkUrl}" already exists. Attach anyway?`);
+        if (!ok) return;
+      }
+
+      setUploading(true);
+      try {
+        await createLinkAttachment({ incidentId, url: linkUrl, description });
+        setLinkUrl('');
+        setDescription('');
+        await loadList();
+      } catch (err) {
+        console.error(err);
+        alert((err as Error).message || 'Create link failed');
+      } finally {
+        setUploading(false);
+      }
+      return;
     }
   }
 
@@ -200,13 +282,30 @@ export default function IncidentAttachments({
       const meta = items.find(x => x.id === id);
       setPreviewDescription(meta?.description ?? null);
       setPreviewFileName(meta?.fileName ?? meta?.storageKey ?? null);
+
+      // If record is external, prefer metadata URL (storageKey or externalUrl)
+      if (meta?.isExternal) {
+        const url = meta.externalUrl ?? meta.storageKey ?? null;
+        if (url) {
+          setPreviewExternalUrl(url);
+          setPreviewBlobUrl(null);
+          setPreviewMime('text/link');
+          return;
+        }
+        // fall through to try server-provided external URL via API
+      }
+
       const res = await downloadIncidentAttachmentBlob(id, { fetchExternal: true });
       if (typeof res === 'string') {
-        window.open(res, '_blank');
+        // API returned external URL
+        setPreviewExternalUrl(res);
+        setPreviewBlobUrl(null);
+        setPreviewMime('text/link');
         return;
       }
       const blob = res as Blob;
       const url = URL.createObjectURL(blob);
+      setPreviewExternalUrl(null);
       setPreviewBlobUrl(url);
       setPreviewMime(contentType ?? blob.type ?? 'application/octet-stream');
     } catch (e) {
@@ -405,15 +504,23 @@ export default function IncidentAttachments({
                     <IconButton size="small" onClick={() => onOpenDetached(it.id, it.contentType, it.fileName)} aria-label="open">
                       <OpenInNewIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" onClick={() => onDownload(it.id, it.fileName)} aria-label="download">
-                      <DownloadIcon fontSize="small" />
+                    <IconButton size="small" onClick={() => onDelete(it.id)} aria-label="delete">
+                      <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Stack>
                 }
               >
                 <ListItemButton onClick={() => onPreview(it.id, it.contentType)} selected={selectedId === it.id} sx={{ py: 1.25 }}>
                   <ListItemText
-                    primary={<Typography variant="body1" noWrap sx={{ fontSize: 15 }}>{it.fileName ?? it.storageKey ?? '-'}</Typography>}
+                    primary={
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        { (it.isExternal || (it.kind && it.kind.toLowerCase() === 'link')) ? <LinkIcon fontSize="small" /> :
+                          (it.contentType?.startsWith('image/') ? <ImageIcon fontSize="small" /> :
+                            (it.contentType?.startsWith('video/') ? <MovieIcon fontSize="small" /> : <InsertDriveFileIcon fontSize="small" />))
+                        }
+                        <Typography variant="body1" noWrap sx={{ fontSize: 15 }}>{it.fileName ?? it.storageKey ?? '-'}</Typography>
+                      </Stack>
+                    }
                     secondary={
                       <Stack direction="column" spacing={0.25}>
                         <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: 12 }}>{it.description}</Typography>
@@ -494,18 +601,116 @@ export default function IncidentAttachments({
 
   return (
     <Box>
+      {/* hidden file input (moved out of the form area) */}
+      <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={(e) => onPickFile(e)} />
+
       <Typography variant="h6" sx={{ mb: 1 }}>Attachments</Typography>
 
-      <Box component="form" onSubmit={onUpload} sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
-        <input type="file" onChange={onPickFile} title="file" />
-        <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 140, gap: 0 }}>
-          <Typography variant="caption" color="text.secondary">Detected</Typography>
-          <Typography variant="body2">{kind ?? '-'}</Typography>
-        </Box>
-        <TextField size="small" placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <Button type="submit" variant="contained" startIcon={<UploadFileIcon />} disabled={!selectedFile || uploading}>
-          {uploading ? 'Uploading...' : 'Upload'}
-        </Button>
+      {/* Upload / Link form - mobile first */}
+      <Box component="form" onSubmit={onUpload} sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+        <Stack direction="row" spacing={1}>
+          <Button variant={uploadMode === 'upload' ? 'contained' : 'outlined'} onClick={() => setUploadMode('upload')} startIcon={<UploadFileIcon />}>File</Button>
+          <Button variant={uploadMode === 'link' ? 'contained' : 'outlined'} onClick={() => setUploadMode('link')} startIcon={<LinkIcon />}>Link</Button>
+        </Stack>
+        {uploadMode === 'upload' ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {/* Dropzone */}
+            <Box
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const f = e.dataTransfer?.files?.[0];
+                if (f) handleFile(f);
+              }}
+              tabIndex={0}
+              role="button"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click(); }}
+              sx={{
+                border: '2px dashed',
+                borderColor: 'divider',
+                borderRadius: 1,
+                p: 2,
+                textAlign: 'center',
+                bgcolor: 'background.paper',
+                '&:hover': { borderColor: 'primary.main' },
+                minHeight: 96,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                gap: 1
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>Drop file here</Typography>
+              <Typography variant="caption" color="text.secondary">or</Typography>
+              <Button size="small" variant="outlined" onClick={() => fileInputRef.current?.click()} startIcon={<UploadFileIcon />}>
+                Choose file
+              </Button>
+              <Typography variant="caption" color="text.secondary">Supported: images, audio, video, pdf, other files</Typography>
+            </Box>
+
+            {/* show selected file as first row (icon, name, size, remove) */}
+            {selectedFile && (
+              <Paper variant="outlined" sx={{ p: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                {/* icon */}
+                <Box sx={{ display: 'flex', alignItems: 'center', width: 36, justifyContent: 'center' }}>
+                  { selectedFile.type.startsWith('image/') ? <ImageIcon /> :
+                    selectedFile.type.startsWith('video/') ? <MovieIcon /> :
+                    selectedFile.type.startsWith('audio/') ? <InsertDriveFileIcon /> :
+                    <InsertDriveFileIcon /> }
+                </Box>
+                <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                  <Typography variant="body2" noWrap>{selectedFile.name}</Typography>
+                  <Typography variant="caption" color="text.secondary">{fmtSize(selectedFile.size)} • {kind ?? '-'}</Typography>
+                </Box>
+                <IconButton size="small" onClick={() => { setSelectedFile(null); setKind(undefined); }}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Paper>
+            )}
+
+            {/* description separate row (full width textarea) */}
+            <Box>
+              <TextField value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" multiline minRows={3} fullWidth size="small" />
+            </Box>
+
+            {/* Upload + Clear buttons (Clear enabled only when a file is selected) */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+              <Button
+                variant="contained"
+                startIcon={<UploadFileIcon />}
+                disabled={uploading || !selectedFile}
+                onClick={async () => {
+                  if (!selectedFile) {
+                    alert('Please choose a file first.');
+                    return;
+                  }
+                  await onUpload();
+                }}
+              >
+                {uploading ? 'Uploading...' : 'Upload'}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => { setSelectedFile(null); setKind(undefined); setDescription(''); }}
+                disabled={!selectedFile || uploading}
+              >
+                CLEAR
+              </Button>
+            </Box>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <TextField value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="Link URL" fullWidth size="small" />
+            <TextField value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" multiline minRows={3} fullWidth size="small" />
+            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+              <Button type="submit" variant="contained" startIcon={<LinkIcon />} disabled={!linkUrl || uploading}>{uploading ? 'Uploading...' : 'Upload'}</Button>
+              <Button variant="outlined" onClick={() => { setLinkUrl(''); setDescription(''); }} disabled={!linkUrl || uploading}>CLEAR</Button>
+            </Box>
+          </Box>
+        )}
       </Box>
 
       {loading && <LinearProgress sx={{ mb: 1 }} />}
@@ -527,6 +732,15 @@ export default function IncidentAttachments({
           {previewDescription && (
             <Box sx={{ width: '100%' }}>
               <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>{previewDescription}</Typography>
+            </Box>
+          )}
+          {previewExternalUrl && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center', p: 1 }}>
+              <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>{previewExternalUrl}</Typography>
+              <Stack direction="row" spacing={1}>
+                <Button startIcon={<OpenInNewIcon />} onClick={() => window.open(previewExternalUrl, '_blank')}>Open</Button>
+                <Button onClick={() => navigator.clipboard?.writeText(previewExternalUrl)}>Copy</Button>
+              </Stack>
             </Box>
           )}
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>

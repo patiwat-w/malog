@@ -9,6 +9,8 @@ public enum AttachmentType
     Image,
     Audio,
     Video,
+
+    Link
 }
 
 public class IncidentAttachment
