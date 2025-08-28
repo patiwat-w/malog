@@ -184,6 +184,61 @@ public class IncidentAttachmentService : IIncidentAttachmentService
         }
     }
 
+    public async Task<StoredFileResult?> GetFileAsync(int id, CancellationToken ct = default)
+    {
+        var e = await _repo.GetByIdAsync(id, ct);
+        if (e == null) return null;
+
+        // ถ้าเป็นไฟล์ external ยังไม่รองรับในนี้
+        if (e.IsExternal)
+        {
+            return null;
+        }
+
+        var physicalPath = e.PhysicalPath;
+        if (string.IsNullOrWhiteSpace(physicalPath) || !File.Exists(physicalPath))
+            return null;
+
+        // เปิดสตรีมเพื่อส่งกลับ (Framework จะเป็นผู้ปิดเมื่อ response เสร็จ)
+        var fs = new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
+
+        var contentType = e.ContentType;
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            if (!_contentTypeProvider.TryGetContentType(e.FileName ?? physicalPath, out var ctFromExt) || string.IsNullOrWhiteSpace(ctFromExt))
+                contentType = "application/octet-stream";
+            else
+                contentType = ctFromExt;
+        }
+
+        return new StoredFileResult(fs, e.FileName ?? Path.GetFileName(physicalPath), contentType, fs.Length);
+    }
+
+    public async Task<StoredFileInfoDto?> GetFileInfoAsync(int id, CancellationToken ct = default)
+    {
+        var e = await _repo.GetByIdAsync(id, ct);
+        if (e == null) return null;
+
+        var fileName = e.FileName ?? Path.GetFileName(e.PhysicalPath ?? e.StorageKey ?? string.Empty);
+        var dto = new StoredFileInfoDto
+        {
+            FileName = fileName,
+            ContentType = e.ContentType,
+            SizeBytes = e.SizeBytes ?? 0,
+            IsExternal = e.IsExternal,
+            ExternalUrl = null
+        };
+
+        if (e.IsExternal)
+        {
+            var url = e.StorageKey ?? e.PhysicalPath;
+            if (!string.IsNullOrWhiteSpace(url) && Uri.IsWellFormedUriString(url, UriKind.Absolute))
+                dto.ExternalUrl = url;
+        }
+
+        return dto;
+    }
+
     private static AttachmentType DetectKindFromContentType(string contentType, string ext)
     {
         if (!string.IsNullOrEmpty(contentType))

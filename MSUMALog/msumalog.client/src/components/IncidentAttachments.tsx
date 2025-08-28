@@ -1,52 +1,140 @@
+import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import OpenWithIcon from '@mui/icons-material/OpenWith';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import {
-    Box, Button, Dialog,
-    DialogContent,
-    DialogTitle,
-    FormControl,
-    IconButton,
-    InputLabel,
-    LinearProgress,
-    MenuItem,
-    Select,
-    Table, TableBody, TableCell, TableHead,
-    TableRow, TextField,
-    Tooltip,
-    Typography
+  Box, Button, Dialog,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  IconButton,
+  LinearProgress,
+  List, ListItem,
+  ListItemButton,
+  ListItemText,
+  Paper,
+  Stack,
+  Table, TableBody, TableCell, TableHead,
+  TableRow, TextField,
+  Tooltip,
+  Typography,
+  useMediaQuery, useTheme
 } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
 
-// add: use api client functions + types
 import type { IncidentAttachmentDto } from '../api/client';
 import {
-    deleteIncidentAttachment,
-    downloadIncidentAttachmentBlob,
-    getIncidentAttachmentsByIncident,
-    uploadFileUpload,
-    uploadIncidentAttachment
+  deleteIncidentAttachment,
+  downloadIncidentAttachmentBlob,
+  getIncidentAttachmentFileInfo,
+  getIncidentAttachmentsByIncident,
+  uploadIncidentAttachment
 } from '../api/client';
 
 type Props = {
   incidentId: number;
- 
 };
 
 export default function IncidentAttachments({
   incidentId
 }: Props) {
+  const theme = useTheme();
+  // treat tablet and smaller as "mobile" (use theme.breakpoint 'md' ~ 960px)
+  const isSmall = useMediaQuery(theme.breakpoints.down('md'));
+  const dialogFullScreen = isSmall;
+
   const [items, setItems] = useState<IncidentAttachmentDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
-  const [kind, setKind] = useState('File');
+  const [kind, setKind] = useState<string | undefined>(undefined);
   const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
   const [previewMime, setPreviewMime] = useState<string | null>(null);
+  const [previewDescription, setPreviewDescription] = useState<string | null>(null);
+  const [previewFileName, setPreviewFileName] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const previewWindowRef = useRef<Window | null>(null);
+
+  // open a new window with a blob URL and auto-revoke when closed
+  async function openDetachedWindowWithBlob(blob: Blob, fileName?: string | null, descriptionText?: string | null) {
+    const url = URL.createObjectURL(blob);
+    const w = window.open('', '_blank');
+    if (!w) {
+      // fallback: open blob url directly (will be revoked shortly)
+      window.open(url, '_blank');
+      setTimeout(() => { try { URL.revokeObjectURL(url); } catch { } }, 5000);
+      return;
+    }
+
+    previewWindowRef.current = w;
+    w.document.title = fileName ?? 'Attachment';
+    const container = w.document.createElement('div');
+    container.style.padding = '12px';
+    container.style.fontFamily = 'system-ui, sans-serif';
+    if (descriptionText) {
+      const p = w.document.createElement('p');
+      p.textContent = descriptionText;
+      p.style.margin = '8px 0';
+      p.style.fontSize = '14px';
+      p.style.color = '#444';
+      container.appendChild(p);
+    }
+
+    const mime = previewMime ?? '';
+    if (mime.startsWith('image/')) {
+      const img = w.document.createElement('img');
+      img.src = url;
+      img.style.maxWidth = '100%';
+      container.appendChild(img);
+    } else if (mime.startsWith('video/')) {
+      const v = w.document.createElement('video');
+      v.src = url;
+      v.controls = true;
+      v.style.maxWidth = '100%';
+      container.appendChild(v);
+    } else if (mime.startsWith('audio/')) {
+      const a = w.document.createElement('audio');
+      a.src = url;
+      a.controls = true;
+      container.appendChild(a);
+    } else if (mime === 'application/pdf') {
+      const iframe = w.document.createElement('iframe');
+      iframe.src = url;
+      iframe.style.width = '100%';
+      iframe.style.height = '100vh';
+      iframe.style.border = 'none';
+      container.appendChild(iframe);
+    } else {
+      const a = w.document.createElement('a');
+      a.href = url;
+      a.download = fileName ?? 'file';
+      a.textContent = 'Download file';
+      container.appendChild(a);
+    }
+
+    w.document.body.appendChild(container);
+
+    // revoke object URL when opened window closes
+    const interval = setInterval(() => {
+      if (w.closed) {
+        try { URL.revokeObjectURL(url); } catch { /* ignore */ }
+        clearInterval(interval);
+        if (previewWindowRef.current === w) previewWindowRef.current = null;
+      }
+    }, 500);
+  }
+
+  function detectKindFromMime(mime?: string | null) {
+    if (!mime) return 'File';
+    if (mime.startsWith('image/')) return 'Image';
+    if (mime.startsWith('video/')) return 'Video';
+    if (mime.startsWith('audio/')) return 'Audio';
+    return 'File';
+  }
 
   useEffect(() => { loadList(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [incidentId]);
 
@@ -72,6 +160,7 @@ export default function IncidentAttachments({
   const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
     setSelectedFile(f);
+    setKind(detectKindFromMime(f?.type ?? null));
   };
 
   async function onUpload(e?: React.FormEvent) {
@@ -79,12 +168,10 @@ export default function IncidentAttachments({
     if (!selectedFile) return;
     setUploading(true);
     try {
-      // use client helper for multipart upload
       await uploadIncidentAttachment({ file: selectedFile, incidentId, description: description || undefined, kind: kind || undefined });
       setSelectedFile(null);
       setDescription('');
       setKind('File');
-      // reload list (or optimistically add)
       await loadList();
     } catch (err) {
       console.error(err);
@@ -106,11 +193,19 @@ export default function IncidentAttachments({
     }
   }
 
-  // fetch raw file blob and show inline
   async function onPreview(id?: number, contentType?: string | null) {
     if (!id) return;
     try {
-      const blob = await downloadIncidentAttachmentBlob(id);
+      setSelectedId(id);
+      const meta = items.find(x => x.id === id);
+      setPreviewDescription(meta?.description ?? null);
+      setPreviewFileName(meta?.fileName ?? meta?.storageKey ?? null);
+      const res = await downloadIncidentAttachmentBlob(id, { fetchExternal: true });
+      if (typeof res === 'string') {
+        window.open(res, '_blank');
+        return;
+      }
+      const blob = res as Blob;
       const url = URL.createObjectURL(blob);
       setPreviewBlobUrl(url);
       setPreviewMime(contentType ?? blob.type ?? 'application/octet-stream');
@@ -120,23 +215,35 @@ export default function IncidentAttachments({
     }
   }
 
-  // open detach window using blob
   async function onOpenDetached(id?: number, contentType?: string | null, fileName?: string | null) {
     if (!id) return;
     try {
-      const blob = await downloadIncidentAttachmentBlob(id);
+      const meta = items.find(x => x.id === id);
+      const description = meta?.description ?? null;
+      const res = await downloadIncidentAttachmentBlob(id, { fetchExternal: false });
+      if (typeof res === 'string') {
+        window.open(res, '_blank');
+        return;
+      }
+      const blob = res as Blob;
       const url = URL.createObjectURL(blob);
       const w = window.open('', '_blank');
       if (!w) {
-        // fallback to open object URL directly
         window.open(url);
         return;
       }
       previewWindowRef.current = w;
-      // if previewable (image/pdf/video) embed; otherwise prompt download
       const mime = contentType ?? blob.type;
       if (mime?.startsWith('image/') || mime?.startsWith('video/') || mime?.startsWith('audio/') || mime === 'application/pdf') {
         w.document.title = fileName ?? 'Attachment';
+        if (description) {
+          const p = w.document.createElement('p');
+          p.textContent = description;
+          p.style.margin = '8px';
+          p.style.fontSize = '14px';
+          p.style.color = '#444';
+          w.document.body.appendChild(p);
+        }
         if (mime.startsWith('image/')) {
           w.document.body.style.margin = '0';
           const img = w.document.createElement('img');
@@ -167,7 +274,6 @@ export default function IncidentAttachments({
           w.location.href = url;
         }
       } else {
-        // download
         const a = w.document.createElement('a');
         a.href = url;
         a.download = fileName ?? 'file';
@@ -180,15 +286,48 @@ export default function IncidentAttachments({
     }
   }
 
-  // download directly (stream)
   async function onDownload(id?: number, fileName?: string | null) {
     if (!id) return;
     try {
-      const blob = await downloadIncidentAttachmentBlob(id);
+      let info;
+      try {
+        info = await getIncidentAttachmentFileInfo(id);
+      } catch {
+        info = null;
+      }
+
+      if (info?.isExternal && info.externalUrl) {
+        if (confirm('This file is hosted externally. Open external URL? (OK=Open, Cancel=Download via CORS if supported)')) {
+          window.open(info.externalUrl, '_blank');
+          return;
+        }
+        const res = await downloadIncidentAttachmentBlob(id, { fetchExternal: true });
+        if (typeof res === 'string') {
+          window.open(res, '_blank');
+          return;
+        }
+        const blob = res as Blob;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName ?? info.fileName ?? 'file';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        return;
+      }
+
+      const res = await downloadIncidentAttachmentBlob(id, { proxy: false });
+      if (typeof res === 'string') {
+        window.open(res, '_blank');
+        return;
+      }
+      const blob = res as Blob;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = fileName ?? 'file';
+      a.download = fileName ?? (info?.fileName ?? 'file');
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -204,36 +343,99 @@ export default function IncidentAttachments({
       URL.revokeObjectURL(previewBlobUrl);
       setPreviewBlobUrl(null);
       setPreviewMime(null);
+      setPreviewDescription(null);
     }
     if (previewWindowRef.current && !previewWindowRef.current.closed) {
       previewWindowRef.current.close();
       previewWindowRef.current = null;
     }
+    setSelectedId(null);
   }
 
-  return (
-    <Box>
-      <Typography variant="h6" sx={{ mb: 1 }}>Attachments</Typography>
+  async function detachPreview(id?: number) {
+    if (!id) return;
+    try {
+      const res = await downloadIncidentAttachmentBlob(id, { fetchExternal: true });
+      if (typeof res === 'string') {
+        window.open(res, '_blank');
+        return;
+      }
+      const blob = res as Blob;
+      await openDetachedWindowWithBlob(blob, items.find(x => x.id === id)?.fileName, items.find(x => x.id === id)?.description ?? null);
+    } catch (e) {
+      console.error(e);
+      alert('Detach failed');
+    }
+  }
 
-      <Box component="form" onSubmit={onUpload} sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
-        <input type="file" onChange={onPickFile} title='file' />
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel id="attach-kind-label">Kind</InputLabel>
-          <Select labelId="attach-kind-label" value={kind} label="Kind" onChange={(e) => setKind(String(e.target.value))}>
-            <MenuItem value="File">File</MenuItem>
-            <MenuItem value="Image">Image</MenuItem>
-            <MenuItem value="Video">Video</MenuItem>
-            <MenuItem value="Audio">Audio</MenuItem>
-          </Select>
-        </FormControl>
-        <TextField size="small" placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
-        <Button type="submit" variant="contained" startIcon={<UploadFileIcon />} disabled={!selectedFile || uploading}>
-          {uploading ? 'Uploading...' : 'Upload'}
-        </Button>
-      </Box>
+  async function downloadFromDialog(id?: number) {
+    if (!id) return;
+    try {
+      const res = await downloadIncidentAttachmentBlob(id, { proxy: false, fetchExternal: true });
+      if (typeof res === 'string') {
+        window.open(res, '_blank');
+        return;
+      }
+      const blob = res as Blob;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = previewFileName ?? 'file';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      console.error(e);
+      alert('Download failed');
+    }
+  }
 
-      {loading && <LinearProgress sx={{ mb: 1 }} />}
+  function renderListView() {
+    return (
+      <Paper variant="outlined">
+        <List>
+          {items.map(it => (
+            <div key={it.id}>
+              <ListItem
+                disablePadding
+                sx={{ px: 1 }}
+                secondaryAction={
+                  <Stack direction="row" spacing={0.5}>
+                    <IconButton size="small" onClick={() => onOpenDetached(it.id, it.contentType, it.fileName)} aria-label="open">
+                      <OpenInNewIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => onDownload(it.id, it.fileName)} aria-label="download">
+                      <DownloadIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                }
+              >
+                <ListItemButton onClick={() => onPreview(it.id, it.contentType)} selected={selectedId === it.id} sx={{ py: 1.25 }}>
+                  <ListItemText
+                    primary={<Typography variant="body1" noWrap sx={{ fontSize: 15 }}>{it.fileName ?? it.storageKey ?? '-'}</Typography>}
+                    secondary={
+                      <Stack direction="column" spacing={0.25}>
+                        <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: 12 }}>{it.description}</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>{fmtSize(it.sizeBytes)} • {it.createdUtc ? new Date(it.createdUtc).toLocaleString() : '-'}</Typography>
+                      </Stack>
+                    }
+                  />
+                </ListItemButton>
+              </ListItem>
+              <Divider component="li" />
+            </div>
+          ))}
+          {items.length === 0 && !loading && (
+            <Box p={2}><Typography color="text.secondary">No attachments</Typography></Box>
+          )}
+        </List>
+      </Paper>
+    );
+  }
 
+  function renderTableView() {
+    return (
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -287,37 +489,61 @@ export default function IncidentAttachments({
           )}
         </TableBody>
       </Table>
+    );
+  }
 
-      {/* Preview dialog */}
-      <Dialog open={!!previewBlobUrl} onClose={closePreview} maxWidth="md" fullWidth>
-        <DialogTitle>Preview</DialogTitle>
-        <DialogContent sx={{ minHeight: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          {previewBlobUrl && previewMime && previewMime.startsWith('image/') && (
-            <img src={previewBlobUrl} alt="preview" style={{ maxWidth: '100%', maxHeight: '80vh' }} />
-          )}
-          {previewBlobUrl && previewMime && previewMime.startsWith('video/') && (
-            <video src={previewBlobUrl} controls style={{ maxWidth: '100%', maxHeight: '80vh' }} />
-          )}
-          {previewBlobUrl && previewMime && previewMime.startsWith('audio/') && (
-            <audio src={previewBlobUrl} controls style={{ width: '100%' }} />
-          )}
-          {previewBlobUrl && previewMime && previewMime === 'application/pdf' && (
-            <iframe src={previewBlobUrl} title="pdf" style={{ width: '100%', height: '80vh', border: 'none' }} />
-          )}
-          {previewBlobUrl && previewMime && !(
-            previewMime.startsWith('image/') || previewMime.startsWith('video/') || previewMime.startsWith('audio/') || previewMime === 'application/pdf'
-          ) && (
-            <Box>
-              <Typography>Preview not available for this file type.</Typography>
-              <Button startIcon={<DownloadIcon />} onClick={() => {
-                // prompt download
-                const a = document.createElement('a');
-                a.href = previewBlobUrl;
-                a.download = 'file';
-                document.body.appendChild(a); a.click(); a.remove();
-              }}>Download</Button>
+  return (
+    <Box>
+      <Typography variant="h6" sx={{ mb: 1 }}>Attachments</Typography>
+
+      <Box component="form" onSubmit={onUpload} sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>
+        <input type="file" onChange={onPickFile} title="file" />
+        <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 140, gap: 0 }}>
+          <Typography variant="caption" color="text.secondary">Detected</Typography>
+          <Typography variant="body2">{kind ?? '-'}</Typography>
+        </Box>
+        <TextField size="small" placeholder="Description (optional)" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <Button type="submit" variant="contained" startIcon={<UploadFileIcon />} disabled={!selectedFile || uploading}>
+          {uploading ? 'Uploading...' : 'Upload'}
+        </Button>
+      </Box>
+
+      {loading && <LinearProgress sx={{ mb: 1 }} />}
+
+      {isSmall ? renderListView() : renderTableView()}
+
+      <Dialog open={!!previewBlobUrl || selectedId !== null} onClose={closePreview} maxWidth="md" fullWidth fullScreen={dialogFullScreen}>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography>Preview {previewFileName ? `— ${previewFileName}` : ''}</Typography>
+            <Stack direction="row" spacing={1}>
+              <Button size="small" startIcon={<DownloadIcon />} onClick={() => downloadFromDialog(selectedId ?? undefined)}>Download</Button>
+              <Button size="small" startIcon={<OpenWithIcon />} onClick={() => detachPreview(selectedId ?? undefined)}>Detach</Button>
+              <IconButton size="small" onClick={closePreview}><CloseIcon /></IconButton>
+            </Stack>
+          </Stack>
+        </DialogTitle>
+        <DialogContent sx={{ minHeight: 200, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {previewDescription && (
+            <Box sx={{ width: '100%' }}>
+              <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>{previewDescription}</Typography>
             </Box>
           )}
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            {previewBlobUrl && previewMime && previewMime.startsWith('image/') && (
+              <img src={previewBlobUrl} alt="preview" style={{ maxWidth: '100%', maxHeight: '80vh' }} />
+            )}
+            {previewBlobUrl && previewMime && previewMime.startsWith('video/') && (
+              <video src={previewBlobUrl} controls style={{ maxWidth: '100%', maxHeight: '80vh' }} />
+            )}
+            {previewBlobUrl && previewMime && previewMime.startsWith('audio/') && (
+              <audio src={previewBlobUrl} controls style={{ width: '100%' }} />
+            )}
+            {previewBlobUrl && previewMime && previewMime === 'application/pdf' && (
+              <iframe src={previewBlobUrl} title="pdf" style={{ width: '100%', height: '80vh', border: 'none' }} />
+            )}
+            {(!previewBlobUrl && !previewMime) && <Typography color="text.secondary">No preview available</Typography>}
+          </Box>
         </DialogContent>
       </Dialog>
     </Box>

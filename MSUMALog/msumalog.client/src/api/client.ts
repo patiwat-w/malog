@@ -304,22 +304,22 @@ export async function deleteIncidentAttachment(id: number) {
  * - /IncidentAttachments/{id}/raw
  * - /IncidentAttachments/{id} (if server returns file directly)
  */
-export async function downloadIncidentAttachmentBlob(id: number): Promise<Blob> {
-  const tryUrls = [
-    `/IncidentAttachments/${id}/download`,
-    `/IncidentAttachments/${id}/raw`,
-    `/IncidentAttachments/${id}`
-  ];
-  for (const u of tryUrls) {
-    try {
-      const res = await http.get(u, { responseType: 'blob' as const });
-      if (res.status >= 200 && res.status < 300) return res.data as Blob;
-    } catch {
-      // ignore and try next
-    }
-  }
-  throw new Error('Download failed: no endpoint returned a file blob');
-}
+// export async function downloadIncidentAttachmentBlob(id: number): Promise<Blob> {
+//   const tryUrls = [
+//     `/IncidentAttachments/${id}/download`,
+//     `/IncidentAttachments/${id}/raw`,
+//     `/IncidentAttachments/${id}`
+//   ];
+//   for (const u of tryUrls) {
+//     try {
+//       const res = await http.get(u, { responseType: 'blob' as const });
+//       if (res.status >= 200 && res.status < 300) return res.data as Blob;
+//     } catch {
+//       // ignore and try next
+//     }
+//   }
+//   throw new Error('Download failed: no endpoint returned a file blob');
+// }
 
 /**
  * Optional: multipart upload helper (if backend provides /IncidentAttachments/upload)
@@ -330,13 +330,19 @@ export async function uploadIncidentAttachment(data: {
   incidentId: number;
   description?: string;
   kind?: string;
-}): Promise<boolean> {
-  // delegate to generic UploadFile/Upload endpoint; map fields accordingly
-  return await uploadFileUpload({
-    file: data.file,
-    subjectId: data.incidentId,
-    fileType: data.kind,
-  });
+}) {
+  const form = new FormData();
+  form.append("File", data.file);
+  form.append("IncidentId", data.incidentId.toString());
+  if (data.description) form.append("Description", data.description);
+  if (data.kind) form.append("Kind", data.kind);
+
+  const res = await http.post<components["schemas"]["IncidentAttachmentDto"]>(
+    "/IncidentAttachments/upload",
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+  return res.data;
 }
 
 // ----------------- NEW: additional helpers based on updated types -----------------
@@ -365,3 +371,67 @@ export async function getAuthClaims(): Promise<unknown> {
   const res = await http.get("/auth/claims", { withCredentials: true });
   return res.data;
 }
+
+// เพิ่ม type alias (ถ้ายังไม่มี)
+export type StoredFileInfoDto = components['schemas']['StoredFileInfoDto'];
+
+// ดึง metadata ของไฟล์ (no stream)
+export async function getIncidentAttachmentFileInfo(id: number): Promise<StoredFileInfoDto> {
+  const res = await http.get<StoredFileInfoDto>(`/IncidentAttachments/file-info/${id}`);
+  return res.data;
+}
+
+/**
+ * ดาวน์โหลดไฟล์:
+ * - ถ้าไฟล์เป็น external และ fetchExternal=true -> จะดาวน์โหลด blob จาก external URL (ต้องการ CORS จาก host นั้น)
+ * - ถ้าไฟล์เป็น external และ fetchExternal=false -> คืน externalUrl (caller สามารถ open ใน new tab)
+ * - ถ้าไฟล์เป็น local -> เรียก /IncidentAttachments/download/{id} (เพิ่ม ?proxy=true เพื่อให้เซิร์ฟเวอร์ proxy แทน redirect ถ้าต้องการ)
+ *
+ * Returns Blob for downloaded content or string (externalUrl) if caller should open it.
+ */
+export async function downloadIncidentAttachmentBlob(
+  id: number,
+  options?: { proxy?: boolean; fetchExternal?: boolean }
+): Promise<Blob | string> {
+  // อ่าน metadata ก่อน
+  let info: StoredFileInfoDto;
+  try {
+    info = await getIncidentAttachmentFileInfo(id);
+  } catch {
+    // fall back to old strategy if file-info endpoint not available
+    // try direct download endpoints
+    const tryUrls = [
+      `/IncidentAttachments/${id}/download`,
+      `/IncidentAttachments/${id}/raw`,
+      `/IncidentAttachments/${id}`
+    ];
+    for (const u of tryUrls) {
+      try {
+        const res = await http.get(u, { responseType: 'blob' as const });
+        if (res.status >= 200 && res.status < 300) return res.data as Blob;
+      } catch {
+        // ignore and try next
+      }
+    }
+    throw new Error('Download failed: no endpoint returned a file blob');
+  }
+
+  // If external
+  if (info.isExternal && info.externalUrl) {
+    if (options?.fetchExternal) {
+      // Try to fetch external URL as blob (requires CORS on external host)
+      const res = await axios.get(info.externalUrl, { responseType: 'blob' });
+      return res.data as Blob;
+    }
+    // return the external URL so UI can open it
+    return info.externalUrl;
+  }
+
+  // Local file -> request the download endpoint (allow proxy)
+  const url = `/IncidentAttachments/download/${id}` + (options?.proxy ? '?proxy=true' : '');
+  const res = await http.get(url, { responseType: 'blob' as const });
+  if (res.status >= 200 && res.status < 300) return res.data as Blob;
+  throw new Error(`Download failed with status ${res.status}`);
+}
+
+

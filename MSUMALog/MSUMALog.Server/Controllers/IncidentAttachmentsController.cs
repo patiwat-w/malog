@@ -54,6 +54,40 @@ public class IncidentAttachmentsController : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 
+    [HttpGet("file-info/{id:int}")]
+    public async Task<ActionResult<StoredFileInfoDto>> FileInfo(int id, CancellationToken ct = default)
+    {
+        var info = await _service.GetFileInfoAsync(id, ct);
+        return info is null ? NotFound() : Ok(info);
+    }
+
+    [HttpGet("download/{id:int}")]
+    public async Task<IActionResult> Download(int id, CancellationToken ct = default)
+    {
+        var fileResult = await _service.GetFileAsync(id, ct);
+        if (fileResult == null) return NotFound();
+
+        if (fileResult.IsExternal && !string.IsNullOrWhiteSpace(fileResult.ExternalUrl))
+            return Redirect(fileResult.ExternalUrl);
+
+        return File(fileResult.Stream!, fileResult.ContentType ?? "application/octet-stream", fileResult.FileName);
+    }
+
+    [HttpGet("redirect/{id:int}")]
+    public async Task<IActionResult> RedirectToExternal(int id, CancellationToken ct = default)
+    {
+        var dto = await _service.GetByIdAsync(id, ct);
+        if (dto == null) return NotFound();
+
+        // assume dto.StorageKey holds the external absolute URL for external files
+        if (string.IsNullOrWhiteSpace(dto.StorageKey) || !Uri.IsWellFormedUriString(dto.StorageKey, UriKind.Absolute))
+            return BadRequest();
+
+        // optional: validate whitelist hosts here
+
+        return Redirect(dto.StorageKey);
+    }
+
     [Authorize]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct = default)

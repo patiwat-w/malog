@@ -334,7 +334,7 @@ app.UseAuthorization();
 app.Use(async (context, next) =>
 {
     // ป้องกัน payload ใหญ่เกิน (รวมถึง multipart/json)
-    if (context.Request.ContentLength > 5 * 1024 * 1024)
+    if (context.Request.ContentLength > 50 * 1024 * 1024)
     {
         context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
         await context.Response.WriteAsync("Payload Too Large");
