@@ -132,22 +132,12 @@ const IncidentReportForm: React.FC = () => {
     // validation state for estimated cost input
     const [estimateCostError, setEstimateCostError] = useState<string | null>(null);
     // input string for estimated cost (shows commas) kept separate from numeric value
-    const [estimateCostInput, setEstimateCostInput] = useState<string>('');
 
-    useEffect(() => {
-        setEstimateCostInput(
-            formData.estimateCostOfMa !== undefined
-                ? (Math.round(formData.estimateCostOfMa * 100) / 100).toFixed(2)
-                : ''
-        );
-    }, [formData.estimateCostOfMa]);
 
-    const rawFromDisplay = (display: string) => display.replace(/,/g, '').trim();
-    const formatWithCommas = (raw: string) => {
-        const n = Number(rawFromDisplay(raw));
-        if (isNaN(n)) return raw;
-        return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    };
+
+
+  
+
 
     useEffect(() => {
         let ignore = false;

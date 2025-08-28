@@ -39,7 +39,7 @@ import type { IncidentAttachmentDto } from '../api/client';
 import {
   deleteIncidentAttachment,
   downloadIncidentAttachmentBlob,
-  getIncidentAttachmentFileInfo,
+  //getIncidentAttachmentFileInfo,
   getIncidentAttachmentsByIncident,
   uploadIncidentAttachment,
   type User
@@ -517,68 +517,68 @@ export default function IncidentAttachments({
     }
   }
 
-  async function onDownload(id?: number, fileName?: string | null) {
-    if (!id) return;
-    try {
-      let info;
-      try {
-        info = await getIncidentAttachmentFileInfo(id);
-      } catch {
-        info = null;
-      }
+  // async function onDownload(id?: number, fileName?: string | null) {
+  //   if (!id) return;
+  //   try {
+  //     let info;
+  //     try {
+  //       info = await getIncidentAttachmentFileInfo(id);
+  //     } catch {
+  //       info = null;
+  //     }
 
-      if (info?.isExternal && info.externalUrl) {
-        // Ask whether to open external URL (OK=Open external, Cancel=Download via CORS)
-        const externalUrl = info.externalUrl;
-        const downloadViaCors = async () => {
-          try {
-            const res = await downloadIncidentAttachmentBlob(id, { fetchExternal: true });
-            if (typeof res === 'string') {
-              window.open(res, '_blank');
-              return;
-            }
-            const blob = res as Blob;
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName ?? info.fileName ?? 'file';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-          } catch (e) {
-            console.error(e);
-            openAlert('ดาวน์โหลดไม่สำเร็จ', (e as Error)?.message ?? 'ดาวน์โหลดไม่สำเร็จ');
-          }
-        };
+  //     if (info?.isExternal && info.externalUrl) {
+  //       // Ask whether to open external URL (OK=Open external, Cancel=Download via CORS)
+  //       const externalUrl = info.externalUrl;
+  //       const downloadViaCors = async () => {
+  //         try {
+  //           const res = await downloadIncidentAttachmentBlob(id, { fetchExternal: true });
+  //           if (typeof res === 'string') {
+  //             window.open(res, '_blank');
+  //             return;
+  //           }
+  //           const blob = res as Blob;
+  //           const url = URL.createObjectURL(blob);
+  //           const a = document.createElement('a');
+  //           a.href = url;
+  //           a.download = fileName ?? info.fileName ?? 'file';
+  //           document.body.appendChild(a);
+  //           a.click();
+  //           a.remove();
+  //           setTimeout(() => URL.revokeObjectURL(url), 1000);
+  //         } catch (e) {
+  //           console.error(e);
+  //           openAlert('ดาวน์โหลดไม่สำเร็จ', (e as Error)?.message ?? 'ดาวน์โหลดไม่สำเร็จ');
+  //         }
+  //       };
 
-        openConfirm('ไฟล์ภายนอก', 'ไฟล์นี้โฮสต์ภายนอก เปิด URL ภายนอกหรือดาวน์โหลดผ่านระบบ? (ตกลง=เปิด, ยกเลิก=ดาวน์โหลด)', async () => {
-          window.open(externalUrl, '_blank');
-        }, async () => {
-          await downloadViaCors();
-        });
-        return;
-      }
+  //       openConfirm('ไฟล์ภายนอก', 'ไฟล์นี้โฮสต์ภายนอก เปิด URL ภายนอกหรือดาวน์โหลดผ่านระบบ? (ตกลง=เปิด, ยกเลิก=ดาวน์โหลด)', async () => {
+  //         window.open(externalUrl, '_blank');
+  //       }, async () => {
+  //         await downloadViaCors();
+  //       });
+  //       return;
+  //     }
 
-      const res = await downloadIncidentAttachmentBlob(id, { proxy: false });
-      if (typeof res === 'string') {
-        window.open(res, '_blank');
-        return;
-      }
-      const blob = res as Blob;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName ?? (info?.fileName ?? 'file');
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (e) {
-      console.error(e);
-      openAlert('ดาวน์โหลดไม่สำเร็จ', (e as Error)?.message ?? 'ดาวน์โหลดไม่สำเร็จ');
-    }
-  }
+  //     const res = await downloadIncidentAttachmentBlob(id, { proxy: false });
+  //     if (typeof res === 'string') {
+  //       window.open(res, '_blank');
+  //       return;
+  //     }
+  //     const blob = res as Blob;
+  //     const url = URL.createObjectURL(blob);
+  //     const a = document.createElement('a');
+  //     a.href = url;
+  //     a.download = fileName ?? (info?.fileName ?? 'file');
+  //     document.body.appendChild(a);
+  //     a.click();
+  //     a.remove();
+  //     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  //   } catch (e) {
+  //     console.error(e);
+  //     openAlert('ดาวน์โหลดไม่สำเร็จ', (e as Error)?.message ?? 'ดาวน์โหลดไม่สำเร็จ');
+  //   }
+  // }
 
   async function downloadFromDialog(id?: number) {
     if (!id) return;
@@ -706,8 +706,8 @@ export default function IncidentAttachments({
             <TableCell>File</TableCell>
             <TableCell>Type</TableCell>
             <TableCell>Size</TableCell>
-            <TableCell>Created</TableCell>
-            <TableCell align="right">...</TableCell>
+            <TableCell>By</TableCell>
+            <TableCell align="right">Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -736,13 +736,13 @@ export default function IncidentAttachments({
                 </Stack>
               </TableCell>
               <TableCell align="right">
-                {/* <Tooltip title="Preview inline">
+                <Tooltip title="Preview inline">
                   <span>
                     <IconButton size="small" onClick={() => onPreview(it.id, it.contentType)}>
                       <VisibilityIcon fontSize="small" />
                     </IconButton>
                   </span>
-                </Tooltip> */}
+                </Tooltip>
                 {/* <Tooltip title="Open (detached)">
                   <IconButton size="small" onClick={() => onOpenDetached(it.id, it.contentType, it.fileName)}>
                     <OpenInNewIcon fontSize="small" />
