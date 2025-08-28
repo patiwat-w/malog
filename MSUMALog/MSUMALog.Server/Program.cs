@@ -234,6 +234,9 @@ builder.Services.AddSwaggerGen(c =>
     // (ถ้าต้องใช้ JWT/OAuth2 ในอนาคต ค่อยเพิ่ม SecurityScheme/Requirement ที่นี่)
 });
 
+// add HttpClient factory so controllers can inject IHttpClientFactory
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
 
 // ===== Middleware Pipeline =====

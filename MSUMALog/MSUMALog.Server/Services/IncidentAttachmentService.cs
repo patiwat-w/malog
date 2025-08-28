@@ -189,10 +189,17 @@ public class IncidentAttachmentService : IIncidentAttachmentService
         var e = await _repo.GetByIdAsync(id, ct);
         if (e == null) return null;
 
-        // ถ้าเป็นไฟล์ external ยังไม่รองรับในนี้
+        // external file -> return metadata only (controller will redirect or proxy)
         if (e.IsExternal)
         {
-            return null;
+            var fileName = e.FileName ?? Path.GetFileName(e.StorageKey ?? string.Empty);
+            return new StoredFileResult(
+                stream: null,
+                fileName: fileName ?? "file",
+                contentType: e.ContentType,
+                length: e.SizeBytes ?? 0,
+                isExternal: true,
+                externalUrl: e.StorageKey ?? e.PhysicalPath);
         }
 
         var physicalPath = e.PhysicalPath;

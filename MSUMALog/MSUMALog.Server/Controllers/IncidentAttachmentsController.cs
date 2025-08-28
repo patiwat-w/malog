@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MSUMALog.Server.DTOs;
 using MSUMALog.Server.Services;
+using System.Net.Http;
 
 namespace MSUMALog.Server.Controllers;
 
@@ -10,10 +11,12 @@ namespace MSUMALog.Server.Controllers;
 public class IncidentAttachmentsController : ControllerBase
 {
     private readonly IIncidentAttachmentService _service;
+    private readonly IHttpClientFactory _httpFactory;
 
-    public IncidentAttachmentsController(IIncidentAttachmentService service)
+    public IncidentAttachmentsController(IIncidentAttachmentService service, IHttpClientFactory httpFactory)
     {
         _service = service;
+        _httpFactory = httpFactory;
     }
 
     [HttpGet("{id:int}")]
@@ -62,13 +65,24 @@ public class IncidentAttachmentsController : ControllerBase
     }
 
     [HttpGet("download/{id:int}")]
-    public async Task<IActionResult> Download(int id, CancellationToken ct = default)
+    public async Task<IActionResult> Download(int id, [FromQuery] bool proxy = false, CancellationToken ct = default)
     {
         var fileResult = await _service.GetFileAsync(id, ct);
         if (fileResult == null) return NotFound();
 
         if (fileResult.IsExternal && !string.IsNullOrWhiteSpace(fileResult.ExternalUrl))
-            return Redirect(fileResult.ExternalUrl);
+        {
+            if (!proxy) return Redirect(fileResult.ExternalUrl);
+
+            // proxy=true -> backend fetches external URL and streams to client
+            var client = _httpFactory.CreateClient();
+            using var resp = await client.GetAsync(fileResult.ExternalUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (!resp.IsSuccessStatusCode) return StatusCode((int)resp.StatusCode);
+            var stream = await resp.Content.ReadAsStreamAsync(ct);
+            var contentType = resp.Content.Headers.ContentType?.ToString() ?? fileResult.ContentType ?? "application/octet-stream";
+            var fileName = fileResult.FileName ?? "file";
+            return File(stream, contentType, fileName);
+        }
 
         return File(fileResult.Stream!, fileResult.ContentType ?? "application/octet-stream", fileResult.FileName);
     }
