@@ -15,6 +15,7 @@ using MSUMALog.Server.Repositories;
 using Microsoft.EntityFrameworkCore;
 using MSUMALog.Server.Data; // adjust to your actual namespace for ApplicationDbContext
 
+
 namespace MSUMALog.Server.Services;
 
 public class IncidentAttachmentService : IIncidentAttachmentService
@@ -25,19 +26,25 @@ public class IncidentAttachmentService : IIncidentAttachmentService
     private readonly UploadsOptions _opts;
     private readonly FileExtensionContentTypeProvider _contentTypeProvider = new();
     private readonly ApplicationDbContext _db; // add
+    private readonly IAuditService _auditService;
+    private readonly AuditConfig _auditConfig;
 
     public IncidentAttachmentService(
         IIncidentAttachmentRepository repo,
         IMapper mapper,
         IOptions<UploadsOptions> opts,
         IWebHostEnvironment env,
-        ApplicationDbContext db) // add
+        ApplicationDbContext db,
+        IAuditService auditService,
+        IOptions<AuditConfig> auditOptions)
     {
         _repo = repo;
         _mapper = mapper;
         _env = env;
         _opts = opts.Value;
         _db = db;
+        _auditService = auditService;
+        _auditConfig = auditOptions.Value;
     }
 
     public async Task<IncidentAttachmentDto?> GetByIdAsync(int id, CancellationToken ct = default)
@@ -103,6 +110,26 @@ public class IncidentAttachmentService : IIncidentAttachmentService
 
         await _repo.AddAsync(entity, ct);
         var reloaded = await _repo.GetByIdAsync(entity.Id, ct);
+
+        // Audit create
+        try
+        {
+            await _auditService.LogEntityChangesAsync(
+                AuditEntityType.IncidentAttachment,
+                entity.Id,
+                oldEntity: null,
+                newEntity: entity,
+                _auditConfig.IncidentAttachmentFields, // <- use config
+                userId: entity.CreatedUserId ?? 0,
+                actionType: AuditActionType.Create,
+                ct: ct,
+                batchId: Guid.NewGuid(),
+                referenceId: entity.IncidentId,
+                referenceEntityName: nameof(AuditEntityType.IncidentReport)
+            );
+        }
+        catch { /* do not fail create if audit fails */ }
+
         return _mapper.Map<IncidentAttachmentDto>(reloaded!);
     }
 
@@ -218,6 +245,25 @@ public class IncidentAttachmentService : IIncidentAttachmentService
 
             await _repo.AddAsync(entity, ct);
             var reloaded = await _repo.GetByIdAsync(entity.Id, ct);
+            // Audit upload/create
+            try
+            {
+                await _auditService.LogEntityChangesAsync(
+                    AuditEntityType.IncidentAttachment,
+                    entity.Id,
+                    oldEntity: null,
+                    newEntity: entity,
+                    _auditConfig.IncidentAttachmentFields, // <- use config
+                    userId: entity.CreatedUserId ?? 0,
+                    actionType: AuditActionType.Create,
+                    ct: ct,
+                    batchId: Guid.NewGuid(),
+                    referenceId: entity.IncidentId,
+                    referenceEntityName: nameof(AuditEntityType.IncidentReport)
+                );
+            }
+            catch { /* ignore audit failure */ }
+
             return _mapper.Map<IncidentAttachmentDto>(reloaded!);
         }
         catch

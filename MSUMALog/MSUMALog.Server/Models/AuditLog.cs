@@ -5,7 +5,8 @@ namespace MSUMALog.Server.Models;
 public enum AuditEntityType
 {
     IncidentReport,
-    IncidentComment
+    IncidentComment,
+    IncidentAttachment
 }
 
 public enum AuditActionType

@@ -211,6 +211,12 @@ public class AuditService(ApplicationDbContext db) : IAuditService
         .Distinct()
         .ToList();
 
+    var iaIds = firstPerBatch.Values
+        .Where(l => l.EntityType == AuditEntityType.IncidentAttachment)
+        .Select(l => l.EntityId)
+        .Distinct()
+        .ToList();
+
     // คิวรีสถานะปัจจุบัน “แบบรวบทีเดียว” (ลด N+1)
     var existsIR = irIds.Count == 0
         ? new HashSet<int>()
@@ -226,9 +232,17 @@ public class AuditService(ApplicationDbContext db) : IAuditService
             .Select(i => i.Id)
             .ToListAsync(ct)).ToHashSet();
 
+    var existsIA = iaIds.Count == 0
+        ? new HashSet<int>()
+        : (await db.IncidentAttachments.AsNoTracking()
+            .Where(i => iaIds.Contains(i.Id))
+            .Select(i => i.Id)
+            .ToListAsync(ct)).ToHashSet();
+
     bool ExistsNow(AuditEntityType et, int id)
         => (et == AuditEntityType.IncidentReport && existsIR.Contains(id))
-        || (et == AuditEntityType.IncidentComment && existsIC.Contains(id));
+        || (et == AuditEntityType.IncidentComment && existsIC.Contains(id))
+        || (et == AuditEntityType.IncidentAttachment && existsIA.Contains(id));
 
     // ---------------- STEP 7: เตรียมชื่อผู้ใช้เฉพาะที่จำเป็น (จากเรคอร์ดแรกของแต่ละแบตช์) ----------------
     var userIds = firstPerBatch.Values.Select(v => v.ChangedByUserId).Distinct().ToList();

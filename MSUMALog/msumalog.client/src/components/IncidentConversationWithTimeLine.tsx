@@ -1,8 +1,8 @@
-import React from "react";
-import { Box, Typography, Paper, Divider, Button, ToggleButtonGroup, ToggleButton, Stack, IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Snackbar, Alert } from "@mui/material";
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { getAuditTimelineByReference, deleteComment, getCommentsByCaseId } from "../api/client";
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Divider, IconButton, Paper, Snackbar, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from "@mui/material";
+import React from "react";
 import type { AuditTimelineDto } from "../api/client";
+import { deleteComment, getAuditTimelineByReference, getCommentsByCaseId } from "../api/client";
 
 import WysiwygMarkdownEditor from './WysiwygMarkdownEditor';
 
@@ -148,7 +148,7 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
                 const importantChanges = batch.changes?.filter(chg => chg.isImportant) ?? [];
                 const otherChanges = batch.changes?.filter(chg => !chg.isImportant) ?? [];
                 const entityExists = batch.entityExists ?? false;
-                const entityType = batch.entityType ?? referenceEntityName;
+                const entityType: 0 | 1 | 2 = batch.entityType as 0 | 1 | 2 ?? 0;
 
                 // กรณี Comment ถูกยกเลิก
                 if (entityType === 1 && !entityExists) {
@@ -160,7 +160,7 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
                     <ul>
                       <li>
                         <Typography >
-                          <strong>Comment ID {batch.entityId}</strong> was posted by <strong>{batch.changedByUser}</strong>
+                          <strong>Comment #{batch.entityId}</strong> was posted by <strong>{batch.changedByUser}</strong>
                         </Typography>
                       </li>
                       <li>
@@ -183,7 +183,7 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
                       <ul>
                         <li>
                           <Typography>
-                            <strong>Comment ID {batch.entityId}</strong> was posted by <strong>{batch.changedByUser}</strong>
+                            <strong>Comment #{batch.entityId}</strong> was posted by <strong>{batch.changedByUser}</strong>
                            
 
                           </Typography>
@@ -193,6 +193,40 @@ export default function IncidentConversationWithTimeLine({ referenceEntityName, 
                             <strong>Message</strong> <strong>{batch?.changes?.[0]?.newValue}</strong>
                            
 
+                          </Typography>
+                        </li>
+                      </ul>
+                      <Divider sx={{ my: 1 }} />
+                    </Box>
+                  );
+                }
+
+                // กรณี Attachment (entityType === 2)
+                if (entityType === 2) {
+                  const fileNameChange = batch.changes?.find(chg =>
+                    chg.fieldName && /file(name)?|storage(key)?|relative(path)?/i.test(chg.fieldName)
+                  )?.newValue ?? '';
+                  const kindChange = batch.changes?.find(chg =>
+                    chg.fieldName && /kind/i.test(chg.fieldName)
+                  )?.newValue ?? '';
+
+                  return (
+                    <Box key={batch.batchId} sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {batch.changedUtc ? new Date(batch.changedUtc).toLocaleString() : 'Invalid date'} Update by {batch.changedByUser}
+                      </Typography>
+                      <ul>
+                        <li>
+                          <Typography>
+                            <strong>Attachment #{batch.entityId}</strong> was attached by <strong>{batch.changedByUser}</strong>
+                          </Typography>
+                        </li>
+                        <li>
+                          <Typography>
+                            <strong>File name</strong> <strong>{fileNameChange || '-'}</strong>
+                          </Typography>
+                          <Typography>
+                            <strong>Kind</strong> <strong>{kindChange || '-'}</strong>
                           </Typography>
                         </li>
                       </ul>
