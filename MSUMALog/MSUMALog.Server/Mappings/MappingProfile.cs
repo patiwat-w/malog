@@ -29,7 +29,9 @@ public class MappingProfile : Profile
             .ForMember(d => d.UpdatedUserName, o => o.MapFrom(s => s.UpdatedUser != null ? ((s.UpdatedUser.FirstName ?? "").Trim() + " " + (s.UpdatedUser.LastName ?? "").Trim()).Trim() : null))
             .ForMember(d => d.UpdatedUserRole, o => o.MapFrom(s => s.UpdatedUser != null ? s.UpdatedUser.Role : null))
             .ForMember(d => d.CreatedUtc, o => o.MapFrom(s => s.CreatedUtc))
-            .ForMember(d => d.UpdatedUtc, o => o.MapFrom(s => s.UpdatedUtc));
+            .ForMember(d => d.UpdatedUtc, o => o.MapFrom(s => s.UpdatedUtc))
+            .ForMember(d => d.EstimateCostMyMA, o => o.MapFrom(s => s.EstimateCostMyMA))
+            .ForMember(d => d.EstimateCostMyMACurrency, o => o.MapFrom(s => s.EstimateCostMyMACurrency));
 
         CreateMap<IncidentReportDto, IncidentReport>()
             .ForMember(d => d.CaseNo, o => o.Ignore()) // CaseNo is server-generated; ignore client value
@@ -48,7 +50,9 @@ public class MappingProfile : Profile
             .ForMember(d => d.ResponsibleName, o => o.MapFrom(s => s.ResponsibleName))
             .ForMember(d => d.ResponsibleLineId, o => o.MapFrom(s => s.ResponsibleLineId))
             .ForMember(d => d.ResponsibleEmail, o => o.MapFrom(s => s.ResponsibleEmail))
-            .ForMember(d => d.ResponsiblePhone, o => o.MapFrom(s => s.ResponsiblePhone));
+            .ForMember(d => d.ResponsiblePhone, o => o.MapFrom(s => s.ResponsiblePhone))
+            .ForMember(d => d.EstimateCostMyMA, o => o.MapFrom(s => s.EstimateCostMyMA))
+            .ForMember(d => d.EstimateCostMyMACurrency, o => o.MapFrom(s => s.EstimateCostMyMACurrency));
 
         CreateMap<ResponsiblePerson, ResponsiblePersonDto>().ReverseMap();
     }

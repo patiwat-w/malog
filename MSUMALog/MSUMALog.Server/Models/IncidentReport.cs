@@ -48,13 +48,13 @@ public class IncidentReport
     [Column(TypeName = "nvarchar(max)")]
     public string? AdditionalInfo { get; set; } = string.Empty;
 
-   [Column(TypeName = "nvarchar(max)")]
+    [Column(TypeName = "nvarchar(max)")]
     public string? InterimAction { get; set; } = string.Empty;
 
     [Column(TypeName = "nvarchar(max)")]
     public string? IntermediateAction { get; set; } = string.Empty;
 
-   [Column(TypeName = "nvarchar(max)")]
+    [Column(TypeName = "nvarchar(max)")]
     public string? LongTermAction { get; set; } = string.Empty;
 
     [MaxLength(50)]
@@ -86,6 +86,14 @@ public class IncidentReport
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedUtc { get; set; }
 
+    // Estimated cost (amount + currency). Default currency = THB (Thai Baht)
+    [DataType(DataType.Currency)]
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal EstimateCostMyMA { get; set; } = 0m;
+
+    [MaxLength(3)]
+    public string EstimateCostMyMACurrency { get; set; } = "THB";
+
     public IncidentReport Clone()
     {
         return new IncidentReport
@@ -116,7 +124,9 @@ public class IncidentReport
             ResponsibleEmail = this.ResponsibleEmail,
             ResponsiblePhone = this.ResponsiblePhone,
             CreatedUtc = this.CreatedUtc,
-            UpdatedUtc = this.UpdatedUtc
+            UpdatedUtc = this.UpdatedUtc,
+            EstimateCostMyMA = this.EstimateCostMyMA,
+            EstimateCostMyMACurrency = this.EstimateCostMyMACurrency
             // เพิ่ม field อื่น ๆ ตามที่มีในคลาส
         };
     }

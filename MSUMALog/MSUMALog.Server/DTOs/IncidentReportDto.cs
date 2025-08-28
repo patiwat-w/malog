@@ -30,6 +30,9 @@ namespace MSUMALog.Server.DTOs
         public string? ResponsibleLineId { get; set; }
         public string? ResponsibleEmail { get; set; }
         public string? ResponsiblePhone { get; set; }
+        // Estimated cost (amount + currency)
+        public decimal? EstimateCostMyMA { get; set; }
+        public string? EstimateCostMyMACurrency { get; set; }
         public DateTime? IncidentDate { get; set; }
         public string? Description { get; set; }
         public DateTime? CreatedUtc { get; set; }
@@ -93,6 +96,12 @@ namespace MSUMALog.Server.DTOs
         public string? ResponsibleLineId { get; set; }
         public string? ResponsibleEmail { get; set; }
         public string? ResponsiblePhone { get; set; }
+
+        [DataType(DataType.Currency)]
+        public decimal EstimateCostMyMA { get; set; } = 0m;
+
+        [Required, StringLength(3)]
+        public string EstimateCostMyMACurrency { get; set; } = "THB";
 
         [BindNever]
         public DateTime? CreatedUtc { get; internal set; }
