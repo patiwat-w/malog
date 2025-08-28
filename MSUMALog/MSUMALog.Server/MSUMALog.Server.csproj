@@ -10,6 +10,11 @@
     <UserSecretsId>24391d2a-6fd3-49d1-b654-e4e06d67cc94</UserSecretsId>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <!-- ทำให้ไฟล์ deps ถูกสร้าง/เก็บข้อมูลที่จำเป็นสำหรับ functional tests -->
+    <PreserveCompilationContext>true</PreserveCompilationContext>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.8" />
