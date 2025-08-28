@@ -1,9 +1,9 @@
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
 } from "@mui/material";
 
 interface ConfirmDialogProps {
@@ -12,6 +12,8 @@ interface ConfirmDialogProps {
   message?: string;
   onClose: () => void;
   onConfirm: () => void;
+  confirmLabel?: string;
+  cancelLabel?: string;
 }
 
 export default function ConfirmDialog({
@@ -20,15 +22,17 @@ export default function ConfirmDialog({
   message = "คุณต้องการดำเนินการต่อหรือไม่?",
   onClose,
   onConfirm,
+  confirmLabel = "OK",
+  cancelLabel = "Cancel",
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>{message}</DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{cancelLabel}</Button>
         <Button onClick={onConfirm} autoFocus>
-          OK
+          {confirmLabel}
         </Button>
       </DialogActions>
     </Dialog>

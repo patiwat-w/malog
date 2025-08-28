@@ -10,7 +10,9 @@ import OpenWithIcon from '@mui/icons-material/OpenWith';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import {
-  Box, Button, Dialog,
+  Box, Button,
+  CircularProgress,
+  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -38,6 +40,11 @@ import {
   getIncidentAttachmentsByIncident,
   uploadIncidentAttachment
 } from '../api/client';
+
+// Add dialog/snackbar components
+import AlertDialog from './AlertDialog';
+import ConfirmDialog from './ConfirmDialog';
+import SnackbarAlert from './SnackbarAlert';
 
 type Props = {
   incidentId: number;
@@ -69,6 +76,21 @@ export default function IncidentAttachments({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const previewWindowRef = useRef<Window | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Dialog / snackbar states and refs for pending actions
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmTitle, setConfirmTitle] = useState<string | undefined>(undefined);
+  const [confirmMessage, setConfirmMessage] = useState<string | undefined>(undefined);
+  const pendingConfirmActionRef = useRef<(() => Promise<void>) | null>(null);
+  const pendingConfirmCancelRef = useRef<(() => Promise<void>) | null>(null);
+
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertTitle, setAlertTitle] = useState<string | undefined>(undefined);
+  const [alertMessage, setAlertMessage] = useState<string | undefined>(undefined);
+
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'info' | 'warning' | 'error'>('info');
 
   // open a new window with a blob URL and auto-revoke when closed
   async function openDetachedWindowWithBlob(blob: Blob, fileName?: string | null, descriptionText?: string | null) {
@@ -202,6 +224,118 @@ export default function IncidentAttachments({
     return res.json();
   }
 
+  // helper to show confirm with optional cancel action
+  function openConfirm(title: string, message: string, confirmAction?: () => Promise<void>, cancelAction?: () => Promise<void>) {
+    setConfirmTitle(title);
+    setConfirmMessage(message);
+    pendingConfirmActionRef.current = confirmAction ?? null;
+    pendingConfirmCancelRef.current = cancelAction ?? null;
+    setConfirmOpen(true);
+  }
+
+  async function handleConfirmOk() {
+    setConfirmOpen(false);
+    const a = pendingConfirmActionRef.current;
+    pendingConfirmActionRef.current = null;
+    pendingConfirmCancelRef.current = null;
+    if (a) {
+      try { await a(); } catch (e) { console.error(e); openAlert('ผิดพลาด', (e as Error)?.message ?? 'ไม่สำเร็จ'); }
+    }
+  }
+
+  async function handleConfirmClose() {
+    setConfirmOpen(false);
+    const c = pendingConfirmCancelRef.current;
+    pendingConfirmActionRef.current = null;
+    pendingConfirmCancelRef.current = null;
+    if (c) {
+      try { await c(); } catch (e) { console.error(e); openAlert('ผิดพลาด', (e as Error)?.message ?? 'ไม่สำเร็จ'); }
+    }
+  }
+
+  function openAlert(title?: string, message?: string) {
+    setAlertTitle(title ?? 'แจ้งเตือน');
+    setAlertMessage(message ?? '');
+    setAlertOpen(true);
+  }
+
+  function showSnackbar(message: string, severity: 'success' | 'info' | 'warning' | 'error' = 'success') {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  }
+
+  // map error -> short friendly message for users
+  async function getFriendlyErrorMessage(err: any) {
+    try {
+      if (err instanceof Response) {
+        const status = err.status;
+        if (status === 413) return 'ไฟล์ใหญ่เกินขนาดที่ระบบรับได้ (413).';
+        if (status === 401) return 'ต้องเข้าสู่ระบบก่อน (401).';
+        if (status === 403) return 'คุณไม่มีสิทธิ์ทำรายการนี้ (403).';
+        if (status === 404) return 'ไม่พบทรัพยากรที่ขอ (404).';
+        if (status >= 500) return 'เกิดข้อผิดพลาดที่เซิร์ฟเวอร์ (5xx).';
+        return `คำขอผิดพลาด (${status}).`;
+      }
+
+      if (err?.response?.status) {
+        const status = err.response.status;
+        if (status === 413) return 'ไฟล์ใหญ่เกินขนาดที่ระบบรับได้ (413).';
+        if (status === 401) return 'ต้องเข้าสู่ระบบก่อน (401).';
+        if (status === 403) return 'คุณไม่มีสิทธิ์ทำรายการนี้ (403).';
+        if (status === 404) return 'ไม่พบทรัพยากรที่ขอ (404).';
+        if (status >= 500) return 'เกิดข้อผิดพลาดที่เซิร์ฟเวอร์ (5xx).';
+        return `คำขอผิดพลาด (${status}).`;
+      }
+
+      const msg = String(err?.message ?? err ?? '');
+      if (msg.toLowerCase().includes('network') || msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('connection') || msg.toLowerCase().includes('reset')) {
+        return 'เชื่อมต่อกับเซิร์ฟเวอร์ไม่สำเร็จ — ตรวจสอบว่าเซิร์ฟเวอร์รัน/เครือข่าย/ใบรับรอง.';
+      }
+
+      return msg || 'เกิดข้อผิดพลาด';
+    } catch {
+      return 'เกิดข้อผิดพลาด';
+    }
+  }
+
+  async function performUploadAction() {
+    if (!selectedFile) return;
+    setUploading(true);
+    try {
+      await uploadIncidentAttachment({ file: selectedFile, incidentId, description: description || undefined, kind: kind || undefined });
+      setSelectedFile(null);
+      setDescription('');
+      setKind('File');
+      await loadList();
+      showSnackbar('อัปโหลดแล้ว', 'success');
+    } catch (err) {
+      console.error(err);
+      const friendly = await getFriendlyErrorMessage(err);
+      openAlert('อัปโหลดไม่สำเร็จ', friendly);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function performCreateLinkAction() {
+    if (!linkUrl) return;
+    setUploading(true);
+    try {
+      await createLinkAttachment({ incidentId, url: linkUrl, description });
+      setLinkUrl('');
+      setDescription('');
+      await loadList();
+      showSnackbar('แนบลิงก์แล้ว', 'success');
+    } catch (err) {
+      console.error(err);
+      const friendly = await getFriendlyErrorMessage(err);
+      openAlert('แนบลิงก์ไม่สำเร็จ', friendly);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function onUpload(e?: React.FormEvent) {
     e?.preventDefault();
 
@@ -215,29 +349,21 @@ export default function IncidentAttachments({
         (it.storageKey && it.storageKey.toLowerCase() === nameLower)
       );
       if (existingFile) {
-        const ok = confirm(`An attachment named "${selectedFile.name}" already exists. Upload anyway?`);
-        if (!ok) return;
+        // ask via ConfirmDialog; if confirmed -> perform upload, else do nothing
+        openConfirm('ไฟล์ซ้ำ', `ไฟล์ชื่อ "${selectedFile.name}" มีอยู่แล้ว อัปโหลดต่อหรือไม่?`, async () => {
+          await performUploadAction();
+        }, async () => { /* cancel => do nothing */ });
+        return;
       }
 
-      setUploading(true);
-      try {
-        await uploadIncidentAttachment({ file: selectedFile, incidentId, description: description || undefined, kind: kind || undefined });
-        setSelectedFile(null);
-        setDescription('');
-        setKind('File');
-        await loadList();
-      } catch (err) {
-        console.error(err);
-        alert((err as Error).message || 'Upload failed');
-      } finally {
-        setUploading(false);
-      }
+      // no duplicate -> perform upload immediately
+      await performUploadAction();
       return;
     }
 
     // link mode
     if (uploadMode === 'link') {
-      if (!linkUrl) { alert('Enter link URL'); return; }
+      if (!linkUrl) { openAlert('ขาด URL', 'กรุณาใส่ URL'); return; }
 
       // duplicate check for link (normalize)
       const u = linkUrl.trim().toLowerCase();
@@ -246,36 +372,31 @@ export default function IncidentAttachments({
         (it.externalUrl && it.externalUrl.trim().toLowerCase() === u)
       );
       if (existingLink) {
-        const ok = confirm(`A link "${linkUrl}" already exists. Attach anyway?`);
-        if (!ok) return;
+        openConfirm('ลิงก์ซ้ำ', `ลิงก์ "${linkUrl}" มีอยู่แล้ว แนบต่อหรือไม่?`, async () => {
+          await performCreateLinkAction();
+        }, async () => { /* cancel */ });
+        return;
       }
 
-      setUploading(true);
-      try {
-        await createLinkAttachment({ incidentId, url: linkUrl, description });
-        setLinkUrl('');
-        setDescription('');
-        await loadList();
-      } catch (err) {
-        console.error(err);
-        alert((err as Error).message || 'Create link failed');
-      } finally {
-        setUploading(false);
-      }
+      // no duplicate
+      await performCreateLinkAction();
       return;
     }
   }
 
   async function onDelete(id?: number) {
     if (!id) return;
-    if (!confirm('Delete attachment?')) return;
-    try {
-      await deleteIncidentAttachment(id);
-      setItems(prev => prev.filter(x => x.id !== id));
-    } catch (e) {
-      console.error(e);
-      alert('Delete failed');
-    }
+    // use confirm dialog; actual delete happens in confirm action
+    openConfirm('ลบไฟล์', 'ต้องการลบไฟล์หรือไม่?', async () => {
+      try {
+        await deleteIncidentAttachment(id);
+        setItems(prev => prev.filter(x => x.id !== id));
+        showSnackbar('ลบแล้ว', 'success');
+      } catch (e) {
+        console.error(e);
+        openAlert('ลบไม่สำเร็จ', (e as Error)?.message ?? 'ลบไม่สำเร็จ');
+      }
+    }, undefined);
   }
 
   async function onPreview(id?: number, contentType?: string | null) {
@@ -313,7 +434,7 @@ export default function IncidentAttachments({
       setPreviewMime(contentType ?? blob.type ?? 'application/octet-stream');
     } catch (e) {
       console.error(e);
-      alert('Preview failed');
+      openAlert('ดูตัวอย่างไม่สำเร็จ', (e as Error)?.message ?? 'ดูตัวอย่างไม่สำเร็จ');
     }
   }
 
@@ -384,7 +505,7 @@ export default function IncidentAttachments({
       }
     } catch (e) {
       console.error(e);
-      alert('Open failed');
+      openAlert('เปิดไฟล์ไม่สำเร็จ', (e as Error)?.message ?? 'เปิดไฟล์ไม่สำเร็จ');
     }
   }
 
@@ -399,24 +520,35 @@ export default function IncidentAttachments({
       }
 
       if (info?.isExternal && info.externalUrl) {
-        if (confirm('This file is hosted externally. Open external URL? (OK=Open, Cancel=Download via CORS if supported)')) {
-          window.open(info.externalUrl, '_blank');
-          return;
-        }
-        const res = await downloadIncidentAttachmentBlob(id, { fetchExternal: true });
-        if (typeof res === 'string') {
-          window.open(res, '_blank');
-          return;
-        }
-        const blob = res as Blob;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName ?? info.fileName ?? 'file';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        // Ask whether to open external URL (OK=Open external, Cancel=Download via CORS)
+        const externalUrl = info.externalUrl;
+        const downloadViaCors = async () => {
+          try {
+            const res = await downloadIncidentAttachmentBlob(id, { fetchExternal: true });
+            if (typeof res === 'string') {
+              window.open(res, '_blank');
+              return;
+            }
+            const blob = res as Blob;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName ?? info.fileName ?? 'file';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          } catch (e) {
+            console.error(e);
+            openAlert('ดาวน์โหลดไม่สำเร็จ', (e as Error)?.message ?? 'ดาวน์โหลดไม่สำเร็จ');
+          }
+        };
+
+        openConfirm('ไฟล์ภายนอก', 'ไฟล์นี้โฮสต์ภายนอก เปิด URL ภายนอกหรือดาวน์โหลดผ่านระบบ? (ตกลง=เปิด, ยกเลิก=ดาวน์โหลด)', async () => {
+          window.open(externalUrl, '_blank');
+        }, async () => {
+          await downloadViaCors();
+        });
         return;
       }
 
@@ -436,7 +568,30 @@ export default function IncidentAttachments({
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
       console.error(e);
-      alert('Download failed');
+      openAlert('ดาวน์โหลดไม่สำเร็จ', (e as Error)?.message ?? 'ดาวน์โหลดไม่สำเร็จ');
+    }
+  }
+
+  async function downloadFromDialog(id?: number) {
+    if (!id) return;
+    try {
+      const res = await downloadIncidentAttachmentBlob(id, { proxy: false, fetchExternal: true });
+      if (typeof res === 'string') {
+        window.open(res, '_blank');
+        return;
+      }
+      const blob = res as Blob;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = previewFileName ?? 'file';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      console.error(e);
+      openAlert('ดาวน์โหลดไม่สำเร็จ', (e as Error)?.message ?? 'ดาวน์โหลดไม่สำเร็จ');
     }
   }
 
@@ -466,30 +621,7 @@ export default function IncidentAttachments({
       await openDetachedWindowWithBlob(blob, items.find(x => x.id === id)?.fileName, items.find(x => x.id === id)?.description ?? null);
     } catch (e) {
       console.error(e);
-      alert('Detach failed');
-    }
-  }
-
-  async function downloadFromDialog(id?: number) {
-    if (!id) return;
-    try {
-      const res = await downloadIncidentAttachmentBlob(id, { proxy: false, fetchExternal: true });
-      if (typeof res === 'string') {
-        window.open(res, '_blank');
-        return;
-      }
-      const blob = res as Blob;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = previewFileName ?? 'file';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (e) {
-      console.error(e);
-      alert('Download failed');
+      openAlert('เปิดแยกไม่สำเร็จ', (e as Error)?.message ?? 'เปิดแยกไม่สำเร็จ');
     }
   }
 
@@ -608,7 +740,8 @@ export default function IncidentAttachments({
 
   // build form panel once so we can place it left/right responsively
   const formPanel = (
-    <Box component="form" onSubmit={onUpload} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+    // render as div to avoid nested <form> when this component is placed inside another form
+    <Box component="div" sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
       <Stack direction="row" spacing={1}>
         <Button variant={uploadMode === 'upload' ? 'contained' : 'outlined'} onClick={() => setUploadMode('upload')} startIcon={<UploadFileIcon />}>File</Button>
         <Button variant={uploadMode === 'link' ? 'contained' : 'outlined'} onClick={() => setUploadMode('link')} startIcon={<LinkIcon />}>Link</Button>
@@ -672,6 +805,8 @@ export default function IncidentAttachments({
             </Paper>
           )}
 
+          {/* no progress bar; button shows loading state */}
+
           {/* description separate row (full width textarea) */}
           <Box>
             <TextField value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" multiline minRows={3} fullWidth size="small" />
@@ -685,13 +820,13 @@ export default function IncidentAttachments({
               disabled={uploading || !selectedFile}
               onClick={async () => {
                 if (!selectedFile) {
-                  alert('Please choose a file first.');
+                  openAlert('ผิดพลาด', 'กรุณาเลือกไฟล์ก่อน');
                   return;
                 }
                 await onUpload();
               }}
             >
-              {uploading ? 'Uploading...' : 'Upload'}
+              {uploading ? <CircularProgress size={16} color="inherit" /> : 'Upload'}
             </Button>
             <Button
               variant="outlined"
@@ -707,7 +842,7 @@ export default function IncidentAttachments({
           <TextField value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="Link URL" fullWidth size="small" />
           <TextField value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description (optional)" multiline minRows={3} fullWidth size="small" />
           <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-            <Button type="submit" variant="contained" startIcon={<LinkIcon />} disabled={!linkUrl || uploading}>{uploading ? 'Uploading...' : 'Upload'}</Button>
+            <Button variant="contained" startIcon={<LinkIcon />} disabled={!linkUrl || uploading} onClick={async () => await onUpload()}>{uploading ? 'Uploading...' : 'Upload'}</Button>
             <Button variant="outlined" onClick={() => { setLinkUrl(''); setDescription(''); }} disabled={!linkUrl || uploading}>CLEAR</Button>
           </Box>
         </Box>
@@ -744,9 +879,21 @@ export default function IncidentAttachments({
         </DialogTitle>
         <DialogContent sx={{ minHeight: 200, display: 'flex', flexDirection: 'column', gap: 1 }}>
           {previewDescription && (
-            <Box sx={{ width: '100%' }}>
-              <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>{previewDescription}</Typography>
-            </Box>
+            <Paper variant="outlined" sx={{ width: '100%', p: 2, bgcolor: 'background.paper' }}>
+              <Typography
+                variant="body1"
+                component="div"
+                sx={{
+                  color: 'text.primary',
+                  whiteSpace: 'pre-wrap',
+                  fontSize: { xs: 14, sm: 15 },
+                  lineHeight: 1.5,
+                  wordBreak: 'break-word'
+                }}
+              >
+                {previewDescription}
+              </Typography>
+            </Paper>
           )}
           {previewExternalUrl && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'center', p: 1 }}>
@@ -780,6 +927,19 @@ export default function IncidentAttachments({
           <IconButton size="small" onClick={closePreview}><CloseIcon /></IconButton>
         </DialogActions>
       </Dialog>
+
+      {/* Confirm / Alert / Snackbar components */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title={confirmTitle}
+        message={confirmMessage}
+        onClose={handleConfirmClose}
+        onConfirm={handleConfirmOk}
+        confirmLabel="ตกลง"
+        cancelLabel="ยกเลิก"
+      />
+      <AlertDialog open={alertOpen} title={alertTitle ?? 'แจ้งเตือน'} message={alertMessage ?? ''} onClose={() => setAlertOpen(false)} />
+      <SnackbarAlert open={snackbarOpen} message={snackbarMessage} severity={snackbarSeverity} onClose={() => setSnackbarOpen(false)} />
     </Box>
   );
 }

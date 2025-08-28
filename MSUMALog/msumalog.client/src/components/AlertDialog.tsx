@@ -1,9 +1,9 @@
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Typography,
 } from "@mui/material";
 
@@ -12,6 +12,7 @@ interface AlertDialogProps {
   title: string;
   message: string;
   onClose: () => void;
+  okLabel?: string;
 }
 
 export default function AlertDialog({
@@ -19,6 +20,7 @@ export default function AlertDialog({
   title,
   message,
   onClose,
+  okLabel = "OK",
 }: AlertDialogProps) {
   return (
     <Dialog open={open} onClose={onClose}>
@@ -28,7 +30,7 @@ export default function AlertDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} autoFocus>
-          OK
+          {okLabel}
         </Button>
       </DialogActions>
     </Dialog>
